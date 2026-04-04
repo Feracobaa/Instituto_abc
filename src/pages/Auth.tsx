@@ -241,43 +241,7 @@ export default function Auth() {
                     </div>
                   </div>
 
-                  {/* Role selector cards */}
-                  <div className="space-y-2">
-                    <Label className="text-white/80 text-sm">Tipo de Usuario</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {([
-                        { value: 'rector', label: 'Rector', icon: Shield, desc: 'Gestión completa' },
-                        { value: 'profesor', label: 'Profesor', icon: GraduationCap, desc: 'Calificaciones y clases' },
-                      ] as const).map(({ value, label, icon: Icon, desc }) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setRegisterData({ ...registerData, role: value })}
-                          className={cn(
-                            "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 text-center",
-                            registerData.role === value
-                              ? value === 'rector'
-                                ? 'border-rector bg-rector/25 text-white shadow-glow-rector'
-                                : 'border-profesor bg-profesor/25 text-white shadow-glow-profesor'
-                              : 'border-white/15 bg-white/5 text-white/50 hover:border-white/30 hover:text-white/70'
-                          )}
-                        >
-                          <div className={cn(
-                            "w-9 h-9 rounded-lg flex items-center justify-center",
-                            registerData.role === value
-                              ? value === 'rector' ? 'gradient-rector' : 'gradient-profesor'
-                              : 'bg-white/10'
-                          )}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold">{label}</p>
-                            <p className="text-[11px] opacity-70">{desc}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Ocultamos el selector de roles para que todos los registros públicos sean Profesor por defecto */}
 
                   <Button type="submit" className="w-full gradient-profesor border-0 hover:opacity-90 h-10 font-semibold" disabled={isLoading}>
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
