@@ -3,7 +3,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RoleBadge } from "@/components/ui/RoleBadge";
 import {
-  Users, GraduationCap, BookOpen, ClipboardList,
+  Users, GraduationCap, BookOpen, ClipboardList, Award,
   Loader2, Calendar, LayoutGrid, AlertTriangle, TrendingUp
 } from "lucide-react";
 import {
@@ -72,6 +72,14 @@ const Index = () => {
       : null;
     return { name: grade.name, avg, count: gradeStudents.length };
   }) ?? [];
+
+  // Top 5 Students Global (Rector)
+  const studentAverages = students?.map(student => {
+    const records = gradeRecords?.filter(r => r.student_id === student.id) || [];
+    const avg = records.length > 0 ? records.reduce((a, r) => a + r.grade, 0) / records.length : 0;
+    return { ...student, avg, gradesCount: records.length };
+  }).filter(s => s.gradesCount > 0) || [];
+  const topStudents = [...studentAverages].sort((a, b) => b.avg - a.avg).slice(0, 5);
 
   // Profesor: pending scores (students without any grade this period)
   const mySubjectIds = subjects
@@ -248,43 +256,80 @@ const Index = () => {
 
         {/* === BOTTOM PANELS === */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Today's schedule */}
+          {/* Left Bottom Panel: Honor Roll for Rector, Schedule for Profesor */}
           <div className="bg-card rounded-xl border shadow-card p-6 animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary" />
-                <h3 className="font-bold text-foreground font-heading">
-                  {isRector ? 'Clases de Hoy' : 'Mi Horario de Hoy'}
-                </h3>
-              </div>
-              <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-md">
-                {dayNames[adjustedDay]}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {myTodaySchedule.length > 0 ? myTodaySchedule.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group"
-                >
-                  <div className={cn("w-1 h-10 rounded-full flex-shrink-0", entry.subjects?.color || 'bg-primary')} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground truncate">{entry.subjects?.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {entry.grades?.name}{entry.teachers?.full_name && ` • ${entry.teachers.full_name}`}
-                    </p>
+            {isRector ? (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <Award className="w-5 h-5 text-yellow-500" />
+                  <h3 className="font-bold text-foreground font-heading">Cuadro de Honor Top 5</h3>
+                </div>
+                <div className="space-y-3">
+                  {topStudents.length > 0 ? topStudents.map((student, i) => (
+                    <div key={student.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm",
+                          i === 0 ? "bg-yellow-100 text-yellow-700" :
+                          i === 1 ? "bg-slate-200 text-slate-700" :
+                          i === 2 ? "bg-orange-100 text-orange-800" : "bg-primary/10 text-primary"
+                        )}>
+                          {i + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{student.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{student.grades?.name || 'Estudiante'}</p>
+                        </div>
+                      </div>
+                      <div className="px-2 py-1 rounded bg-success/15 text-success font-bold text-sm shadow-sm">
+                        {student.avg.toFixed(1)}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <Award className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                      <p className="text-sm text-muted-foreground">Aún no hay calificaciones para el cuadro de honor</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <h3 className="font-bold text-foreground font-heading">Mi Horario de Hoy</h3>
                   </div>
-                  <span className="text-xs font-mono font-semibold text-muted-foreground tabular-nums flex-shrink-0">
-                    {entry.start_time?.slice(0, 5)}
+                  <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-md">
+                    {dayNames[adjustedDay]}
                   </span>
                 </div>
-              )) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <LayoutGrid className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">No hay clases programadas para hoy</p>
+                <div className="space-y-2">
+                  {myTodaySchedule.length > 0 ? myTodaySchedule.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group"
+                    >
+                      <div className={cn("w-1 h-10 rounded-full flex-shrink-0", entry.subjects?.color || 'bg-primary')} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{entry.subjects?.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {entry.grades?.name}{entry.teachers?.full_name && ` • ${entry.teachers.full_name}`}
+                        </p>
+                      </div>
+                      <span className="text-xs font-mono font-semibold text-muted-foreground tabular-nums flex-shrink-0">
+                        {entry.start_time?.slice(0, 5)}
+                      </span>
+                    </div>
+                  )) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <LayoutGrid className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                      <p className="text-sm text-muted-foreground">No hay clases programadas para hoy</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
           {/* Recent grades */}
