@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useSubjects, useCreateSubject } from '@/hooks/useSchoolData';
+import { useSubjects, useCreateSubject, useUpdateSubject } from '@/hooks/useSchoolData';
 import { Loader2 } from 'lucide-react';
 
 const COLORS = [
@@ -21,11 +21,13 @@ const COLORS = [
 interface SubjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  subject?: { id: string; name: string; color: string; parent_id?: string | null } | null;
 }
 
-export function SubjectFormDialog({ open, onOpenChange }: SubjectFormDialogProps) {
+export function SubjectFormDialog({ open, onOpenChange, subject }: SubjectFormDialogProps) {
   const { data: subjects } = useSubjects();
   const createSubject = useCreateSubject();
+  const updateSubject = useUpdateSubject();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -33,13 +35,35 @@ export function SubjectFormDialog({ open, onOpenChange }: SubjectFormDialogProps
     parent_id: 'none'
   });
 
+  useEffect(() => {
+    if (subject) {
+      setFormData({
+        name: subject.name,
+        color: subject.color || 'bg-blue-500',
+        parent_id: subject.parent_id || 'none'
+      });
+    } else if (!open) {
+      setFormData({ name: '', color: 'bg-blue-500', parent_id: 'none' });
+    }
+  }, [subject, open]);
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) return;
-    await createSubject.mutateAsync({
-      name: formData.name.trim().toUpperCase(),
-      color: formData.color,
-      parent_id: formData.parent_id === 'none' ? null : formData.parent_id
-    });
+    
+    if (subject && subject.id) {
+      await updateSubject.mutateAsync({
+        id: subject.id,
+        name: formData.name.trim().toUpperCase(),
+        color: formData.color,
+        parent_id: formData.parent_id === 'none' ? null : formData.parent_id
+      });
+    } else {
+      await createSubject.mutateAsync({
+        name: formData.name.trim().toUpperCase(),
+        color: formData.color,
+        parent_id: formData.parent_id === 'none' ? null : formData.parent_id
+      });
+    }
     setFormData({ name: '', color: 'bg-blue-500', parent_id: 'none' });
     onOpenChange(false);
   };
@@ -48,7 +72,7 @@ export function SubjectFormDialog({ open, onOpenChange }: SubjectFormDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nueva Materia o Sub-materia</DialogTitle>
+          <DialogTitle>{subject ? 'Editar Materia' : 'Nueva Materia o Sub-materia'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
@@ -89,9 +113,9 @@ export function SubjectFormDialog({ open, onOpenChange }: SubjectFormDialogProps
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={createSubject.isPending || !formData.name.trim()}>
-              {createSubject.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Guardar Materia
+            <Button onClick={handleSubmit} disabled={createSubject.isPending || updateSubject.isPending || !formData.name.trim()}>
+              {(createSubject.isPending || updateSubject.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {subject ? 'Guardar Cambios' : 'Guardar Materia'}
             </Button>
           </div>
         </div>

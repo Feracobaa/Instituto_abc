@@ -459,6 +459,32 @@ export function useCreateSubject() {
   });
 }
 
+export function useUpdateSubject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { id: string; name: string; color: string; parent_id?: string | null }) => {
+      const { id, ...updateData } = data;
+      const { data: subject, error } = await supabase
+        .from('subjects')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return subject;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      toast({ title: 'Materia actualizada exitosamente' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error al actualizar materia', description: error.message, variant: 'destructive' });
+    }
+  });
+}
+
 export function useCreateSchedule() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

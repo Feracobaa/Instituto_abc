@@ -6,7 +6,7 @@ import { SubjectFormDialog } from "@/components/subjects/SubjectFormDialog";
 import { Button } from "@/components/ui/button";
 import {
   BookOpen, Users, Loader2, Calculator, FlaskConical, Languages, Music,
-  Palette, Globe, Heart, Dumbbell, Computer, Microscope, Plus
+  Palette, Globe, Heart, Dumbbell, Computer, Microscope, Plus, Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,7 @@ const Materias = () => {
   const { userRole, teacherId } = useAuth();
   const isRector = userRole === 'rector';
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<any>(null);
 
   // Calcula estudiantes de manera híbrida para mejor Experiencia de Usuario:
   // 1. Si la materia ya está en algún horario, cuenta matemáticamente los niños de esos salones.
@@ -114,7 +115,7 @@ const Materias = () => {
             </p>
           </div>
           {isRector && (
-            <Button onClick={() => setDialogOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
+            <Button onClick={() => { setSelectedSubject(null); setDialogOpen(true); }} className="gap-2 bg-primary hover:bg-primary/90">
               <Plus className="w-4 h-4" />
               Nueva Materia
             </Button>
@@ -137,7 +138,16 @@ const Materias = () => {
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 {/* Colored header with icon */}
-                <div className={cn("p-5 flex items-center justify-between", subject.color)}>
+                <div className={cn("p-5 flex items-center justify-between relative", subject.color)}>
+                  {isRector && (
+                    <button 
+                      onClick={() => { setSelectedSubject(subject); setDialogOpen(true); }}
+                      className="absolute top-3 right-3 text-white/60 hover:text-white hover:bg-white/20 p-1.5 rounded-md transition-colors"
+                      title="Editar materia"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
                   <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
                     <SubjectIcon className="w-6 h-6 text-white" />
                   </div>
@@ -202,6 +212,7 @@ const Materias = () => {
         <SubjectFormDialog 
           open={dialogOpen} 
           onOpenChange={setDialogOpen} 
+          subject={selectedSubject}
         />
       )}
     </MainLayout>
