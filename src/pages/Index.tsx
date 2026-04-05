@@ -54,7 +54,9 @@ const Index = () => {
     : allTodaySchedule.filter(s => s.teacher_id === teacherId).slice(0, 4);
 
   // Recent grades
-  const recentGrades = gradeRecords?.slice(0, 5) || [];
+  const recentGrades = isRector 
+    ? (gradeRecords?.slice(0, 5) || [])
+    : (gradeRecords?.filter(r => r.teacher_id === teacherId)?.slice(0, 5) || []);
 
   // Rector alert: grades below threshold
   const gradesBelow3 = gradeRecords?.filter(r => r.grade < 3) || [];

@@ -91,7 +91,7 @@ const Calificaciones = () => {
   };
 
   const getStudentGrades = (studentId: string) =>
-    gradeRecords?.filter(r => r.student_id === studentId) || [];
+    gradeRecords?.filter(r => r.student_id === studentId && (isRector || r.teacher_id === teacherId)) || [];
 
   const handleAddGrade = (studentId: string) => {
     setEditingRecord({ student_id: studentId, subject_id: '', grade: 3, achievements: '', comments: '' });
