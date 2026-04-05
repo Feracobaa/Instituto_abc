@@ -44,35 +44,42 @@ const Materias = () => {
   const getStudentCountForSubject = (subjectId: string) => {
     if (!students) return 0;
     
-    const scheduledGradeIds = schedules
-      ? new Set(schedules.filter(s => s.subject_id === subjectId).map(s => s.grade_id))
-      : new Set();
+    let relevantSchedules = schedules?.filter(s => s.subject_id === subjectId) || [];
+    if (!isRector) {
+      relevantSchedules = relevantSchedules.filter(s => s.teacher_id === teacherId);
+    }
+    const scheduledGradeIds = new Set(relevantSchedules.map(s => s.grade_id));
     
-    // Si ya la asignó en Horarios, el conteo es estricto y exacto.
     if (scheduledGradeIds.size > 0) {
       return students.filter(s => s.grade_id && scheduledGradeIds.has(s.grade_id)).length;
     }
     
-    // Fallback si el Rector aún no ha armado los horarios:
     const subject = subjects?.find(s => s.id === subjectId);
     if (subject && !(subject as any).parent_id) {
-      // Es materia principal (las 11 universales), asumimos Primaria por defecto visual
+      if (!isRector) return 0; // Un profesor solo debería ver números si tiene horario asignado
       return students.filter(s => s.grades && s.grades.level >= 1 && s.grades.level <= 5).length;
     }
     
-    // Es sub-materia y no está agendada
     return 0;
   };
 
-  const getTeachersForSubject = (subjectId: string) =>
-    teachers?.filter(t => t.teacher_subjects?.some(ts => ts.subject_id === subjectId)) || [];
+  const getTeachersForSubject = (subjectId: string) => {
+    let subjectTeachers = teachers?.filter(t => t.teacher_subjects?.some(ts => ts.subject_id === subjectId)) || [];
+    if (!isRector) {
+      subjectTeachers = subjectTeachers.filter(t => t.id === teacherId);
+    }
+    return subjectTeachers;
+  };
 
   const visibleSubjects = isRector 
     ? subjects 
     : subjects?.filter(s => getTeachersForSubject(s.id).some(t => t.id === teacherId));
 
   const getSubjectAvg = (subjectId: string) => {
-    const records = gradeRecords?.filter(r => r.subject_id === subjectId) ?? [];
+    let records = gradeRecords?.filter(r => r.subject_id === subjectId) ?? [];
+    if (!isRector) {
+      records = records.filter(r => r.teacher_id === teacherId);
+    }
     if (records.length === 0) return null;
     return records.reduce((a, r) => a + r.grade, 0) / records.length;
   };
