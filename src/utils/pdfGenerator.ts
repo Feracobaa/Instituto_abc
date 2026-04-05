@@ -25,20 +25,18 @@ interface Period {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const INST = {
-  republic:    'REPÚBLICA DE COLOMBIA',
-  ministry:    'MINISTERIO DE EDUCACIÓN NACIONAL',
-  department:  'DEPARTAMENTO DEL MAGDALENA',
-  name:        'INSTITUCIÓN EDUCATIVA INSTITUTO PEDAGÓGICO ABC',
-  address:     'Calle 7 #14-42 - Ciénaga, Magdalena',
-  phone:       'Tel: (605) 000-0000',
-  dane:        'DANE: 000000000000',
-  nit:         'NIT: 000.000.000-0',
-  resolution:  'Resolución de Aprobación: 0000 del 00/00/0000',
+  republic: 'REPÚBLICA DE COLOMBIA',
+  ministry: 'MINISTERIO DE EDUCACIÓN NACIONAL',
+  department: 'DEPARTAMENTO DEL MAGDALENA',
+  name: 'INSTITUCIÓN EDUCATIVA INSTITUTO PEDAGÓGICO ABC',
+  address: 'Calle 7 #14-42 - Ciénaga, Magdalena',
+  phone: 'Tel: 3104755752',
+  nit: 'NIT: 39.144.200-1',
 };
 
 const PREESCOLAR_GRADES = [
-  'párvulo','pre-jardín','jardín','transición','preescolar',
-  'parvulo','pre-jardin','jardin','transicion',
+  'párvulo', 'pre-jardín', 'jardín', 'transición', 'preescolar',
+  'parvulo', 'pre-jardin', 'jardin', 'transicion',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,11 +89,11 @@ async function drawHeader(doc: jsPDF, logoB64: string | null): Promise<number> {
   // Outer border
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(1.2);
-  doc.rect(margin, 8, pageWidth - margin * 2, 48);
+  doc.rect(margin, 8, pageWidth - margin * 2, 43);
 
   // Inner border (double line effect)
   doc.setLineWidth(0.3);
-  doc.rect(margin + 1.5, 9.5, pageWidth - margin * 2 - 3, 45);
+  doc.rect(margin + 1.5, 9.5, pageWidth - margin * 2 - 3, 40);
 
   // Logo left side
   if (logoB64) {
@@ -109,15 +107,14 @@ async function drawHeader(doc: jsPDF, logoB64: string | null): Promise<number> {
 
   // Center text block
   doc.setTextColor(0, 0, 0);
-  centerText(doc, INST.republic,   18, 7,  'bold');
-  centerText(doc, INST.ministry,   23, 7,  'bold');
-  centerText(doc, INST.department, 28, 7.5,'bold');
-  centerText(doc, INST.name,       34, 9,  'bold');
-  centerText(doc, INST.address,    39, 6.5,'normal');
-  centerText(doc, `${INST.phone}   ${INST.dane}   ${INST.nit}`, 44, 6,'normal');
-  centerText(doc, INST.resolution, 49, 6, 'normal');
+  centerText(doc, INST.republic, 18, 7, 'bold');
+  centerText(doc, INST.ministry, 23, 7, 'bold');
+  centerText(doc, INST.department, 28, 7.5, 'bold');
+  centerText(doc, INST.name, 34, 9, 'bold');
+  centerText(doc, INST.address, 39, 6.5, 'normal');
+  centerText(doc, `${INST.phone}   ${INST.nit}`, 44, 6, 'normal');
 
-  return 62; // nextY after header
+  return 57; // nextY after header
 }
 
 // ─── Title Banner ─────────────────────────────────────────────────────────────
@@ -159,27 +156,27 @@ function drawStudentInfo(doc: jsPDF, student: Student, period: Period, y: number
   const r1y = y + 7;
   const labelGap = 3;
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');   doc.text('ESTUDIANTE:', margin + labelGap, r1y);
+  doc.setFont('helvetica', 'bold'); doc.text('ESTUDIANTE:', margin + labelGap, r1y);
   doc.setFont('helvetica', 'normal'); doc.text(' ' + student.full_name.toUpperCase(), margin + 28, r1y);
-  doc.setFont('helvetica', 'bold');   doc.text('GRADO:', margin + w * 0.55 + labelGap, r1y);
+  doc.setFont('helvetica', 'bold'); doc.text('GRADO:', margin + w * 0.55 + labelGap, r1y);
   doc.setFont('helvetica', 'normal'); doc.text(' ' + (student.grades?.name?.toUpperCase() || 'N/A'), margin + w * 0.55 + 20, r1y);
 
   // Row 2
   const r2y = y + 14;
-  doc.setFont('helvetica', 'bold');   doc.text('PERÍODO:', margin + labelGap, r2y);
+  doc.setFont('helvetica', 'bold'); doc.text('PERÍODO:', margin + labelGap, r2y);
   doc.setFont('helvetica', 'normal'); doc.text(' ' + period.name.toUpperCase(), margin + 28, r2y);
-  doc.setFont('helvetica', 'bold');   doc.text('AÑO LECTIVO:', margin + w * 0.55 + labelGap, r2y);
+  doc.setFont('helvetica', 'bold'); doc.text('AÑO LECTIVO:', margin + w * 0.55 + labelGap, r2y);
   doc.setFont('helvetica', 'normal'); doc.text(' ' + new Date().getFullYear().toString(), margin + w * 0.55 + 30, r2y);
 
   // Row 3
   const r3y = y + 21;
-  const formattedDeliveryDate = deliveryDate 
-    ? deliveryDate.split('-').reverse().join('/') 
+  const formattedDeliveryDate = deliveryDate
+    ? deliveryDate.split('-').reverse().join('/')
     : new Date().toLocaleDateString('es-CO');
 
-  doc.setFont('helvetica', 'bold');   doc.text('FECHA ENTREGA:', margin + labelGap, r3y);
+  doc.setFont('helvetica', 'bold'); doc.text('FECHA ENTREGA:', margin + labelGap, r3y);
   doc.setFont('helvetica', 'normal'); doc.text(' ' + formattedDeliveryDate, margin + 33, r3y);
-  doc.setFont('helvetica', 'bold');   doc.text('DIRECTOR(A) DE GRUPO:', margin + w * 0.55 + labelGap, r3y);
+  doc.setFont('helvetica', 'bold'); doc.text('DIRECTOR(A) DE GRUPO:', margin + w * 0.55 + labelGap, r3y);
   doc.setFont('helvetica', 'normal'); doc.text(' _______________________', margin + w * 0.55 + 42, r3y);
 
   return y + bh + 3;
@@ -202,10 +199,10 @@ function drawScaleLegend(doc: jsPDF, y: number): number {
   doc.text('ESCALA VALORACIÓN:', margin + 2, y + 5.5);
 
   const labels = [
-    { label: 'SUPERIOR', range: '4.6–5.0', color: [21, 128, 61]  as [number,number,number] },
-    { label: 'ALTO',     range: '4.0–4.5', color: [29, 78, 216]  as [number,number,number] },
-    { label: 'BÁSICO',   range: '3.0–3.9', color: [180, 120, 0]  as [number,number,number] },
-    { label: 'BAJO',     range: '1.0–2.9', color: [185, 28, 28]  as [number,number,number] },
+    { label: 'SUPERIOR', range: '4.6–5.0', color: [21, 128, 61] as [number, number, number] },
+    { label: 'ALTO', range: '4.0–4.5', color: [29, 78, 216] as [number, number, number] },
+    { label: 'BÁSICO', range: '3.0–3.9', color: [180, 120, 0] as [number, number, number] },
+    { label: 'BAJO', range: '1.0–2.9', color: [185, 28, 28] as [number, number, number] },
   ];
 
   // Calculate total content width to distribute evenly
@@ -313,7 +310,7 @@ function buildPrimariaTable(
     },
     columnStyles: {
       0: { cellWidth: 38, fontStyle: 'bold', fontSize: 7 },        // Asignaturas
-      1: { cellWidth: 8,  halign: 'center', fontSize: 7 },         // IHS
+      1: { cellWidth: 8, halign: 'center', fontSize: 7 },         // IHS
       2: { cellWidth: 10, halign: 'center', fontSize: 7.5 },       // P1
       3: { cellWidth: 10, halign: 'center', fontSize: 7.5 },       // P2
       4: { cellWidth: 10, halign: 'center', fontSize: 7.5 },       // P3
@@ -399,21 +396,21 @@ function buildPreescolarTable(
   autoTable(doc, {
     startY,
     head: [[
-      { content: 'DIMENSIONES / ASPECTOS',   styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'I.H.',                     styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'P1',                       styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'P2',                       styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'P3',                       styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'P4',                       styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'LOGROS Y DIFICULTADES',    styles: { halign: 'center', fillColor: HEAD_FILL } },
-      { content: 'NIVEL DE DESEMPEÑO',       styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'DIMENSIONES / ASPECTOS', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'I.H.', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'P1', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'P2', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'P3', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'P4', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'LOGROS Y DIFICULTADES', styles: { halign: 'center', fillColor: HEAD_FILL } },
+      { content: 'NIVEL DE DESEMPEÑO', styles: { halign: 'center', fillColor: HEAD_FILL } },
     ]],
     body: rows,
     theme: 'grid',
     headStyles: { textColor: 255, fontStyle: 'bold', fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 40, fontStyle: 'bold', fontSize: 8 },
-      1: { cellWidth: 8,  halign: 'center', fontSize: 8 },
+      1: { cellWidth: 8, halign: 'center', fontSize: 8 },
       2: { cellWidth: 10, halign: 'center', fontSize: 8 },
       3: { cellWidth: 10, halign: 'center', fontSize: 8 },
       4: { cellWidth: 10, halign: 'center', fontSize: 8 },
@@ -467,9 +464,9 @@ function drawSignatures(doc: jsPDF, y: number): number {
   const spacing = (usableWidth - lineLen * 3) / 2; // even gaps between the 3 blocks
 
   const positions = [
-    { x: margin,                              label: 'RECTOR(A)',            sub: 'Firma y Sello' },
-    { x: margin + lineLen + spacing,          label: 'DIRECTOR(A) DE GRUPO', sub: 'Firma' },
-    { x: margin + (lineLen + spacing) * 2,    label: 'ACUDIENTE',            sub: 'Firma y C.C.' },
+    { x: margin, label: 'RECTOR(A)', sub: 'Firma y Sello' },
+    { x: margin + lineLen + spacing, label: 'DIRECTOR(A) DE GRUPO', sub: 'Firma' },
+    { x: margin + (lineLen + spacing) * 2, label: 'ACUDIENTE', sub: 'Firma y C.C.' },
   ];
 
   doc.setFontSize(7.5);
@@ -504,7 +501,7 @@ function drawFooter(doc: jsPDF) {
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(80, 80, 80);
   doc.text(
-    `${INST.name}  •  ${INST.address}  •  ${INST.dane}  •  ${INST.nit}`,
+    `${INST.name}  •  ${INST.address}  •  ${INST.nit}`,
     pageWidth / 2, y,
     { align: 'center' }
   );
@@ -514,7 +511,7 @@ function drawFooter(doc: jsPDF) {
 // ─── Watermark ────────────────────────────────────────────────────────────────
 
 function drawWatermark(doc: jsPDF, logoB64: string) {
-  const pageWidth  = doc.internal.pageSize.getWidth();
+  const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   // @ts-ignore
   doc.setGState(new doc.GState({ opacity: 0.05 }));
@@ -662,7 +659,7 @@ export async function generateSchedulePDF(
   timeSlots: string[]
 ) {
   const doc = new jsPDF('landscape');
-  const pageWidth  = doc.internal.pageSize.getWidth();
+  const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const logoB64 = await getLogoBase64();
 
@@ -697,7 +694,7 @@ export async function generateSchedulePDF(
     for (let d = 0; d < 5; d++) {
       const e = getEntry(d, time);
       row.push(e?.subjects
-        ? `${e.subjects.name}\n${e.teachers?.full_name || ''}\n${e.start_time?.slice(0,5)} – ${e.end_time?.slice(0,5)}`
+        ? `${e.subjects.name}\n${e.teachers?.full_name || ''}\n${e.start_time?.slice(0, 5)} – ${e.end_time?.slice(0, 5)}`
         : '—');
     }
     return row;

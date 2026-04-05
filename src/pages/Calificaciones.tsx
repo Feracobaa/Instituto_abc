@@ -2,7 +2,9 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import {
   useGrades, useStudents, useGradeRecords, useAcademicPeriods,
   useSubjects, useTeachers, useCreateGradeRecord, useUpdateGradeRecord, 
-  useDeleteGradeRecord, useSchedules
+  useDeleteGradeRecord, useSchedules,
+  usePreescolarEvaluations, useCreatePreescolarEvaluation,
+  useUpdatePreescolarEvaluation, useDeletePreescolarEvaluation
 } from "@/hooks/useSchoolData";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,10 +17,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Loader2, FileText, Pencil, ClipboardList, Trash2, CalendarDays } from "lucide-react";
-import { downloadReportCard } from "@/utils/pdfGenerator";
+import { downloadReportCard } from "@/utils/pdfGenerator"; // Reemplazaremos después por el de preescolar
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { PREESCOLAR_DIMENSIONS } from "@/utils/constants";
 
 const gradeOptions = [
   { value: 5, label: '5', sublabel: 'Superior', color: 'bg-emerald-500 hover:bg-emerald-600' },
@@ -42,6 +45,22 @@ const Calificaciones = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [deliveryDate, setDeliveryDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
+  // Derived properties
+  const selectedGradeData = grades?.find(g => g.id === selectedGrade);
+  
+  // Detección robusta por nombre para abarcar párvulo, pre-jardín, jardín, transición y preescolar
+  const normalizedGradeName = selectedGradeData?.name?.toLowerCase().trim() || '';
+  const isPreescolar = 
+    normalizedGradeName.includes('párvulo') || 
+    normalizedGradeName.includes('parvulo') || 
+    normalizedGradeName.includes('pre-jardín') || 
+    normalizedGradeName.includes('pre-jardin') || 
+    normalizedGradeName.includes('jardín') || 
+    normalizedGradeName.includes('jardin') || 
+    normalizedGradeName.includes('transición') || 
+    normalizedGradeName.includes('transicion') || 
+    normalizedGradeName.includes('preescolar');
+
   // Auto-select active period on load
   useEffect(() => {
     if (activePeriod && !selectedPeriod) {
@@ -56,7 +75,7 @@ const Calificaciones = () => {
     ? grades 
     : grades?.filter(g => fetchSchedules?.some(s => s.grade_id === g.id));
 
-  // If the currently selected grade is not in the available grades (e.g. after load for teacher), reset it
+  // If the currently selected grade is not in the available grades, reset it
   useEffect(() => {
     if (!isRector && availableGrades?.length && selectedGrade) {
       if (!availableGrades.find(g => g.id === selectedGrade)) {
@@ -66,12 +85,24 @@ const Calificaciones = () => {
   }, [isRector, availableGrades, selectedGrade]);
 
   const { data: students } = useStudents(selectedGrade || undefined);
-  const { data: gradeRecords, isLoading } = useGradeRecords({ periodId: selectedPeriod || undefined });
+  
+  // Data for Primary
+  const { data: gradeRecords, isLoading: isPrimaryLoading } = useGradeRecords({ periodId: selectedPeriod || undefined });
+  
+  // Data for Preescolar
+  const { data: preescolarRecords, isLoading: isPreescolarLoading } = usePreescolarEvaluations({ periodId: selectedPeriod || undefined });
 
+  // Mutations Primary
   const createGradeRecord = useCreateGradeRecord();
   const updateGradeRecord = useUpdateGradeRecord();
   const deleteGradeRecord = useDeleteGradeRecord();
 
+  // Mutations Preescolar
+  const createPreescolarEvaluation = useCreatePreescolarEvaluation();
+  const updatePreescolarEvaluation = useUpdatePreescolarEvaluation();
+  const deletePreescolarEvaluation = useDeletePreescolarEvaluation();
+
+  // Dialog State Primary
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<{
     id?: string;
@@ -80,6 +111,17 @@ const Calificaciones = () => {
     grade: number;
     achievements: string;
     comments: string;
+  } | null>(null);
+
+  // Dialog State Preescolar
+  const [preescolarDialogOpen, setPreescolarDialogOpen] = useState(false);
+  const [editingPreescolar, setEditingPreescolar] = useState<{
+    id?: string;
+    student_id: string;
+    dimension: string;
+    fortalezas: string;
+    debilidades: string;
+    recomendaciones: string;
   } | null>(null);
 
   const getGradeColor = (grade: number) => {
@@ -93,6 +135,10 @@ const Calificaciones = () => {
   const getStudentGrades = (studentId: string) =>
     gradeRecords?.filter(r => r.student_id === studentId && (isRector || r.teacher_id === teacherId)) || [];
 
+  const getStudentPreescolarEvaluations = (studentId: string) =>
+    preescolarRecords?.filter(r => r.student_id === studentId && (isRector || r.teacher_id === teacherId)) || [];
+
+  // ===================== PRIMARY HANDLERS =====================
   const handleAddGrade = (studentId: string) => {
     setEditingRecord({ student_id: studentId, subject_id: '', grade: 3, achievements: '', comments: '' });
     setDialogOpen(true);
@@ -147,13 +193,95 @@ const Calificaciones = () => {
     }
   };
 
+  // ===================== PREESCOLAR HANDLERS =====================
+  const handleAddPreescolar = (studentId: string) => {
+    setEditingPreescolar({ 
+      student_id: studentId, 
+      dimension: '', 
+      fortalezas: '', 
+      debilidades: '', 
+      recomendaciones: '' 
+    });
+    setPreescolarDialogOpen(true);
+  };
+
+  const handleEditPreescolar = (record: any) => {
+    setEditingPreescolar({
+      id: record.id,
+      student_id: record.student_id,
+      dimension: record.dimension,
+      fortalezas: record.fortalezas || '',
+      debilidades: record.debilidades || '',
+      recomendaciones: record.recomendaciones || ''
+    });
+    setPreescolarDialogOpen(true);
+  };
+
+  const handleSavePreescolar = async () => {
+    if (!editingPreescolar || !selectedPeriod) return;
+    
+    // Validaciones basicas
+    if (!editingPreescolar.dimension) {
+       toast.error("Debe seleccionar una dimensión");
+       return;
+    }
+    if (!editingPreescolar.fortalezas.trim() || !editingPreescolar.debilidades.trim() || !editingPreescolar.recomendaciones.trim()) {
+       toast.error("Ningún campo descriptivo puede estar vacío");
+       return;
+    }
+    if (editingPreescolar.fortalezas.length > 500 || editingPreescolar.debilidades.length > 500 || editingPreescolar.recomendaciones.length > 500) {
+       toast.error("Los textos no pueden exceder los 500 caracteres");
+       return;
+    }
+
+    const currentTeacherId = isRector ? teachers?.[0]?.id : teacherId;
+    if (!currentTeacherId) return;
+
+    if (editingPreescolar.id) {
+      await updatePreescolarEvaluation.mutateAsync({
+        id: editingPreescolar.id,
+        fortalezas: editingPreescolar.fortalezas,
+        debilidades: editingPreescolar.debilidades,
+        recomendaciones: editingPreescolar.recomendaciones
+      });
+    } else {
+      await createPreescolarEvaluation.mutateAsync({
+        student_id: editingPreescolar.student_id,
+        dimension: editingPreescolar.dimension,
+        period_id: selectedPeriod,
+        fortalezas: editingPreescolar.fortalezas,
+        debilidades: editingPreescolar.debilidades,
+        recomendaciones: editingPreescolar.recomendaciones
+      });
+    }
+    setPreescolarDialogOpen(false);
+    setEditingPreescolar(null);
+  };
+
+  const handleDeletePreescolar = async (recordId: string) => {
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta dimensión?")) {
+      try {
+        await deletePreescolarEvaluation.mutateAsync(recordId);
+      } catch (error) {
+        console.error("Error al eliminar la evaluación cualitativa:", error);
+      }
+    }
+  };
+
+  // ===================== PDF EXPORT HANDLER =====================
   const handleDownloadReport = async (student: NonNullable<typeof students>[0]) => {
     if (!selectedPeriod) return;
     const period = periods?.find(p => p.id === selectedPeriod);
     if (!period) return;
 
+    if (isPreescolar) {
+       toast.info("Descarga PDF de Preescolar desde la vista ReportSystemContainer será implementada en la nueva versión de ReportSystemContainer / html2pdf");
+       // TODO: Lógica para lanzar generación PDF de Preescolar desde la ruta o componente de impresión
+       return;
+    }
+
     try {
-      // Fetch historical records dynamically
+      // Logic for primary report card (unchanged)
       const { data: allRecords } = await supabase
         .from('grade_records')
         .select(`
@@ -166,7 +294,6 @@ const Calificaciones = () => {
         `)
         .eq('student_id', student.id);
 
-      // Fetch all schedules for the student's grade to calculate IHS exactly as planned
       const { data: classSchedules } = await supabase
         .from('schedules')
         .select('subject_id')
@@ -176,7 +303,7 @@ const Calificaciones = () => {
         await downloadReportCard(
           { full_name: student.full_name, grades: student.grades },
           { id: period.id, name: period.name },
-          allRecords as any, // Cast according to new DetailedGradeRecord
+          allRecords as any,
           classSchedules || [],
           periods || [],
           deliveryDate
@@ -188,13 +315,16 @@ const Calificaciones = () => {
   };
 
   const filteredStudents = students?.filter(s => !selectedGrade || s.grade_id === selectedGrade);
+  const isLoading = isPrimaryLoading || isPreescolarLoading;
 
   return (
     <MainLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground font-heading">Calificaciones</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Registro de calificaciones por período</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isPreescolar ? "Evaluaciones cualitativas (Preescolar)" : "Registro de calificaciones por período"}
+          </p>
         </div>
 
         {/* Filters */}
@@ -263,25 +393,34 @@ const Calificaciones = () => {
               <TableHeader>
                 <TableRow className="bg-secondary">
                   <TableHead className="font-semibold">Estudiante</TableHead>
-                  <TableHead className="font-semibold">Materia</TableHead>
-                  <TableHead className="font-semibold hidden md:table-cell">Logros</TableHead>
-                  <TableHead className="font-semibold text-center">Nota</TableHead>
+                  <TableHead className="font-semibold">{isPreescolar ? "Dimensión" : "Materia"}</TableHead>
+                  <TableHead className="font-semibold hidden md:table-cell">{isPreescolar ? "Fortalezas Registradas" : "Logros"}</TableHead>
+                  <TableHead className="font-semibold text-center">{isPreescolar ? "-" : "Nota"}</TableHead>
                   <TableHead className="font-semibold text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudents?.map((student) => {
-                  const studentGrades = getStudentGrades(student.id);
+                  
+                  // Decide which records to show based on grade logic
+                  const records = isPreescolar 
+                    ? getStudentPreescolarEvaluations(student.id)
+                    : getStudentGrades(student.id);
 
-                  if (studentGrades.length === 0) {
+                  if (records.length === 0) {
                     return (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">{student.full_name}</TableCell>
                         <TableCell colSpan={3} className="text-muted-foreground text-sm">
-                          Sin calificaciones registradas
+                          Sin información registrada
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleAddGrade(student.id)}>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-7 text-xs gap-1" 
+                            onClick={() => isPreescolar ? handleAddPreescolar(student.id) : handleAddGrade(student.id)}
+                          >
                             <Plus className="w-3 h-3" />
                             Agregar
                           </Button>
@@ -290,10 +429,10 @@ const Calificaciones = () => {
                     );
                   }
 
-                  return studentGrades.map((record, idx) => (
+                  return records.map((record: any, idx) => (
                     <TableRow key={record.id} className="hover:bg-secondary/30">
                       {idx === 0 && (
-                        <TableCell className="font-medium" rowSpan={studentGrades.length}>
+                        <TableCell className="font-medium" rowSpan={records.length}>
                           <div className="flex items-center gap-2">
                             <span>{student.full_name}</span>
                             <button
@@ -306,28 +445,53 @@ const Calificaciones = () => {
                           </div>
                         </TableCell>
                       )}
-                      <TableCell className="text-sm">{record.subjects?.name}</TableCell>
+                      
+                      <TableCell className="text-sm">
+                        {isPreescolar ? record.dimension : record.subjects?.name}
+                      </TableCell>
+                      
                       <TableCell className="text-muted-foreground text-sm max-w-xs truncate hidden md:table-cell">
-                        {record.achievements || '-'}
+                        {isPreescolar ? (record.fortalezas || '-') : (record.achievements || '-')}
                       </TableCell>
+                      
                       <TableCell className="text-center">
-                        <span className={cn(
-                          "inline-flex items-center justify-center w-9 h-9 rounded-lg font-bold",
-                          getGradeColor(record.grade)
-                        )}>
-                          {record.grade}
-                        </span>
+                        {isPreescolar ? (
+                          <span className="text-muted-foreground">-</span>
+                        ) : (
+                          <span className={cn(
+                            "inline-flex items-center justify-center w-9 h-9 rounded-lg font-bold",
+                            getGradeColor(record.grade)
+                          )}>
+                            {record.grade}
+                          </span>
+                        )}
                       </TableCell>
+                      
                       <TableCell className="text-center">
                         <div className="flex justify-center gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditGrade(record)}>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-7 w-7" 
+                            onClick={() => isPreescolar ? handleEditPreescolar(record) : handleEditGrade(record)}
+                          >
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteGrade(record.id)}>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                            onClick={() => isPreescolar ? handleDeletePreescolar(record.id) : handleDeleteGrade(record.id)}
+                          >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
-                          {idx === studentGrades.length - 1 && (
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddGrade(student.id)}>
+                          {idx === records.length - 1 && (
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-7 w-7" 
+                              onClick={() => isPreescolar ? handleAddPreescolar(student.id) : handleAddGrade(student.id)}
+                            >
                               <Plus className="w-3.5 h-3.5" />
                             </Button>
                           )}
@@ -341,24 +505,26 @@ const Calificaciones = () => {
           </div>
         )}
 
-        {/* Legend */}
-        <div className="flex gap-4 flex-wrap">
-          {[
-            { color: 'bg-emerald-500', label: 'Superior (5)' },
-            { color: 'bg-success', label: 'Alto (4)' },
-            { color: 'bg-warning', label: 'Básico (3)' },
-            { color: 'bg-orange-500', label: 'Bajo (2)' },
-            { color: 'bg-destructive', label: 'Muy Bajo (1)' },
-          ].map(({ color, label }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <div className={cn("w-3 h-3 rounded-sm", color)} />
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </div>
-          ))}
-        </div>
+        {/* Legend for Primary Only */}
+        {!isPreescolar && (
+          <div className="flex gap-4 flex-wrap">
+            {[
+              { color: 'bg-emerald-500', label: 'Superior (5)' },
+              { color: 'bg-success', label: 'Alto (4)' },
+              { color: 'bg-warning', label: 'Básico (3)' },
+              { color: 'bg-orange-500', label: 'Bajo (2)' },
+              { color: 'bg-destructive', label: 'Muy Bajo (1)' },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className={cn("w-3 h-3 rounded-sm", color)} />
+                <span className="text-xs text-muted-foreground">{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Grade Dialog */}
+      {/* PRIMARY Grade Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -387,7 +553,6 @@ const Calificaciones = () => {
               </div>
             )}
 
-            {/* Grade big buttons */}
             <div className="space-y-2">
               <Label>Calificación</Label>
               <div className="grid grid-cols-5 gap-2">
@@ -440,6 +605,88 @@ const Calificaciones = () => {
                 disabled={createGradeRecord.isPending || updateGradeRecord.isPending || (!editingRecord?.id && !editingRecord?.subject_id)}
               >
                 {(createGradeRecord.isPending || updateGradeRecord.isPending) && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PREESCOLAR Evaluation Dialog */}
+      <Dialog open={preescolarDialogOpen} onOpenChange={setPreescolarDialogOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPreescolar?.id ? 'Editar Dimensión' : 'Nueva Evaluación (Dimensión)'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!editingPreescolar?.id && (
+              <div className="space-y-2">
+                <Label>Dimensión a Evaluar</Label>
+                <Select
+                  value={editingPreescolar?.dimension}
+                  onValueChange={(value) => setEditingPreescolar(prev => prev ? { ...prev, dimension: value } : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar dimensión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PREESCOLAR_DIMENSIONS.map((dim) => (
+                      <SelectItem key={dim} value={dim}>{dim}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2 mt-4 text-sm text-muted-foreground bg-blue-50/50 p-3 rounded-lg dark:bg-blue-900/20">
+              Complete los tres enfoques cualitativos. (Máximo 500 caracteres cada uno).
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-emerald-700 dark:text-emerald-400 font-bold">Fortalezas</Label>
+              <Textarea
+                placeholder="Describa las fortalezas en esta dimensión..."
+                value={editingPreescolar?.fortalezas || ''}
+                maxLength={500}
+                onChange={(e) => setEditingPreescolar(prev => prev ? { ...prev, fortalezas: e.target.value } : null)}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-rose-700 dark:text-rose-400 font-bold">Debilidades (Dificultades)</Label>
+              <Textarea
+                placeholder="Describa las debilidades en esta dimensión..."
+                value={editingPreescolar?.debilidades || ''}
+                maxLength={500}
+                onChange={(e) => setEditingPreescolar(prev => prev ? { ...prev, debilidades: e.target.value } : null)}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-blue-700 dark:text-blue-400 font-bold">Recomendaciones</Label>
+              <Textarea
+                placeholder="Recomendaciones para superar las debilidades..."
+                value={editingPreescolar?.recomendaciones || ''}
+                maxLength={500}
+                onChange={(e) => setEditingPreescolar(prev => prev ? { ...prev, recomendaciones: e.target.value } : null)}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setPreescolarDialogOpen(false)}>Cancelar</Button>
+              <Button
+                onClick={handleSavePreescolar}
+                disabled={createPreescolarEvaluation.isPending || updatePreescolarEvaluation.isPending || (!editingPreescolar?.id && !editingPreescolar?.dimension)}
+              >
+                {(createPreescolarEvaluation.isPending || updatePreescolarEvaluation.isPending) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
                 Guardar

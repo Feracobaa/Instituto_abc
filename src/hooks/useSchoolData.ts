@@ -532,3 +532,113 @@ export function useDeleteSchedule() {
     }
   });
 }
+
+// ============================================================================
+// PREESCOLAR EVALUATIONS CRUD
+// ============================================================================
+
+export function usePreescolarEvaluations(filters?: { studentId?: string; periodId?: string }) {
+  return useQuery({
+    queryKey: ['preescolar_evaluations', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('preescolar_evaluations')
+        .select(`*`)
+        .order('created_at', { ascending: false });
+      
+      if (filters?.studentId) {
+        query = query.eq('student_id', filters.studentId);
+      }
+      if (filters?.periodId) {
+        query = query.eq('period_id', filters.periodId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
+export function useCreatePreescolarEvaluation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      student_id: string;
+      dimension: string;
+      period_id: string;
+      teacher_id?: string | null;
+      fortalezas: string;
+      debilidades: string;
+      recomendaciones: string;
+    }) => {
+      const { data: record, error } = await supabase
+        .from('preescolar_evaluations')
+        .insert(data)
+        .select()
+        .single();
+      if (error) throw error;
+      return record;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preescolar_evaluations'] });
+      toast({ title: 'Evaluación cualitativa registrada' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error al registrar evaluación cualitativa', description: error.message, variant: 'destructive' });
+    }
+  });
+}
+
+export function useUpdatePreescolarEvaluation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      fortalezas: string;
+      debilidades: string;
+      recomendaciones: string;
+    }) => {
+      const { id, ...updateData } = data;
+      const { error } = await supabase
+        .from('preescolar_evaluations')
+        .update(updateData)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preescolar_evaluations'] });
+      toast({ title: 'Evaluación cualitativa actualizada' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error al actualizar evaluación', description: error.message, variant: 'destructive' });
+    }
+  });
+}
+
+export function useDeletePreescolarEvaluation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('preescolar_evaluations')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preescolar_evaluations'] });
+      toast({ title: 'Evaluación eliminada exitosamente' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error al eliminar evaluación', description: error.message, variant: 'destructive' });
+    }
+  });
+}
+

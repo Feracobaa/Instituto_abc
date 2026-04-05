@@ -130,6 +130,60 @@ export type Database = {
         }
         Relationships: []
       }
+      preescolar_evaluations: {
+        Row: {
+          id: string
+          student_id: string
+          dimension: string
+          period_id: string
+          teacher_id: string | null
+          fortalezas: string | null
+          debilidades: string | null
+          recomendaciones: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          dimension: string
+          period_id: string
+          teacher_id?: string | null
+          fortalezas?: string | null
+          debilidades?: string | null
+          recomendaciones?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          dimension?: string
+          period_id?: string
+          teacher_id?: string | null
+          fortalezas?: string | null
+          debilidades?: string | null
+          recomendaciones?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preescolar_evaluations_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "academic_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preescolar_evaluations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

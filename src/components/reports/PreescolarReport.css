@@ -1,0 +1,192 @@
+.report-wrapper {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  padding: 40px;
+  box-sizing: border-box;
+  font-family: 'Helvetica', 'Arial', sans-serif;
+  color: #000;
+}
+
+.report-header {
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+  border: 1.5px solid #000;
+  padding: 15px;
+}
+
+.report-header::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 1px solid #000;
+  pointer-events: none;
+}
+
+.header-logo-left,
+.header-logo-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+}
+
+.header-logo-left {
+  left: 20px;
+}
+
+.header-logo-right {
+  right: 20px;
+}
+
+.header-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.header-text {
+  display: inline-block;
+  line-height: 1.2;
+}
+
+.header-text h4 {
+  margin: 2px 0;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.header-text h3 {
+  margin: 6px 0 2px 0;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.header-title-banner {
+  background-color: #1e3a8a;
+  color: white;
+  text-align: center;
+  font-weight: bold;
+  padding: 8px;
+  font-size: 12px;
+  margin-bottom: 15px;
+}
+
+.student-info {
+  border: 1px solid #000;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+  font-size: 11px;
+}
+
+/* Using simple block/inline-block instead of float for better html2canvas support */
+.info-row {
+  margin-bottom: 6px;
+}
+
+.info-item {
+  display: inline-block;
+  width: 48%;
+  vertical-align: top;
+}
+
+.info-label {
+  font-weight: bold;
+}
+
+.info-value {
+  margin-left: 5px;
+  text-transform: uppercase;
+}
+
+.dimensions-container {
+  margin-top: 10px;
+}
+
+.dimension-card {
+  border: 1px solid #000;
+  margin-bottom: 15px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  table-layout: fixed;
+}
+
+.html2pdf__page-break {
+  page-break-inside: avoid !important;
+  break-inside: avoid-page !important;
+}
+
+.dimension-title {
+  background-color: #1e3a8a;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 6px 10px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #000;
+}
+
+.dimension-content {
+  padding: 10px;
+}
+
+.dimension-section {
+  margin-bottom: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.dimension-section:last-child {
+  margin-bottom: 0;
+}
+
+.dimension-section strong {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 3px;
+  color: #333;
+}
+
+.dimension-section p {
+  margin: 0;
+  padding-left: 10px;
+  text-align: justify;
+}
+
+.report-footer {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.signatures {
+  margin-top: 50px;
+  text-align: center;
+}
+
+.signature-block {
+  display: inline-block;
+  width: 30%;
+  margin: 0 1.5%;
+  vertical-align: top;
+}
+
+.signature-line {
+  border-bottom: 1px solid #000;
+  margin-bottom: 5px;
+  height: 20px;
+}
+
+.signature-label {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.signature-sub {
+  font-size: 9px;
+}
