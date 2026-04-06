@@ -24,14 +24,13 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { PREESCOLAR_DIMENSIONS, PREESCOLAR_DEFAULT_FORTALEZAS } from "@/utils/constants";
 import { useRef } from "react";
-
-const gradeOptions = [
-  { value: 5, label: '5', sublabel: 'Superior', color: 'bg-emerald-500 hover:bg-emerald-600' },
-  { value: 4, label: '4', sublabel: 'Alto', color: 'bg-success hover:bg-success/90' },
-  { value: 3, label: '3', sublabel: 'Básico', color: 'bg-warning hover:bg-warning/90' },
-  { value: 2, label: '2', sublabel: 'Bajo', color: 'bg-orange-500 hover:bg-orange-600' },
-  { value: 1, label: '1', sublabel: 'Muy Bajo', color: 'bg-destructive hover:bg-destructive/90' },
-];
+const getGradeSublabel = (grade: number) => {
+  if (grade >= 4.6) return 'Superior';
+  if (grade >= 4.0) return 'Alto';
+  if (grade >= 3.0) return 'Básico';
+  if (grade >= 2.0) return 'Bajo';
+  return 'Muy Bajo';
+};
 
 const Calificaciones = () => {
   const { data: grades } = useGrades();
@@ -151,18 +150,24 @@ const Calificaciones = () => {
   }, [downloadingStudent, isPreescolar]);
 
   const getGradeColor = (grade: number) => {
-    if (grade >= 5) return 'bg-emerald-500 text-white';
-    if (grade >= 4) return 'bg-success text-success-foreground';
-    if (grade === 3) return 'bg-warning text-warning-foreground';
-    if (grade === 2) return 'bg-orange-500 text-white';
+    if (grade >= 4.6) return 'bg-emerald-500 text-white';
+    if (grade >= 4.0) return 'bg-success text-success-foreground';
+    if (grade >= 3.0) return 'bg-warning text-warning-foreground';
+    if (grade >= 2.0) return 'bg-orange-500 text-white';
     return 'bg-destructive text-destructive-foreground';
   };
 
-  const getStudentGrades = (studentId: string) =>
-    gradeRecords?.filter(r => r.student_id === studentId && (isRector || r.teacher_id === teacherId)) || [];
+  const getStudentGrades = (studentId: string, gradeId: string) =>
+    gradeRecords?.filter(r => {
+      if (r.student_id !== studentId) return false;
+      if (isRector) return true;
+      if (r.teacher_id === teacherId) return true;
+      // Allow teacher to see grades for subjects they are scheduled for
+      return fetchSchedules?.some(s => s.grade_id === gradeId && s.subject_id === r.subject_id);
+    }) || [];
 
   const getStudentPreescolarEvaluations = (studentId: string) =>
-    preescolarRecords?.filter(r => r.student_id === studentId && (isRector || r.teacher_id === teacherId)) || [];
+    preescolarRecords?.filter(r => r.student_id === studentId) || [];
 
   // ===================== PRIMARY HANDLERS =====================
   const handleAddGrade = (studentId: string) => {
@@ -272,6 +277,7 @@ const Calificaciones = () => {
         student_id: editingPreescolar.student_id,
         dimension: editingPreescolar.dimension,
         period_id: selectedPeriod,
+        teacher_id: currentTeacherId,
         fortalezas: editingPreescolar.fortalezas,
         debilidades: editingPreescolar.debilidades,
         recomendaciones: editingPreescolar.recomendaciones
@@ -428,7 +434,7 @@ const Calificaciones = () => {
                   // Decide which records to show based on grade logic
                   const records = isPreescolar 
                     ? getStudentPreescolarEvaluations(student.id)
-                    : getStudentGrades(student.id);
+                    : getStudentGrades(student.id, student.grade_id);
 
                   if (records.length === 0) {
                     return (
@@ -532,11 +538,11 @@ const Calificaciones = () => {
         {!isPreescolar && (
           <div className="flex gap-4 flex-wrap">
             {[
-              { color: 'bg-emerald-500', label: 'Superior (5)' },
-              { color: 'bg-success', label: 'Alto (4)' },
-              { color: 'bg-warning', label: 'Básico (3)' },
-              { color: 'bg-orange-500', label: 'Bajo (2)' },
-              { color: 'bg-destructive', label: 'Muy Bajo (1)' },
+              { color: 'bg-emerald-500', label: 'Superior (4.6 - 5.0)' },
+              { color: 'bg-success', label: 'Alto (4.0 - 4.5)' },
+              { color: 'bg-warning', label: 'Básico (3.0 - 3.9)' },
+              { color: 'bg-orange-500', label: 'Bajo (2.0 - 2.9)' },
+              { color: 'bg-destructive', label: 'Muy Bajo (1.0 - 1.9)' },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className={cn("w-3 h-3 rounded-sm", color)} />
@@ -577,29 +583,25 @@ const Calificaciones = () => {
             )}
 
             <div className="space-y-2">
-              <Label>Calificación</Label>
-              <div className="grid grid-cols-5 gap-2">
-                {gradeOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setEditingRecord(prev => prev ? { ...prev, grade: opt.value } : null)}
-                    className={cn(
-                      "flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all font-bold text-white text-lg",
-                      editingRecord?.grade === opt.value
-                        ? cn(opt.color, "border-transparent scale-105 shadow-md")
-                        : "border-border bg-secondary text-foreground hover:border-primary/40"
-                    )}
-                  >
-                    {opt.label}
-                    <span className={cn(
-                      "text-[10px] font-normal mt-0.5",
-                      editingRecord?.grade === opt.value ? 'text-white/80' : 'text-muted-foreground'
-                    )}>
-                      {opt.sublabel}
-                    </span>
-                  </button>
-                ))}
+              <Label>Calificación (1.0 a 5.0)</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="1.0"
+                  max="5.0"
+                  className="w-32 text-center font-bold text-lg h-12"
+                  value={editingRecord?.grade ?? ''}
+                  onChange={(e) => setEditingRecord(prev => prev ? { ...prev, grade: e.target.value === '' ? '' as any : parseFloat(e.target.value) } : null)}
+                />
+                {editingRecord?.grade !== undefined && (editingRecord.grade as any) !== '' && !isNaN(editingRecord.grade as any) && (
+                  <div className={cn(
+                    "px-4 py-2 rounded-lg font-bold text-sm shadow-sm",
+                    getGradeColor(editingRecord.grade as number)
+                  )}>
+                    {getGradeSublabel(editingRecord.grade as number)}
+                  </div>
+                )}
               </div>
             </div>
 

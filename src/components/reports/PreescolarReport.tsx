@@ -180,19 +180,19 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
                       {evaluation.fortalezas && evaluation.fortalezas.trim() !== '' && (
                         <div className="dimension-section">
                           <strong>FORTALEZAS:</strong>
-                          <p style={{ whiteSpace: 'pre-line' }}>{evaluation.fortalezas}</p>
+                          <p>{evaluation.fortalezas}</p>
                         </div>
                       )}
                       {evaluation.debilidades && evaluation.debilidades.trim() !== '' && (
                         <div className="dimension-section">
                           <strong>DEBILIDADES:</strong>
-                          <p style={{ whiteSpace: 'pre-line' }}>{evaluation.debilidades}</p>
+                          <p>{evaluation.debilidades}</p>
                         </div>
                       )}
                       {evaluation.recomendaciones && evaluation.recomendaciones.trim() !== '' && (
                         <div className="dimension-section">
                           <strong>RECOMENDACIONES:</strong>
-                          <p style={{ whiteSpace: 'pre-line' }}>{evaluation.recomendaciones}</p>
+                          <p>{evaluation.recomendaciones}</p>
                         </div>
                       )}
                     </>
@@ -211,7 +211,7 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
         </div>
 
         {/* SIGNATURES SECTION */}
-        <div className="signatures" style={{ pageBreakInside: 'avoid' }}>
+        <div className="signatures" style={{ pageBreakInside: 'avoid', marginTop: '10px', paddingBottom: '10px' }}>
           <div className="signature-block">
             <div className="signature-line"></div>
             <div className="signature-label">RECTOR(A)</div>

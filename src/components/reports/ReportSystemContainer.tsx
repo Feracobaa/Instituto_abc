@@ -43,6 +43,8 @@ export const ReportSystemContainer: React.FC<ReportSystemProps> = ({
       grade: grade,
       year: new Date().getFullYear().toString(),
       director: "Nombre del Director", // Esto podría venir por props también
+      period: "Primer Periodo",
+      deliveryDate: new Date().toLocaleDateString('es-CO')
     };
 
     return (
@@ -71,6 +73,8 @@ export const MockDemoReport: React.FC = () => {
     department: 'DEPARTAMENTO DEL MAGDALENA',
     city: 'Ciénaga, Magdalena',
     name: 'INSTITUCIÓN EDUCATIVA INSTITUTO PEDAGÓGICO ABC',
+    address: 'Calle 7 #14-42 - Ciénaga, Magdalena',
+    phoneNit: 'Tel: 3104755752   NIT: 39.144.200-1',
     logoUrl: '/logo-iabc.jpg', // Ruta relativa al public folder de Vite
   };
 
