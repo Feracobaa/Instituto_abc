@@ -3,7 +3,6 @@
   max-width: 800px;
   margin: 0 auto;
   background: white;
-  padding: 40px;
   box-sizing: border-box;
   font-family: 'Helvetica', 'Arial', sans-serif;
   color: #000;
@@ -73,16 +72,16 @@
   color: white;
   text-align: center;
   font-weight: bold;
-  padding: 8px;
-  font-size: 12px;
-  margin-bottom: 15px;
+  padding: 6px;
+  font-size: 11px;
+  margin-bottom: 8px;
 }
 
 .student-info {
   border: 1px solid #000;
-  padding: 10px 15px;
-  margin-bottom: 20px;
-  font-size: 11px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  font-size: 10px;
 }
 
 /* Using simple block/inline-block instead of float for better html2canvas support */
@@ -106,12 +105,12 @@
 }
 
 .dimensions-container {
-  margin-top: 10px;
+  margin-top: 5px;
 }
 
 .dimension-card {
   border: 1px solid #000;
-  margin-bottom: 15px;
+  margin-bottom: 6px;
   page-break-inside: avoid;
   break-inside: avoid;
   table-layout: fixed;
@@ -126,20 +125,42 @@
   background-color: #1e3a8a;
   color: white;
   font-weight: bold;
-  font-size: 12px;
-  padding: 6px 10px;
+  font-size: 10px;
+  padding: 4px 8px;
   text-transform: uppercase;
   border-bottom: 1px solid #000;
 }
 
+.dimension-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.dimension-icon {
+  width: 70px;
+  flex-shrink: 0;
+  border-right: 1px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+}
+
+.dimension-img {
+  max-width: 100%;
+  max-height: 70px;
+  object-fit: contain;
+}
+
 .dimension-content {
-  padding: 10px;
+  flex: 1;
+  padding: 4px 8px;
 }
 
 .dimension-section {
-  margin-bottom: 8px;
-  font-size: 11px;
-  line-height: 1.4;
+  margin-bottom: 3px;
+  font-size: 9.5px;
+  line-height: 1.25;
 }
 
 .dimension-section:last-child {
@@ -155,7 +176,7 @@
 
 .dimension-section p {
   margin: 0;
-  padding-left: 10px;
+  padding-left: 0px;
   text-align: justify;
 }
 
@@ -165,8 +186,12 @@
 }
 
 .signatures {
-  margin-top: 50px;
+  margin-top: 15px;
   text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  display: table;
+  width: 100%;
 }
 
 .signature-block {

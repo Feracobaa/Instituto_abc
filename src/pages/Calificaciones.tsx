@@ -17,11 +17,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Loader2, FileText, Pencil, ClipboardList, Trash2, CalendarDays } from "lucide-react";
-import { downloadReportCard } from "@/utils/pdfGenerator"; // Reemplazaremos después por el de preescolar
+import { downloadReportCard } from "@/utils/pdfGenerator";
+import PreescolarReport, { PreescolarReportHandle } from "@/components/reports/PreescolarReport";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { PREESCOLAR_DIMENSIONS } from "@/utils/constants";
+import { PREESCOLAR_DIMENSIONS, PREESCOLAR_DEFAULT_FORTALEZAS } from "@/utils/constants";
+import { useRef } from "react";
 
 const gradeOptions = [
   { value: 5, label: '5', sublabel: 'Superior', color: 'bg-emerald-500 hover:bg-emerald-600' },
@@ -124,6 +126,30 @@ const Calificaciones = () => {
     recomendaciones: string;
   } | null>(null);
 
+  // Print Handling State
+  const [downloadingStudent, setDownloadingStudent] = useState<any>(null);
+  const preescolarRef = useRef<PreescolarReportHandle>(null);
+
+  // Trigger print gracefully when downloading student is populated
+  useEffect(() => {
+    if (downloadingStudent && isPreescolar) {
+      // Ensure the DOM has mounted the component with the student's data before exporting
+      setTimeout(async () => {
+        try {
+          if (preescolarRef.current) {
+             toast.info(`Generando PDF para ${downloadingStudent.full_name}...`);
+             await preescolarRef.current.exportPDF();
+             setDownloadingStudent(null);
+          }
+        } catch (error) {
+           console.error(error);
+           toast.error("Hubo un error exportando el PDF.");
+           setDownloadingStudent(null);
+        }
+      }, 800); // Allow images to render
+    }
+  }, [downloadingStudent, isPreescolar]);
+
   const getGradeColor = (grade: number) => {
     if (grade >= 5) return 'bg-emerald-500 text-white';
     if (grade >= 4) return 'bg-success text-success-foreground';
@@ -225,12 +251,9 @@ const Calificaciones = () => {
        toast.error("Debe seleccionar una dimensión");
        return;
     }
-    if (!editingPreescolar.fortalezas.trim() || !editingPreescolar.debilidades.trim() || !editingPreescolar.recomendaciones.trim()) {
-       toast.error("Ningún campo descriptivo puede estar vacío");
-       return;
-    }
-    if (editingPreescolar.fortalezas.length > 500 || editingPreescolar.debilidades.length > 500 || editingPreescolar.recomendaciones.length > 500) {
-       toast.error("Los textos no pueden exceder los 500 caracteres");
+    const maxLen = 1000;
+    if (editingPreescolar.fortalezas.length > maxLen || editingPreescolar.debilidades.length > maxLen || editingPreescolar.recomendaciones.length > maxLen) {
+       toast.error(`Los textos no pueden exceder los ${maxLen} caracteres`);
        return;
     }
 
@@ -275,8 +298,8 @@ const Calificaciones = () => {
     if (!period) return;
 
     if (isPreescolar) {
-       toast.info("Descarga PDF de Preescolar desde la vista ReportSystemContainer será implementada en la nueva versión de ReportSystemContainer / html2pdf");
-       // TODO: Lógica para lanzar generación PDF de Preescolar desde la ruta o componente de impresión
+       // Start hidden render and wait for useEffect cycle 
+       setDownloadingStudent(student);
        return;
     }
 
@@ -626,7 +649,13 @@ const Calificaciones = () => {
                 <Label>Dimensión a Evaluar</Label>
                 <Select
                   value={editingPreescolar?.dimension}
-                  onValueChange={(value) => setEditingPreescolar(prev => prev ? { ...prev, dimension: value } : null)}
+                  onValueChange={(value) => {
+                    setEditingPreescolar(prev => prev ? { 
+                      ...prev, 
+                      dimension: value,
+                      fortalezas: !prev.id && !prev.fortalezas ? PREESCOLAR_DEFAULT_FORTALEZAS[value] || '' : prev.fortalezas 
+                    } : null);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar dimensión" />
@@ -641,7 +670,7 @@ const Calificaciones = () => {
             )}
 
             <div className="space-y-2 mt-4 text-sm text-muted-foreground bg-blue-50/50 p-3 rounded-lg dark:bg-blue-900/20">
-              Complete los tres enfoques cualitativos. (Máximo 500 caracteres cada uno).
+              Las fortalezas aparecerán por defecto, pero puedes editarlas. Las debilidades y recomendaciones son opcionales.
             </div>
 
             <div className="space-y-2">
@@ -649,19 +678,19 @@ const Calificaciones = () => {
               <Textarea
                 placeholder="Describa las fortalezas en esta dimensión..."
                 value={editingPreescolar?.fortalezas || ''}
-                maxLength={500}
+                maxLength={1000}
                 onChange={(e) => setEditingPreescolar(prev => prev ? { ...prev, fortalezas: e.target.value } : null)}
-                rows={3}
+                rows={4}
                 className="resize-none"
               />
             </div>
             
             <div className="space-y-2">
-              <Label className="text-rose-700 dark:text-rose-400 font-bold">Debilidades (Dificultades)</Label>
+              <Label className="text-rose-700 dark:text-rose-400 font-bold">Debilidades (Opcional)</Label>
               <Textarea
                 placeholder="Describa las debilidades en esta dimensión..."
                 value={editingPreescolar?.debilidades || ''}
-                maxLength={500}
+                maxLength={1000}
                 onChange={(e) => setEditingPreescolar(prev => prev ? { ...prev, debilidades: e.target.value } : null)}
                 rows={3}
                 className="resize-none"
@@ -669,11 +698,11 @@ const Calificaciones = () => {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-blue-700 dark:text-blue-400 font-bold">Recomendaciones</Label>
+              <Label className="text-blue-700 dark:text-blue-400 font-bold">Recomendaciones (Opcional)</Label>
               <Textarea
                 placeholder="Recomendaciones para superar las debilidades..."
                 value={editingPreescolar?.recomendaciones || ''}
-                maxLength={500}
+                maxLength={1000}
                 onChange={(e) => setEditingPreescolar(prev => prev ? { ...prev, recomendaciones: e.target.value } : null)}
                 rows={3}
                 className="resize-none"
@@ -695,6 +724,35 @@ const Calificaciones = () => {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* HIDDEN RENDERER FOR PREESCOLAR PDF ENGINE */}
+      {downloadingStudent && isPreescolar && (
+        <div style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}>
+          <PreescolarReport 
+            ref={preescolarRef}
+            student={{ 
+              name: downloadingStudent.full_name, 
+              grade: grades?.find(g => g.id === selectedGrade)?.name || 'Preescolar', 
+              year: new Date().getFullYear().toString(), 
+              director: '_______________________',
+              period: periods?.find(p => p.id === selectedPeriod)?.name || 'Primer Periodo',
+              deliveryDate: deliveryDate ? deliveryDate.split('-').reverse().join('/') : new Date().toLocaleDateString('es-CO')
+            }}
+            dimensions={getStudentPreescolarEvaluations(downloadingStudent.id)}
+            schoolInfo={{
+              republic: 'REPÚBLICA DE COLOMBIA',
+              ministry: 'MINISTERIO DE EDUCACIÓN NACIONAL',
+              department: 'DEPARTAMENTO DEL MAGDALENA',
+              city: 'Ciénaga, Magdalena',
+              name: 'INSTITUCIÓN EDUCATIVA INSTITUTO PEDAGÓGICO ABC',
+              address: 'Calle 7 #14-42 - Ciénaga, Magdalena',
+              phoneNit: 'Tel: 3104755752   NIT: 39.144.200-1',
+              logoUrl: '/logo-iabc.jpg'
+            }}
+            id="hidden-preescolar-print"
+          />
+        </div>
+      )}
     </MainLayout>
   );
 };
