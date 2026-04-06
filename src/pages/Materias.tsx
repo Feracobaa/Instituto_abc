@@ -1,13 +1,16 @@
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useSubjects, useTeachers, useStudents, useGradeRecords, useSchedules } from "@/hooks/useSchoolData";
+import { useSubjects, useTeachers, useStudents, useGradeRecords, useSchedules, useAcademicPeriods } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { SubjectFormDialog } from "@/components/subjects/SubjectFormDialog";
 import { Button } from "@/components/ui/button";
 import {
   BookOpen, Users, Loader2, Calculator, FlaskConical, Languages, Music,
-  Palette, Globe, Heart, Dumbbell, Computer, Microscope, Plus, Pencil
+  Palette, Globe, Heart, Dumbbell, Computer, Microscope, Plus, Pencil,
+  ClipboardList, FileText
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { downloadAttendanceListPDF, downloadGradingTemplatePDF } from "@/utils/pdfGenerator";
 import { cn } from "@/lib/utils";
 
 // Assign icon by subject name keywords
@@ -32,11 +35,21 @@ const Materias = () => {
   const { data: students } = useStudents();
   const { data: gradeRecords } = useGradeRecords();
   const { data: schedules } = useSchedules();
+  const { data: academicPeriods } = useAcademicPeriods();
 
   const { userRole, teacherId } = useAuth();
   const isRector = userRole === 'rector';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<any>(null);
+
+  const currentDate = new Date();
+  const activePeriod = academicPeriods?.find((p: any) => {
+    const start = new Date(p.start_date);
+    const end = new Date(p.end_date);
+    return currentDate >= start && currentDate <= end;
+  }) || academicPeriods?.find((p: any) => p.is_active);
+  const activePeriodName = activePeriod?.name || academicPeriods?.[0]?.name || `1 Bimestre`;
+  const currentTeacher = teachers?.find(t => t.id === teacherId);
 
   // Calcula estudiantes de manera híbrida para mejor Experiencia de Usuario:
   // 1. Si la materia ya está en algún horario, cuenta matemáticamente los niños de esos salones.
@@ -201,6 +214,85 @@ const Materias = () => {
                       </span>
                     )}
                   </div>
+
+                  {/* PDF Actions */}
+                  {(() => {
+                    const gradeIdsForSubject = Array.from(new Set(
+                      (schedules || [])
+                        .filter(s => s.subject_id === subject.id && (isRector || s.teacher_id === teacherId))
+                        .map(s => s.grade_id)
+                    ));
+                    const activeGradesForSubject = gradeIdsForSubject
+                      .map(id => (schedules || []).find(s => s.grade_id === id)?.grades)
+                      .filter(Boolean) as any[];
+
+                    if (activeGradesForSubject.length === 0) return null;
+
+                    const pdfTeacherName = isRector 
+                      ? (subjectTeachers.length > 0 ? subjectTeachers[0].full_name : '')
+                      : (currentTeacher?.full_name || '');
+
+                    return (
+                      <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2">
+                        {activeGradesForSubject.length === 1 ? (
+                          <div className="flex gap-2 w-full">
+                            <button onClick={() => {
+                              const g = activeGradesForSubject[0];
+                              const studs = students?.filter(s => s.grade_id === g.id) || [];
+                              downloadAttendanceListPDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                            }} className="flex-1 flex justify-center items-center gap-1.5 text-[11px] font-semibold p-2 bg-secondary/30 hover:bg-secondary/70 rounded-md transition-colors text-foreground">
+                              <ClipboardList className="w-3.5 h-3.5 text-primary" /> Asistencia
+                            </button>
+                            <button onClick={() => {
+                              const g = activeGradesForSubject[0];
+                              const studs = students?.filter(s => s.grade_id === g.id) || [];
+                              downloadGradingTemplatePDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                            }} className="flex-1 flex justify-center items-center gap-1.5 text-[11px] font-semibold p-2 bg-secondary/30 hover:bg-secondary/70 rounded-md transition-colors text-foreground">
+                              <FileText className="w-3.5 h-3.5 text-primary" /> Notas
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 w-full">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="flex-1 flex justify-center items-center gap-1 text-[11px] font-semibold p-2 bg-secondary/30 hover:bg-secondary/70 rounded-md transition-colors text-foreground">
+                                  <ClipboardList className="w-3.5 h-3.5 text-primary" /> Asistencia ▼
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {activeGradesForSubject.map((g: any) => (
+                                  <DropdownMenuItem key={g.id} onClick={() => {
+                                    const studs = students?.filter(s => s.grade_id === g.id) || [];
+                                    downloadAttendanceListPDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                                  }}>
+                                    Grado {g.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="flex-1 flex justify-center items-center gap-1 text-[11px] font-semibold p-2 bg-secondary/30 hover:bg-secondary/70 rounded-md transition-colors text-foreground">
+                                  <FileText className="w-3.5 h-3.5 text-primary" /> Notas ▼
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {activeGradesForSubject.map((g: any) => (
+                                  <DropdownMenuItem key={g.id} onClick={() => {
+                                    const studs = students?.filter(s => s.grade_id === g.id) || [];
+                                    downloadGradingTemplatePDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                                  }}>
+                                    Grado {g.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );

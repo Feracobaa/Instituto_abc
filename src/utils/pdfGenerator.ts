@@ -734,5 +734,303 @@ export async function downloadSchedulePDF(
   timeSlots: string[]
 ) {
   const doc = await generateSchedulePDF(gradeName, schedules, timeSlots);
-  doc.save(`Horario_${gradeName.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Horario_${gradeName.replace(/\\s+/g, '_')}.pdf`);
+}
+
+// ─── Attendance List PDF ──────────────────────────────────────────────────────
+
+export async function generateAttendanceListPDF(
+  gradeName: string,
+  students: { full_name: string }[],
+  periodName: string = '',
+  teacherName: string = '',
+  subjectName: string = ''
+) {
+  const doc = new jsPDF('portrait');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const logoB64 = await getLogoBase64();
+
+  // Outer border with lila color
+  doc.setDrawColor(180, 130, 255);
+  doc.setLineWidth(0.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+
+  if (logoB64) {
+    doc.addImage(logoB64, 'JPEG', 12, 8, 24, 24);
+  }
+
+  // Title
+  doc.setTextColor(240, 90, 70); // Coral/Orange
+  doc.setFontSize(36);
+  // Using helvetica bold-italic as a fallback for decorative/cursive
+  doc.setFont('helvetica', 'italic');
+  doc.text('LISTA de ASISTENCIA', pageWidth / 2 + 10, 24, { align: 'center' });
+
+  // 2. Tabla de Datos Generales
+  const cyanBg: [number, number, number] = [0, 230, 240];
+  const lilaBorder: [number, number, number] = [180, 130, 255];
+  
+  const formattedPeriod = periodName || `${new Date().getFullYear()}-1`;
+  const formattedTeacher = teacherName || '________________________';
+  const formattedSubject = subjectName || '________________________';
+
+  autoTable(doc, {
+    startY: 34,
+    body: [
+      [`Escuela: ${INST.name}`, `Profesor:    ${formattedTeacher}`],
+      [`Grado/grupo:    ${gradeName.toUpperCase()}`, `Materia:    ${formattedSubject}`],
+      [`Ciclo escolar:    ${new Date().getFullYear()}`, `Periodo:    ${formattedPeriod}`]
+    ],
+    theme: 'grid',
+    styles: { 
+      fontSize: 10, 
+      fontStyle: 'bold', 
+      textColor: 0, 
+      lineColor: lilaBorder, 
+      lineWidth: 0.3,
+      cellPadding: 2.5
+    },
+    columnStyles: {
+      0: { cellWidth: pageWidth / 2 - 8 },
+      1: { cellWidth: pageWidth / 2 - 8 }
+    },
+    margin: { left: 8 },
+    didParseCell: (data) => {
+      // Row 0 and Row 2 have cyan background
+      if (data.row.index === 0 || data.row.index === 2) {
+        data.cell.styles.fillColor = cyanBg;
+      } else {
+        data.cell.styles.fillColor = [255, 255, 255];
+      }
+    }
+  });
+
+  const table1EndY = (doc as any).lastAutoTable.finalY + 2;
+
+  // 3. Estructura de la Tabla de Asistencia
+  // Prepare headers
+  const head = [
+    [
+      { content: '', rowSpan: 2 },
+      { content: 'Alumnos', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 10 } },
+      { content: 'Semana 1', colSpan: 5, styles: { fillColor: [255, 245, 180], halign: 'center', textColor: 0 } },
+      { content: 'Semana 2', colSpan: 5, styles: { fillColor: [230, 210, 245], halign: 'center', textColor: 0 } },
+      { content: 'Semana 3', colSpan: 5, styles: { fillColor: [255, 245, 180], halign: 'center', textColor: 0 } },
+      { content: 'Semana 4', colSpan: 5, styles: { fillColor: [210, 245, 210], halign: 'center', textColor: 0 } },
+      { content: 'Semana 5', colSpan: 5, styles: { fillColor: [190, 240, 255], halign: 'center', textColor: 0 } },
+      // Use vertical newlines to force row height and keep column narrow, text will be invisible and overdrawn later
+      { content: '\n\n\n\n\n\n\n', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 3, textColor: [255,255,255], cellWidth: 4 } }, 
+      { content: '\n\n\n\n\n\n\n', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 3, textColor: [255,255,255], cellWidth: 4 } },
+      { content: '\n\n\n\n\n\n\n', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 3, textColor: [255,255,255], cellWidth: 4 } }
+    ],
+    [
+      // Días (5 x 5 = 25 columnas)
+      ...'LMMJV'.split(''),
+      ...'LMMJV'.split(''),
+      ...'LMMJV'.split(''),
+      ...'LMMJV'.split(''),
+      ...'LMMJV'.split('')
+    ]
+  ];
+
+  // Prepare body: 23 rows or students.length
+  const sortedStudents = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name));
+  const rowCount = Math.max(23, sortedStudents.length);
+  const body = [];
+
+  for (let i = 0; i < rowCount; i++) {
+    const sName = i < sortedStudents.length ? sortedStudents[i].full_name.toUpperCase() : '';
+    const num = (i + 1).toString().padStart(2, '0');
+    // 27 empty strings for days (25) + resumen (3) - wait 25 + 3 = 28 empty elements
+    body.push([num, sName, ...Array(28).fill('')]);
+  }
+
+  autoTable(doc, {
+    startY: table1EndY,
+    head: head as any,
+    body,
+    theme: 'grid',
+    margin: { left: 8, right: 8 },
+    styles: { 
+      fontSize: 6, 
+      cellPadding: 1, 
+      lineColor: lilaBorder, 
+      lineWidth: 0.2, 
+      textColor: 0 
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold'
+    },
+    columnStyles: {
+      0: { cellWidth: 5, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 45 },
+      // Días: 2 to 26
+      // Resumen: 27, 28, 29
+    },
+    didParseCell: (data) => {
+      // Set background colors for days columns
+      const col = data.column.index;
+      if (col >= 2 && col <= 6) data.cell.styles.fillColor = [255, 245, 180]; // Sem 1
+      else if (col >= 7 && col <= 11) data.cell.styles.fillColor = [230, 210, 245]; // Sem 2
+      else if (col >= 12 && col <= 16) data.cell.styles.fillColor = [255, 245, 180]; // Sem 3
+      else if (col >= 17 && col <= 21) data.cell.styles.fillColor = [210, 245, 210]; // Sem 4
+      else if (col >= 22 && col <= 26) data.cell.styles.fillColor = [190, 240, 255]; // Sem 5
+      else if (col >= 27) data.cell.styles.fillColor = [255, 255, 255]; // Resumen (white background)
+
+      // Set 'L M M J V' headers to center alignment and bold
+      if (data.section === 'head' && data.row.index === 1) {
+        data.cell.styles.halign = 'center';
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    didDrawCell: (data) => {
+      // Draw vertical text for Resumen headers
+      if (data.section === 'head' && data.row.index === 0 && data.column.index >= 27) {
+        let text = '';
+        if (data.column.index === 27) text = 'Faltas';
+        if (data.column.index === 28) text = 'Justificadas';
+        if (data.column.index === 29) text = 'Asistencias';
+        
+        doc.setTextColor(0);
+        doc.setFontSize(5.5);
+        doc.setFont('helvetica', 'normal');
+        
+        // Save current graphics state
+        doc.saveGraphicsState();
+        const textWidth = doc.getTextWidth(text);
+        // Center text vertically by moving y down by half text width
+        doc.text(text, data.cell.x + data.cell.width / 2 + 1.5, data.cell.y + data.cell.height / 2 + textWidth / 2, { angle: 90 });
+        doc.restoreGraphicsState();
+      }
+    }
+  });
+
+  // Bottom color bar (naranja)
+  const bottomMargin = pageHeight - 8;
+  doc.setFillColor(240, 90, 70);
+  doc.rect(8, bottomMargin, pageWidth - 16, 4, 'F');
+
+  return doc;
+}
+
+export async function downloadAttendanceListPDF(
+  gradeName: string,
+  students: { full_name: string }[],
+  periodName: string = '',
+  teacherName: string = '',
+  subjectName: string = ''
+) {
+  const doc = await generateAttendanceListPDF(gradeName, students, periodName, teacherName, subjectName);
+  doc.save(`Asistencia_${gradeName.replace(/\\s+/g, '_')}_${subjectName.replace(/\\s+/g, '_')}.pdf`);
+}
+
+// ─── Grading Template PDF ─────────────────────────────────────────────────────
+
+export async function generateGradingTemplatePDF(
+  gradeName: string,
+  students: { full_name: string }[],
+  periodName: string = '',
+  teacherName: string = '',
+  subjectName: string = ''
+) {
+  const doc = new jsPDF('portrait');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const logoB64 = await getLogoBase64();
+
+  if (logoB64) {
+    // @ts-ignore
+    doc.setGState(new doc.GState({ opacity: 0.05 }));
+    doc.addImage(logoB64, 'JPEG', (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
+    // @ts-ignore
+    doc.setGState(new doc.GState({ opacity: 1.0 }));
+  }
+
+  // Header Title
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+  
+  if (logoB64) {
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(12, 4, 20, 20, 2, 2, 'F');
+    doc.addImage(logoB64, 'JPEG', 13, 5, 18, 18);
+  }
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(INST.name, pageWidth / 2, 12, { align: 'center' });
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PLANTILLA PARA NOTAS — GRADO ${gradeName.toUpperCase()}`, pageWidth / 2, 20, { align: 'center' });
+
+  const formattedPeriod = periodName || '______';
+  const formattedTeacher = teacherName || '________________________';
+  const formattedSubject = subjectName || '________________________';
+
+  // Fields to fill by teacher
+  doc.setTextColor(0);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`DOCENTE:  ${formattedTeacher}      ASIGNATURA:  ${formattedSubject}      PERÍODO:  ${formattedPeriod}`, 14, 38);
+
+  const head = [['N°', 'NOMBRES Y APELLIDOS', 'N1', 'N2', 'N3', 'N4', 'N5', 'DEF', 'OBSERVACIONES']];
+
+  // Sort students alphabetically
+  const sortedStudents = [...students].sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+  const body = sortedStudents.map((student, index) => {
+    return [
+      (index + 1).toString(),
+      student.full_name.toUpperCase(),
+      '', '', '', '', '', '', '' // empty cells
+    ];
+  });
+
+  const HEAD_FILL: [number, number, number] = [30, 58, 138];
+
+  autoTable(doc, {
+    startY: 45,
+    head,
+    body,
+    theme: 'grid',
+    headStyles: { fillColor: HEAD_FILL, textColor: 255, fontStyle: 'bold', fontSize: 8, halign: 'center' },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 65 },
+      2: { cellWidth: 12, halign: 'center' },
+      3: { cellWidth: 12, halign: 'center' },
+      4: { cellWidth: 12, halign: 'center' },
+      5: { cellWidth: 12, halign: 'center' },
+      6: { cellWidth: 12, halign: 'center' },
+      7: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+      8: { cellWidth: 'auto' }, // observaciones
+    },
+    styles: { fontSize: 8, cellPadding: 2, valign: 'middle', lineColor: [180, 180, 180], minCellHeight: 7 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  // Footer
+  const footerY = pageHeight - 10;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${INST.name}  •  Generado el ${new Date().toLocaleDateString('es-CO')}`, pageWidth / 2, footerY + 2, { align: 'center' });
+
+  return doc;
+}
+
+export async function downloadGradingTemplatePDF(
+  gradeName: string,
+  students: { full_name: string }[],
+  periodName: string = '',
+  teacherName: string = '',
+  subjectName: string = ''
+) {
+  const doc = await generateGradingTemplatePDF(gradeName, students, periodName, teacherName, subjectName);
+  doc.save(`Plantilla_Notas_${gradeName.replace(/\\s+/g, '_')}_${subjectName.replace(/\\s+/g, '_')}.pdf`);
 }

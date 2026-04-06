@@ -1,7 +1,8 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useGrades, useStudents, useGradeRecords } from "@/hooks/useSchoolData";
-import { GraduationCap, Users, Loader2, ExternalLink } from "lucide-react";
+import { GraduationCap, Users, Loader2, ExternalLink, FileText, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { downloadAttendanceListPDF, downloadGradingTemplatePDF } from "@/utils/pdfGenerator";
 import { cn } from "@/lib/utils";
 
 const getBarColor = (avg: number | null) => {
