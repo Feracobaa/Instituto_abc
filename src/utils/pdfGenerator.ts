@@ -22,6 +22,32 @@ interface Period {
   name: string;
 }
 
+interface SubjectGroup {
+  currentRecord: DetailedGradeRecord | null;
+  grades: Record<string, DetailedGradeRecord>;
+  ihs: number;
+  name: string;
+}
+
+type GradeTableRow = Array<string | number>;
+type AutoTableCell = string | {
+  colSpan?: number;
+  content: string;
+  rowSpan?: number;
+  styles?: Record<string, unknown>;
+};
+
+type AutoTableCapableDoc = jsPDF & {
+  lastAutoTable?: {
+    finalY: number;
+  };
+};
+
+type GStateCapableDoc = jsPDF & {
+  GState: new (options: { opacity: number }) => unknown;
+  setGState: (state: unknown) => void;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const INST = {
@@ -78,6 +104,18 @@ function centerText(doc: jsPDF, text: string, y: number, fontSize: number, style
   doc.setFontSize(fontSize);
   doc.setFont('helvetica', style);
   doc.text(text, doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
+}
+
+function getLastAutoTableY(doc: jsPDF): number {
+  return (doc as AutoTableCapableDoc).lastAutoTable?.finalY ?? 0;
+}
+
+function setDocumentOpacity(doc: jsPDF, opacity: number) {
+  const pdf = doc as Partial<GStateCapableDoc>;
+
+  if (pdf.GState && pdf.setGState) {
+    pdf.setGState(new pdf.GState({ opacity }));
+  }
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
@@ -232,17 +270,21 @@ function drawScaleLegend(doc: jsPDF, y: number): number {
 
 function buildPrimariaTable(
   doc: jsPDF,
-  subjectsMap: Record<string, any>,
+  subjectsMap: Record<string, SubjectGroup>,
   period: Period,
   allPeriods: Period[],
   startY: number
 ): number {
-  interface Row { data: any[]; perf: number | null; finalGrade: number | null }
+  interface Row {
+    data: GradeTableRow;
+    finalGrade: number | null;
+    perf: number | null;
+  }
   const rows: Row[] = [];
 
   const P = (n: string) => n.replace(/[^0-9]/g, '') || n;
 
-  Object.values(subjectsMap).forEach((subj: any) => {
+  Object.values(subjectsMap).forEach((subj) => {
     // Extract grade for each specific period
     const gr1 = subj.grades['1']?.grade as number | undefined;
     const gr2 = subj.grades['2']?.grade as number | undefined;
@@ -355,21 +397,21 @@ function buildPrimariaTable(
     },
   });
 
-  return (doc as any).lastAutoTable.finalY;
+  return getLastAutoTableY(doc);
 }
 
 // ─── Grade Table — PREESCOLAR ─────────────────────────────────────────────────
 
 function buildPreescolarTable(
   doc: jsPDF,
-  subjectsMap: Record<string, any>,
+  subjectsMap: Record<string, SubjectGroup>,
   period: Period,
   allPeriods: Period[],
   startY: number
 ): number {
-  const rows: any[][] = [];
+  const rows: GradeTableRow[] = [];
 
-  Object.values(subjectsMap).forEach((subj: any) => {
+  Object.values(subjectsMap).forEach((subj) => {
     // Grades are already mapped as '1','2','3','4' in subjectsMap
     const gr1 = subj.grades['1']?.grade as number | undefined;
     const gr2 = subj.grades['2']?.grade as number | undefined;
@@ -422,7 +464,7 @@ function buildPreescolarTable(
     alternateRowStyles: { fillColor: [245, 248, 255] },
   });
 
-  return (doc as any).lastAutoTable.finalY;
+  return getLastAutoTableY(doc);
 }
 
 // ─── Observations Section ─────────────────────────────────────────────────────
@@ -513,12 +555,10 @@ function drawFooter(doc: jsPDF) {
 function drawWatermark(doc: jsPDF, logoB64: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  // @ts-ignore
-  doc.setGState(new doc.GState({ opacity: 0.05 }));
+  setDocumentOpacity(doc, 0.05);
   const sz = 120;
   doc.addImage(logoB64, 'JPEG', (pageWidth - sz) / 2, (pageHeight - sz) / 2, sz, sz);
-  // @ts-ignore
-  doc.setGState(new doc.GState({ opacity: 1.0 }));
+  setDocumentOpacity(doc, 1);
 }
 
 // ─── Main Export Entry Point ──────────────────────────────────────────────────
@@ -563,12 +603,6 @@ export async function generateReportCard(
   console.log('📊 PDF Debug — total grade records:', allGradeRecords.length);
 
   // 6. Build subjects map
-  interface SubjectGroup {
-    name: string;
-    ihs: number;
-    grades: Record<string, DetailedGradeRecord>; // key: '1','2','3','4'
-    currentRecord: DetailedGradeRecord | null;
-  }
   const subjectsMap: Record<string, SubjectGroup> = {};
 
   allGradeRecords.forEach(record => {
@@ -664,11 +698,9 @@ export async function generateSchedulePDF(
   const logoB64 = await getLogoBase64();
 
   if (logoB64) {
-    // @ts-ignore
-    doc.setGState(new doc.GState({ opacity: 0.08 }));
+    setDocumentOpacity(doc, 0.08);
     doc.addImage(logoB64, 'JPEG', (pageWidth - 140) / 2, (pageHeight - 140) / 2, 140, 140);
-    // @ts-ignore
-    doc.setGState(new doc.GState({ opacity: 1.0 }));
+    setDocumentOpacity(doc, 1);
   }
 
   doc.setFillColor(30, 58, 138);
@@ -806,11 +838,11 @@ export async function generateAttendanceListPDF(
     }
   });
 
-  const table1EndY = (doc as any).lastAutoTable.finalY + 2;
+  const table1EndY = getLastAutoTableY(doc) + 2;
 
   // 3. Estructura de la Tabla de Asistencia
   // Prepare headers
-  const head = [
+  const head: AutoTableCell[][] = [
     [
       { content: '', rowSpan: 2 },
       { content: 'Alumnos', rowSpan: 2, styles: { halign: 'center', valign: 'middle', fontSize: 10 } },
@@ -848,7 +880,7 @@ export async function generateAttendanceListPDF(
 
   autoTable(doc, {
     startY: table1EndY,
-    head: head as any,
+    head,
     body,
     theme: 'grid',
     margin: { left: 8, right: 8 },
@@ -942,11 +974,9 @@ export async function generateGradingTemplatePDF(
   const logoB64 = await getLogoBase64();
 
   if (logoB64) {
-    // @ts-ignore
-    doc.setGState(new doc.GState({ opacity: 0.05 }));
+    setDocumentOpacity(doc, 0.05);
     doc.addImage(logoB64, 'JPEG', (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
-    // @ts-ignore
-    doc.setGState(new doc.GState({ opacity: 1.0 }));
+    setDocumentOpacity(doc, 1);
   }
 
   // Header Title

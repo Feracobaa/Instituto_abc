@@ -81,10 +81,6 @@ const Index = () => {
   }).filter(s => s.gradesCount > 0) || [];
   const topStudents = [...studentAverages].sort((a, b) => b.avg - a.avg).slice(0, 5);
 
-  // Profesor: pending scores (students without any grade this period)
-  const mySubjectIds = subjects
-    ?.filter(sub => (sub as any).teacher_subjects?.some((ts: { teacher_id: string }) => ts.teacher_id === teacherId))
-    .map(s => s.id) ?? [];
   const myGradeRecords = gradeRecords?.filter(r => r.teacher_id === teacherId) ?? [];
   
   // Calculate my real students (the ones in my grades)

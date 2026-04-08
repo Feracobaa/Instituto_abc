@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useGrades, useSchedules } from "@/hooks/useSchoolData";
+import type { Schedule } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ const Horarios = () => {
     .sort() as string[];
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSlot, setEditingSlot] = useState<{ day: number, time: string, endTime: string, entry: any }>({ day: 0, time: '', endTime: '', entry: null });
+  const [editingSlot, setEditingSlot] = useState<{ day: number; time: string; endTime: string; entry: Schedule | null }>({ day: 0, time: '', endTime: '', entry: null });
 
   const getScheduleEntry = (day: number, time: string) =>
     gradeSchedules.find(s => s.day_of_week === day && s.start_time?.slice(0, 5) === time);
@@ -193,12 +194,12 @@ const Horarios = () => {
                           
                           let blockContent = null;
                       if (entry) {
-                        if ((entry as any).title) {
+                        if (entry.title) {
                           // Rutina
                           blockContent = (
                             <div className="px-3 py-2.5 rounded-lg text-foreground bg-amber-500/20 border border-amber-500/30 hover-lift transition-all flex h-full items-center justify-center min-h-[64px]">
                               <p className="font-bold text-[13px] leading-tight text-amber-700 dark:text-amber-400 group-hover:underline text-center">
-                                {(entry as any).title}
+                                {entry.title}
                               </p>
                             </div>
                           );

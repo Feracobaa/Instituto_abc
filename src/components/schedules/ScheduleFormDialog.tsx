@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { TimePicker } from "@/components/ui/time-picker";
 import { useSubjects, useTeachers, useCreateSchedule, useDeleteSchedule } from "@/hooks/useSchoolData";
+import type { Schedule } from "@/hooks/useSchoolData";
 import { Loader2, Trash2 } from "lucide-react";
 
 interface ScheduleFormDialogProps {
@@ -15,7 +16,7 @@ interface ScheduleFormDialogProps {
   day: number;
   time: string;
   endTime: string;
-  existingEntry?: any;
+  existingEntry?: Schedule | null;
 }
 
 const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -107,7 +108,7 @@ export function ScheduleFormDialog({
   const isPending = createSchedule.isPending || deleteSchedule.isPending;
 
   const availableTeachers = teachers?.filter(t => 
-    t.teacher_subjects?.some((ts: any) => ts.subject_id === subjectId)
+    t.teacher_subjects?.some((assignment) => assignment.subject_id === subjectId)
   );
 
   return (
@@ -170,8 +171,8 @@ export function ScheduleFormDialog({
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none"
                 >
                   <option value="" disabled>Selecciona una materia...</option>
-                  {subjects?.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                  {subjects?.map((subject) => (
+                    <option key={subject.id} value={subject.id}>{subject.name}</option>
                   ))}
                 </select>
               </div>
@@ -187,8 +188,8 @@ export function ScheduleFormDialog({
                   <option value="" disabled>
                     {subjectId ? "Selecciona el profesor listado..." : "Primero selecciona una materia"}
                   </option>
-                  {availableTeachers?.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.full_name}</option>
+                  {availableTeachers?.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>{teacher.full_name}</option>
                   ))}
                 </select>
                 {subjectId && availableTeachers?.length === 0 && (

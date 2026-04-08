@@ -6,6 +6,7 @@ import {
   usePreescolarEvaluations, useCreatePreescolarEvaluation,
   useUpdatePreescolarEvaluation, useDeletePreescolarEvaluation
 } from "@/hooks/useSchoolData";
+import type { GradeRecord, PreescolarEvaluation, Student } from "@/hooks/useSchoolData";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -18,12 +19,34 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Loader2, FileText, Pencil, ClipboardList, Trash2, CalendarDays } from "lucide-react";
 import { downloadReportCard } from "@/utils/pdfGenerator";
+import type { DetailedGradeRecord } from "@/utils/pdfGenerator";
 import PreescolarReport, { PreescolarReportHandle } from "@/components/reports/PreescolarReport";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { PREESCOLAR_DIMENSIONS, PREESCOLAR_DEFAULT_FORTALEZAS } from "@/utils/constants";
 import { useRef } from "react";
+
+type EditableGradeRecord = {
+  achievements: string;
+  comments: string;
+  grade: number | '';
+  id?: string;
+  student_id: string;
+  subject_id: string;
+  teacher_id: string;
+};
+
+type EditablePreescolarEvaluation = {
+  debilidades: string;
+  dimension: string;
+  fortalezas: string;
+  id?: string;
+  recomendaciones: string;
+  student_id: string;
+  teacher_id: string;
+};
+
 const getGradeSublabel = (grade: number) => {
   if (grade >= 4.6) return 'Superior';
   if (grade >= 4.0) return 'Alto';
@@ -129,30 +152,14 @@ const Calificaciones = () => {
 
   // Dialog State Primary
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<{
-    id?: string;
-    student_id: string;
-    subject_id: string;
-    teacher_id: string;
-    grade: number;
-    achievements: string;
-    comments: string;
-  } | null>(null);
+  const [editingRecord, setEditingRecord] = useState<EditableGradeRecord | null>(null);
 
   // Dialog State Preescolar
   const [preescolarDialogOpen, setPreescolarDialogOpen] = useState(false);
-  const [editingPreescolar, setEditingPreescolar] = useState<{
-    id?: string;
-    student_id: string;
-    dimension: string;
-    teacher_id: string;
-    fortalezas: string;
-    debilidades: string;
-    recomendaciones: string;
-  } | null>(null);
+  const [editingPreescolar, setEditingPreescolar] = useState<EditablePreescolarEvaluation | null>(null);
 
   // Print Handling State
-  const [downloadingStudent, setDownloadingStudent] = useState<any>(null);
+  const [downloadingStudent, setDownloadingStudent] = useState<Student | null>(null);
   const preescolarRef = useRef<PreescolarReportHandle>(null);
 
   // Trigger print gracefully when downloading student is populated
@@ -208,7 +215,7 @@ const Calificaciones = () => {
     setDialogOpen(true);
   };
 
-  const handleEditGrade = (record: NonNullable<typeof gradeRecords>[0]) => {
+  const handleEditGrade = (record: GradeRecord) => {
     setEditingRecord({
       id: record.id,
       student_id: record.student_id,
@@ -223,6 +230,12 @@ const Calificaciones = () => {
 
   const handleSaveGrade = async () => {
     if (!editingRecord || !selectedPeriod) return;
+    if (typeof editingRecord.grade !== "number" || Number.isNaN(editingRecord.grade)) {
+      toast.error("Debes ingresar una nota válida.");
+      return;
+    }
+
+    const gradeValue = editingRecord.grade;
     const currentTeacherId = isRector ? editingRecord.teacher_id : teacherId;
     if (!currentTeacherId) {
       toast.error("Debes seleccionar el docente responsable.");
@@ -247,7 +260,7 @@ const Calificaciones = () => {
     if (editingRecord.id) {
       await updateGradeRecord.mutateAsync({
         id: editingRecord.id,
-        grade: editingRecord.grade,
+        grade: gradeValue,
         achievements: editingRecord.achievements,
         comments: editingRecord.comments,
         teacher_id: isRector ? currentTeacherId : undefined
@@ -258,7 +271,7 @@ const Calificaciones = () => {
         subject_id: editingRecord.subject_id,
         teacher_id: currentTeacherId,
         period_id: selectedPeriod,
-        grade: editingRecord.grade,
+        grade: gradeValue,
         achievements: editingRecord.achievements,
         comments: editingRecord.comments
       });
@@ -290,7 +303,7 @@ const Calificaciones = () => {
     setPreescolarDialogOpen(true);
   };
 
-  const handleEditPreescolar = (record: any) => {
+  const handleEditPreescolar = (record: PreescolarEvaluation) => {
     setEditingPreescolar({
       id: record.id,
       student_id: record.student_id,
@@ -368,7 +381,7 @@ const Calificaciones = () => {
   };
 
   // ===================== PDF EXPORT HANDLER =====================
-  const handleDownloadReport = async (student: NonNullable<typeof students>[0]) => {
+  const handleDownloadReport = async (student: Student) => {
     if (!selectedPeriod) return;
     const period = periods?.find(p => p.id === selectedPeriod);
     if (!period) return;
@@ -402,7 +415,7 @@ const Calificaciones = () => {
         await downloadReportCard(
           { full_name: student.full_name, grades: student.grades },
           { id: period.id, name: period.name },
-          allRecords as any,
+          allRecords as DetailedGradeRecord[],
           classSchedules || [],
           periods || [],
           deliveryDate
@@ -415,6 +428,10 @@ const Calificaciones = () => {
 
   const filteredStudents = students?.filter(s => !selectedGrade || s.grade_id === selectedGrade);
   const isLoading = isPrimaryLoading || isPreescolarLoading;
+  const editableGradeValue =
+    editingRecord && typeof editingRecord.grade === "number" && !Number.isNaN(editingRecord.grade)
+      ? editingRecord.grade
+      : null;
 
   return (
     <MainLayout>
@@ -528,7 +545,10 @@ const Calificaciones = () => {
                     );
                   }
 
-                  return records.map((record: any, idx) => (
+                  return records.map((record, idx) => {
+                    const isPreescolarRecord = "dimension" in record;
+
+                    return (
                     <TableRow key={record.id} className="hover:bg-secondary/30">
                       {idx === 0 && (
                         <TableCell className="font-medium" rowSpan={records.length}>
@@ -546,15 +566,15 @@ const Calificaciones = () => {
                       )}
                       
                       <TableCell className="text-sm">
-                        {isPreescolar ? record.dimension : record.subjects?.name}
+                        {isPreescolarRecord ? record.dimension : record.subjects?.name}
                       </TableCell>
                       
                       <TableCell className="text-muted-foreground text-sm max-w-xs truncate hidden md:table-cell">
-                        {isPreescolar ? (record.fortalezas || '-') : (record.achievements || '-')}
+                        {isPreescolarRecord ? (record.fortalezas || '-') : (record.achievements || '-')}
                       </TableCell>
                       
                       <TableCell className="text-center">
-                        {isPreescolar ? (
+                        {isPreescolarRecord ? (
                           <span className="text-muted-foreground">-</span>
                         ) : (
                           <span className={cn(
@@ -572,7 +592,7 @@ const Calificaciones = () => {
                             size="icon" 
                             variant="ghost" 
                             className="h-7 w-7" 
-                            onClick={() => isPreescolar ? handleEditPreescolar(record) : handleEditGrade(record)}
+                            onClick={() => isPreescolarRecord ? handleEditPreescolar(record) : handleEditGrade(record)}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
@@ -580,7 +600,7 @@ const Calificaciones = () => {
                             size="icon" 
                             variant="ghost" 
                             className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" 
-                            onClick={() => isPreescolar ? handleDeletePreescolar(record.id) : handleDeleteGrade(record.id)}
+                            onClick={() => isPreescolarRecord ? handleDeletePreescolar(record.id) : handleDeleteGrade(record.id)}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -589,7 +609,7 @@ const Calificaciones = () => {
                               size="icon" 
                               variant="ghost" 
                               className="h-7 w-7" 
-                              onClick={() => isPreescolar ? handleAddPreescolar(student.id) : handleAddGrade(student.id)}
+                              onClick={() => isPreescolarRecord ? handleAddPreescolar(student.id) : handleAddGrade(student.id)}
                             >
                               <Plus className="w-3.5 h-3.5" />
                             </Button>
@@ -597,7 +617,8 @@ const Calificaciones = () => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ));
+                    );
+                  });
                 })}
               </TableBody>
             </Table>
@@ -711,14 +732,14 @@ const Calificaciones = () => {
                   max="5.0"
                   className="w-32 text-center font-bold text-lg h-12"
                   value={editingRecord?.grade ?? ''}
-                  onChange={(e) => setEditingRecord(prev => prev ? { ...prev, grade: e.target.value === '' ? '' as any : parseFloat(e.target.value) } : null)}
+                  onChange={(e) => setEditingRecord(prev => prev ? { ...prev, grade: e.target.value === '' ? '' : parseFloat(e.target.value) } : null)}
                 />
-                {editingRecord?.grade !== undefined && (editingRecord.grade as any) !== '' && !isNaN(editingRecord.grade as any) && (
+                {editableGradeValue !== null && (
                   <div className={cn(
                     "px-4 py-2 rounded-lg font-bold text-sm shadow-sm",
-                    getGradeColor(editingRecord.grade as number)
+                    getGradeColor(editableGradeValue)
                   )}>
-                    {getGradeSublabel(editingRecord.grade as number)}
+                    {getGradeSublabel(editableGradeValue)}
                   </div>
                 )}
               </div>

@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useSubjects, useTeachers, useStudents, useGradeRecords, useSchedules, useAcademicPeriods } from "@/hooks/useSchoolData";
+import type { AcademicPeriod, Grade, Subject } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { SubjectFormDialog } from "@/components/subjects/SubjectFormDialog";
@@ -40,14 +41,14 @@ const Materias = () => {
   const { userRole, teacherId } = useAuth();
   const isRector = userRole === 'rector';
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState<any>(null);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
   const currentDate = new Date();
-  const activePeriod = academicPeriods?.find((p: any) => {
+  const activePeriod = academicPeriods?.find((p: AcademicPeriod) => {
     const start = new Date(p.start_date);
     const end = new Date(p.end_date);
     return currentDate >= start && currentDate <= end;
-  }) || academicPeriods?.find((p: any) => p.is_active);
+  }) || academicPeriods?.find((p: AcademicPeriod) => p.is_active);
   const activePeriodName = activePeriod?.name || academicPeriods?.[0]?.name || `1 Bimestre`;
   const currentTeacher = teachers?.find(t => t.id === teacherId);
 
@@ -69,7 +70,7 @@ const Materias = () => {
     }
     
     const subject = subjects?.find(s => s.id === subjectId);
-    if (subject && !(subject as any).parent_id) {
+    if (subject && !subject.parent_id) {
       if (!isRector) return 0; // Un profesor solo debería ver números si tiene horario asignado
       return students.filter(s => s.grades && s.grades.level >= 1 && s.grades.level <= 5).length;
     }
@@ -140,7 +141,7 @@ const Materias = () => {
             const subjectTeachers = getTeachersForSubject(subject.id);
             const avg = getSubjectAvg(subject.id);
             const studentCount = getStudentCountForSubject(subject.id);
-            const parentId = (subject as any).parent_id;
+            const parentId = subject.parent_id;
             const parentSubject = parentId ? subjects?.find(s => s.id === parentId) : null;
             const SubjectIcon = getSubjectIcon(parentSubject ? parentSubject.name : subject.name);
 
@@ -223,8 +224,8 @@ const Materias = () => {
                         .map(s => s.grade_id)
                     ));
                     const activeGradesForSubject = gradeIdsForSubject
-                      .map(id => (schedules || []).find(s => s.grade_id === id)?.grades)
-                      .filter(Boolean) as any[];
+                      .map((id) => (schedules || []).find((schedule) => schedule.grade_id === id)?.grades)
+                      .filter((grade): grade is Grade => Boolean(grade));
 
                     if (activeGradesForSubject.length === 0) return null;
 
@@ -260,7 +261,7 @@ const Materias = () => {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {activeGradesForSubject.map((g: any) => (
+                                {activeGradesForSubject.map((g) => (
                                   <DropdownMenuItem key={g.id} onClick={() => {
                                     const studs = students?.filter(s => s.grade_id === g.id) || [];
                                     downloadAttendanceListPDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
@@ -278,7 +279,7 @@ const Materias = () => {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {activeGradesForSubject.map((g: any) => (
+                                {activeGradesForSubject.map((g) => (
                                   <DropdownMenuItem key={g.id} onClick={() => {
                                     const studs = students?.filter(s => s.grade_id === g.id) || [];
                                     downloadGradingTemplatePDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);

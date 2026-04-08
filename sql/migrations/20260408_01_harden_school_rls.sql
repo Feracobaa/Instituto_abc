@@ -34,6 +34,20 @@ where pe.teacher_id is not null
       and tga.grade_id = s.grade_id
   );
 
+insert into public.teacher_grade_assignments (teacher_id, grade_id)
+select distinct
+  s.teacher_id,
+  s.grade_id
+from public.schedules s
+where s.teacher_id is not null
+  and s.grade_id is not null
+  and not exists (
+    select 1
+    from public.teacher_grade_assignments tga
+    where tga.teacher_id = s.teacher_id
+      and tga.grade_id = s.grade_id
+  );
+
 insert into public.teacher_subjects (teacher_id, subject_id)
 select distinct
   gr.teacher_id,
@@ -46,6 +60,20 @@ where gr.teacher_id is not null
     from public.teacher_subjects ts
     where ts.teacher_id = gr.teacher_id
       and ts.subject_id = gr.subject_id
+  );
+
+insert into public.teacher_subjects (teacher_id, subject_id)
+select distinct
+  s.teacher_id,
+  s.subject_id
+from public.schedules s
+where s.teacher_id is not null
+  and s.subject_id is not null
+  and not exists (
+    select 1
+    from public.teacher_subjects ts
+    where ts.teacher_id = s.teacher_id
+      and ts.subject_id = s.subject_id
   );
 
 do $$

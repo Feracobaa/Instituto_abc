@@ -1,11 +1,43 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert } from '@/integrations/types';
 import { useToast } from '@/hooks/use-toast';
+
+export type AcademicPeriod = Tables<'academic_periods'>;
+export type Grade = Tables<'grades'>;
+export type Subject = Tables<'subjects'>;
+export type TeacherBase = Tables<'teachers'>;
+export type TeacherSubjectAssignment = Tables<'teacher_subjects'> & {
+  subjects: Subject | null;
+};
+export type TeacherGradeAssignment = Tables<'teacher_grade_assignments'> & {
+  grades: Grade | null;
+};
+export type Teacher = TeacherBase & {
+  teacher_grade_assignments: TeacherGradeAssignment[] | null;
+  teacher_subjects: TeacherSubjectAssignment[] | null;
+};
+export type Student = Tables<'students'> & {
+  grades: Grade | null;
+};
+export type Schedule = Tables<'schedules'> & {
+  grades: Grade | null;
+  subjects: Subject | null;
+  teachers: TeacherBase | null;
+};
+export type GradeRecord = Tables<'grade_records'> & {
+  academic_periods: AcademicPeriod | null;
+  students: Student | null;
+  subjects: Subject | null;
+  teachers: TeacherBase | null;
+};
+export type PreescolarEvaluation = Tables<'preescolar_evaluations'>;
+export type ScheduleInsert = TablesInsert<'schedules'>;
 
 export function useSubjects() {
   return useQuery({
     queryKey: ['subjects'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Subject[]> => {
       console.log('🔍 useSubjects: Iniciando query a Supabase...');
       const { data, error } = await supabase
         .from('subjects')
@@ -17,7 +49,7 @@ export function useSubjects() {
         console.error('❌ useSubjects Error:', error);
         throw error;
       }
-      return data;
+      return (data ?? []) as Subject[];
     },
     staleTime: 0,
     gcTime: 0
@@ -27,7 +59,7 @@ export function useSubjects() {
 export function useGrades() {
   return useQuery({
     queryKey: ['grades'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Grade[]> => {
       console.log('🔍 useGrades: Iniciando query a Supabase...');
       const { data, error } = await supabase
         .from('grades')
@@ -39,7 +71,7 @@ export function useGrades() {
         console.error('❌ useGrades Error:', error);
         throw error;
       }
-      return data;
+      return (data ?? []) as Grade[];
     },
     staleTime: 0,
     gcTime: 0
@@ -49,7 +81,7 @@ export function useGrades() {
 export function useTeachers() {
   return useQuery({
     queryKey: ['teachers'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Teacher[]> => {
       const { data, error } = await supabase
         .from('teachers')
         .select(`
@@ -70,7 +102,7 @@ export function useTeachers() {
         .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
-      return data;
+      return (data ?? []) as Teacher[];
     }
   });
 }
@@ -78,7 +110,7 @@ export function useTeachers() {
 export function useStudents(gradeId?: string) {
   return useQuery({
     queryKey: ['students', gradeId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Student[]> => {
       let query = supabase
         .from('students')
         .select(`
@@ -94,7 +126,7 @@ export function useStudents(gradeId?: string) {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return (data ?? []) as Student[];
     }
   });
 }
@@ -102,13 +134,13 @@ export function useStudents(gradeId?: string) {
 export function useAcademicPeriods() {
   return useQuery({
     queryKey: ['academic_periods'],
-    queryFn: async () => {
+    queryFn: async (): Promise<AcademicPeriod[]> => {
       const { data, error } = await supabase
         .from('academic_periods')
         .select('*')
         .order('start_date');
       if (error) throw error;
-      return data;
+      return (data ?? []) as AcademicPeriod[];
     }
   });
 }
@@ -116,7 +148,7 @@ export function useAcademicPeriods() {
 export function useSchedules(gradeId?: string, teacherId?: string) {
   return useQuery({
     queryKey: ['schedules', gradeId, teacherId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Schedule[]> => {
       let query = supabase
         .from('schedules')
         .select(`
@@ -137,7 +169,7 @@ export function useSchedules(gradeId?: string, teacherId?: string) {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return (data ?? []) as Schedule[];
     }
   });
 }
@@ -145,7 +177,7 @@ export function useSchedules(gradeId?: string, teacherId?: string) {
 export function useGradeRecords(filters?: { studentId?: string; periodId?: string }) {
   return useQuery({
     queryKey: ['grade_records', filters],
-    queryFn: async () => {
+    queryFn: async (): Promise<GradeRecord[]> => {
       let query = supabase
         .from('grade_records')
         .select(`
@@ -166,7 +198,7 @@ export function useGradeRecords(filters?: { studentId?: string; periodId?: strin
       
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return (data ?? []) as GradeRecord[];
     }
   });
 }
@@ -548,7 +580,7 @@ export function useCreateSchedule() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: any | any[]) => {
+    mutationFn: async (data: ScheduleInsert | ScheduleInsert[]) => {
       // array of objects or single object
       const isArray = Array.isArray(data);
       const { data: schedule, error } = await supabase
@@ -598,7 +630,7 @@ export function useDeleteSchedule() {
 export function usePreescolarEvaluations(filters?: { studentId?: string; periodId?: string }) {
   return useQuery({
     queryKey: ['preescolar_evaluations', filters],
-    queryFn: async () => {
+    queryFn: async (): Promise<PreescolarEvaluation[]> => {
       let query = supabase
         .from('preescolar_evaluations')
         .select(`*`)
@@ -613,7 +645,7 @@ export function usePreescolarEvaluations(filters?: { studentId?: string; periodI
       
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return (data ?? []) as PreescolarEvaluation[];
     }
   });
 }

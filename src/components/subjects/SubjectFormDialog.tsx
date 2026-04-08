@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useGrades, useSubjects, useCreateSubject, useUpdateSubject } from '@/hooks/useSchoolData';
+import type { Subject } from '@/hooks/useSchoolData';
 import { Loader2 } from 'lucide-react';
 
 const COLORS = [
@@ -21,13 +22,7 @@ const COLORS = [
 interface SubjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  subject?: {
-    id: string;
-    name: string;
-    color: string;
-    parent_id?: string | null;
-    grade_level?: number | null;
-  } | null;
+  subject?: Subject | null;
 }
 
 export function SubjectFormDialog({ open, onOpenChange, subject }: SubjectFormDialogProps) {
@@ -114,8 +109,8 @@ export function SubjectFormDialog({ open, onOpenChange, subject }: SubjectFormDi
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="none">No, es una materia principal</option>
-              {subjects?.filter(s => !(s as any).parent_id).map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {subjects?.filter((item) => !item.parent_id).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
               ))}
             </select>
             <p className="text-[11px] text-muted-foreground mt-1">

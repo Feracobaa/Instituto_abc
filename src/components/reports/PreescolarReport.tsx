@@ -60,7 +60,6 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
     const element = reportRef.current;
     if (!element) return;
     
-    // @ts-ignore
     const html2pdf = (await import('html2pdf.js')).default;
     
     const opt = {

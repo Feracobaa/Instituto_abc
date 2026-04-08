@@ -76,6 +76,36 @@ where not (
     subject_id is not null
     and teacher_id is not null
   )
+)
+
+union all
+
+select
+  'schedules_teacher_without_grade_assignment' as check_name,
+  count(*) as affected_rows
+from public.schedules s
+where s.teacher_id is not null
+  and s.grade_id is not null
+  and not exists (
+    select 1
+    from public.teacher_grade_assignments tga
+    where tga.teacher_id = s.teacher_id
+      and tga.grade_id = s.grade_id
+  )
+
+union all
+
+select
+  'schedules_teacher_without_subject_assignment' as check_name,
+  count(*) as affected_rows
+from public.schedules s
+where s.teacher_id is not null
+  and s.subject_id is not null
+  and not exists (
+    select 1
+    from public.teacher_subjects ts
+    where ts.teacher_id = s.teacher_id
+      and ts.subject_id = s.subject_id
 );
 
 -- Detail rows only if one of the counts above is not zero.
@@ -117,17 +147,39 @@ order by pe.created_at desc;
 select
   s.*
 from public.schedules s
-where not (
-  (
-    s.title is not null
-    and btrim(s.title) <> ''
-    and s.subject_id is null
-    and s.teacher_id is null
+where (
+  not (
+    (
+      s.title is not null
+      and btrim(s.title) <> ''
+      and s.subject_id is null
+      and s.teacher_id is null
+    )
+    or
+    (
+      s.subject_id is not null
+      and s.teacher_id is not null
+    )
   )
-  or
-  (
-    s.subject_id is not null
-    and s.teacher_id is not null
+  or (
+    s.teacher_id is not null
+    and s.grade_id is not null
+    and not exists (
+      select 1
+      from public.teacher_grade_assignments tga
+      where tga.teacher_id = s.teacher_id
+        and tga.grade_id = s.grade_id
+    )
+  )
+  or (
+    s.teacher_id is not null
+    and s.subject_id is not null
+    and not exists (
+      select 1
+      from public.teacher_subjects ts
+      where ts.teacher_id = s.teacher_id
+        and ts.subject_id = s.subject_id
+    )
   )
 )
 order by s.day_of_week, s.start_time;

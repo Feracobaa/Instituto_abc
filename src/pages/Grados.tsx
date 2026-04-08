@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useGrades, useStudents, useGradeRecords } from "@/hooks/useSchoolData";
+import type { Student } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { GraduationCap, Users, Loader2, ExternalLink, Trophy, Medal } from "lucide-react";
@@ -41,6 +42,12 @@ const getMedalColor = (position: number) => {
   return '';
 };
 
+type StudentAverage = {
+  avg: number;
+  recordCount: number;
+  student: Student;
+};
+
 const Grados = () => {
   const { data: grades, isLoading: gradesLoading } = useGrades();
   const { data: students, isLoading: studentsLoading } = useStudents();
@@ -74,7 +81,7 @@ const Grados = () => {
       if (studentRecords.length === 0) return null;
       const avg = studentRecords.reduce((sum, r) => sum + r.grade, 0) / studentRecords.length;
       return { student, avg, recordCount: studentRecords.length };
-    }).filter(Boolean) as { student: any; avg: number; recordCount: number }[];
+    }).filter((entry): entry is StudentAverage => Boolean(entry));
 
     return studentAverages
       .sort((a, b) => b.avg - a.avg)
