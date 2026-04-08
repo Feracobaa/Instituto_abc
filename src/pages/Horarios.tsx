@@ -6,7 +6,6 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, Download, Coffee, Plus, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { downloadSchedulePDF } from "@/utils/pdfGenerator";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScheduleFormDialog } from "@/components/schedules/ScheduleFormDialog";
 
@@ -85,6 +84,7 @@ const Horarios = () => {
 
   const handleDownloadSchedule = async () => {
     if (!selectedGradeData || !schedules) return;
+    const { downloadSchedulePDF } = await import("@/utils/pdfGenerator");
     await downloadSchedulePDF(selectedGradeData.name, gradeSchedules, uniqueStartTimes);
   };
 

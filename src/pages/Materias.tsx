@@ -11,7 +11,6 @@ import {
   ClipboardList, FileText
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { downloadAttendanceListPDF, downloadGradingTemplatePDF } from "@/utils/pdfGenerator";
 import { cn } from "@/lib/utils";
 
 // Assign icon by subject name keywords
@@ -104,6 +103,28 @@ const Materias = () => {
     if (avg >= 4) return 'text-success';
     if (avg >= 3) return 'text-warning';
     return 'text-destructive';
+  };
+
+  const handleDownloadAttendance = async (
+    gradeName: string,
+    teacherName: string,
+    subjectName: string,
+    gradeId: string,
+  ) => {
+    const studs = students?.filter((student) => student.grade_id === gradeId) || [];
+    const { downloadAttendanceListPDF } = await import("@/utils/pdfGenerator");
+    await downloadAttendanceListPDF(gradeName, studs, activePeriodName, teacherName, subjectName);
+  };
+
+  const handleDownloadGradingTemplate = async (
+    gradeName: string,
+    teacherName: string,
+    subjectName: string,
+    gradeId: string,
+  ) => {
+    const studs = students?.filter((student) => student.grade_id === gradeId) || [];
+    const { downloadGradingTemplatePDF } = await import("@/utils/pdfGenerator");
+    await downloadGradingTemplatePDF(gradeName, studs, activePeriodName, teacherName, subjectName);
   };
 
   const isLoading = subjectsLoading || teachersLoading;
@@ -239,15 +260,13 @@ const Materias = () => {
                           <div className="flex gap-2 w-full">
                             <button onClick={() => {
                               const g = activeGradesForSubject[0];
-                              const studs = students?.filter(s => s.grade_id === g.id) || [];
-                              downloadAttendanceListPDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                              void handleDownloadAttendance(g.name, pdfTeacherName, subject.name, g.id);
                             }} className="flex-1 flex justify-center items-center gap-1.5 text-[11px] font-semibold p-2 bg-secondary/30 hover:bg-secondary/70 rounded-md transition-colors text-foreground">
                               <ClipboardList className="w-3.5 h-3.5 text-primary" /> Asistencia
                             </button>
                             <button onClick={() => {
                               const g = activeGradesForSubject[0];
-                              const studs = students?.filter(s => s.grade_id === g.id) || [];
-                              downloadGradingTemplatePDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                              void handleDownloadGradingTemplate(g.name, pdfTeacherName, subject.name, g.id);
                             }} className="flex-1 flex justify-center items-center gap-1.5 text-[11px] font-semibold p-2 bg-secondary/30 hover:bg-secondary/70 rounded-md transition-colors text-foreground">
                               <FileText className="w-3.5 h-3.5 text-primary" /> Notas
                             </button>
@@ -263,8 +282,7 @@ const Materias = () => {
                               <DropdownMenuContent align="end">
                                 {activeGradesForSubject.map((g) => (
                                   <DropdownMenuItem key={g.id} onClick={() => {
-                                    const studs = students?.filter(s => s.grade_id === g.id) || [];
-                                    downloadAttendanceListPDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                                    void handleDownloadAttendance(g.name, pdfTeacherName, subject.name, g.id);
                                   }}>
                                     Grado {g.name}
                                   </DropdownMenuItem>
@@ -281,8 +299,7 @@ const Materias = () => {
                               <DropdownMenuContent align="end">
                                 {activeGradesForSubject.map((g) => (
                                   <DropdownMenuItem key={g.id} onClick={() => {
-                                    const studs = students?.filter(s => s.grade_id === g.id) || [];
-                                    downloadGradingTemplatePDF(g.name, studs, activePeriodName, pdfTeacherName, subject.name);
+                                    void handleDownloadGradingTemplate(g.name, pdfTeacherName, subject.name, g.id);
                                   }}>
                                     Grado {g.name}
                                   </DropdownMenuItem>

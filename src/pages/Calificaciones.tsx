@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Loader2, FileText, Pencil, ClipboardList, Trash2, CalendarDays } from "lucide-react";
-import { downloadReportCard } from "@/utils/pdfGenerator";
 import type { DetailedGradeRecord } from "@/utils/pdfGenerator";
 import PreescolarReport, { PreescolarReportHandle } from "@/components/reports/PreescolarReport";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -412,6 +411,7 @@ const Calificaciones = () => {
         .eq('grade_id', student.grade_id);
 
       if (allRecords && allRecords.length > 0) {
+        const { downloadReportCard } = await import("@/utils/pdfGenerator");
         await downloadReportCard(
           { full_name: student.full_name, grades: student.grades },
           { id: period.id, name: period.name },
