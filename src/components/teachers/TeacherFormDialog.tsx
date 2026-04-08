@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useSubjects, useGrades, useCreateTeacher, useUpdateTeacher } from '@/hooks/useSchoolData';
-import { Loader2, Search, Filter } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 
 interface Teacher {
   id: string;
@@ -13,6 +13,7 @@ interface Teacher {
   email: string;
   phone: string | null;
   teacher_subjects?: { subject_id: string; subjects: { id: string; name: string } }[];
+  teacher_grade_assignments?: { grade_id: string; grades: { id: string; name: string; level: number } }[];
 }
 
 interface TeacherFormDialogProps {
@@ -28,13 +29,13 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: TeacherFormDi
   const updateTeacher = useUpdateTeacher();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterGrade, setFilterGrade] = useState<string>('all');
 
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
     phone: '',
-    subject_ids: [] as string[]
+    subject_ids: [] as string[],
+    grade_ids: [] as string[]
   });
 
   useEffect(() => {
@@ -43,14 +44,16 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: TeacherFormDi
         full_name: teacher.full_name,
         email: teacher.email,
         phone: teacher.phone || '',
-        subject_ids: teacher.teacher_subjects?.map(ts => ts.subject_id) || []
+        subject_ids: teacher.teacher_subjects?.map(ts => ts.subject_id) || [],
+        grade_ids: teacher.teacher_grade_assignments?.map(tga => tga.grade_id) || []
       });
     } else {
       setFormData({
         full_name: '',
         email: '',
         phone: '',
-        subject_ids: []
+        subject_ids: [],
+        grade_ids: []
       });
     }
   }, [teacher, open]);
@@ -76,11 +79,17 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: TeacherFormDi
     }));
   };
 
+  const toggleGrade = (gradeId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      grade_ids: prev.grade_ids.includes(gradeId)
+        ? prev.grade_ids.filter(id => id !== gradeId)
+        : [...prev.grade_ids, gradeId]
+    }));
+  };
+
   const filteredSubjects = subjects?.filter((subject) => {
-    const matchesSearch = subject.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const gradeLevel = (subject as any).grade_level;
-    const matchesGrade = filterGrade === 'all' || gradeLevel?.toString() === filterGrade;
-    return matchesSearch && matchesGrade;
+    return subject.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const isLoading = createTeacher.isPending || updateTeacher.isPending;
@@ -154,6 +163,32 @@ export function TeacherFormDialog({ open, onOpenChange, teacher }: TeacherFormDi
                 ))
               )}
             </div>
+          </div>
+          <div className="space-y-3">
+            <Label>Grados Asignados</Label>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-secondary/30 rounded-lg border border-border/50">
+              {grades?.length === 0 ? (
+                <div className="col-span-2 text-center text-sm text-muted-foreground py-4">
+                  No hay grados configurados.
+                </div>
+              ) : (
+                grades?.map((grade) => (
+                  <div key={grade.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`grade-${grade.id}`}
+                      checked={formData.grade_ids.includes(grade.id)}
+                      onCheckedChange={() => toggleGrade(grade.id)}
+                    />
+                    <Label htmlFor={`grade-${grade.id}`} className="text-sm cursor-pointer" title={grade.name}>
+                      {grade.name}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Estas asignaciones controlan que el rector solo pueda registrar notas en nombre de docentes válidos para el grado.
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

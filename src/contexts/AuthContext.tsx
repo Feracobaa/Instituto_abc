@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type UserRole = 'rector' | 'profesor' | null;
+type SupportedUserRole = 'rector' | 'profesor';
+type UserRole = SupportedUserRole | null;
 
 interface AuthContextType {
   user: User | null;
@@ -16,6 +17,9 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const isSupportedUserRole = (role: string): role is SupportedUserRole =>
+  role === 'rector' || role === 'profesor';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,9 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', userId)
       .maybeSingle();
     
-    if (data) {
-      setUserRole(data.role as UserRole);
-    }
+    setUserRole(data && isSupportedUserRole(data.role) ? data.role : null);
   };
 
   const fetchTeacherId = async (userId: string) => {

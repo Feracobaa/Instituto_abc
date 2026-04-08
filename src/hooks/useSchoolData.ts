@@ -54,6 +54,14 @@ export function useTeachers() {
         .from('teachers')
         .select(`
           *,
+          teacher_grade_assignments(
+            grade_id,
+            grades(
+              id,
+              name,
+              level
+            )
+          ),
           teacher_subjects(
             subject_id,
             subjects(*)
@@ -169,7 +177,13 @@ export function useCreateTeacher() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { full_name: string; email: string; phone?: string; subject_ids: string[] }) => {
+    mutationFn: async (data: {
+      full_name: string;
+      email: string;
+      phone?: string;
+      subject_ids: string[];
+      grade_ids: string[];
+    }) => {
       const { data: teacher, error } = await supabase
         .from('teachers')
         .insert({
@@ -195,6 +209,19 @@ export function useCreateTeacher() {
         if (subjectError) throw subjectError;
       }
 
+      if (data.grade_ids.length > 0) {
+        const teacherGradeAssignments = data.grade_ids.map(gradeId => ({
+          teacher_id: teacher.id,
+          grade_id: gradeId
+        }));
+
+        const { error: gradeError } = await supabase
+          .from('teacher_grade_assignments')
+          .insert(teacherGradeAssignments);
+
+        if (gradeError) throw gradeError;
+      }
+
       return teacher;
     },
     onSuccess: () => {
@@ -212,7 +239,14 @@ export function useUpdateTeacher() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { id: string; full_name: string; email: string; phone?: string; subject_ids: string[] }) => {
+    mutationFn: async (data: {
+      id: string;
+      full_name: string;
+      email: string;
+      phone?: string;
+      subject_ids: string[];
+      grade_ids: string[];
+    }) => {
       const { error } = await supabase
         .from('teachers')
         .update({
@@ -226,6 +260,7 @@ export function useUpdateTeacher() {
 
       // Update subjects
       await supabase.from('teacher_subjects').delete().eq('teacher_id', data.id);
+      await supabase.from('teacher_grade_assignments').delete().eq('teacher_id', data.id);
       
       if (data.subject_ids.length > 0) {
         const teacherSubjects = data.subject_ids.map(subjectId => ({
@@ -235,6 +270,19 @@ export function useUpdateTeacher() {
         
         const { error: insertError } = await supabase.from('teacher_subjects').insert(teacherSubjects);
         if (insertError) throw insertError;
+      }
+
+      if (data.grade_ids.length > 0) {
+        const teacherGradeAssignments = data.grade_ids.map(gradeId => ({
+          teacher_id: data.id,
+          grade_id: gradeId
+        }));
+
+        const { error: gradeInsertError } = await supabase
+          .from('teacher_grade_assignments')
+          .insert(teacherGradeAssignments);
+
+        if (gradeInsertError) throw gradeInsertError;
       }
 
       return data;
@@ -279,7 +327,6 @@ export function useCreateStudent() {
     mutationFn: async (data: { 
       full_name: string; 
       grade_id: string; 
-      birth_date?: string;
       guardian_name?: string;
       guardian_phone?: string;
     }) => {
@@ -310,7 +357,6 @@ export function useUpdateStudent() {
       id: string;
       full_name: string; 
       grade_id: string; 
-      birth_date?: string;
       guardian_name?: string;
       guardian_phone?: string;
     }) => {
@@ -395,6 +441,7 @@ export function useUpdateGradeRecord() {
       grade: number;
       achievements?: string;
       comments?: string;
+      teacher_id?: string;
     }) => {
       const { id, ...updateData } = data;
       const { error } = await supabase
@@ -440,7 +487,12 @@ export function useCreateSubject() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { name: string; color: string; parent_id?: string | null }) => {
+    mutationFn: async (data: {
+      name: string;
+      color: string;
+      parent_id?: string | null;
+      grade_level?: number | null;
+    }) => {
       const { data: subject, error } = await supabase
         .from('subjects')
         .insert(data)
@@ -464,7 +516,13 @@ export function useUpdateSubject() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { id: string; name: string; color: string; parent_id?: string | null }) => {
+    mutationFn: async (data: {
+      id: string;
+      name: string;
+      color: string;
+      parent_id?: string | null;
+      grade_level?: number | null;
+    }) => {
       const { id, ...updateData } = data;
       const { data: subject, error } = await supabase
         .from('subjects')
@@ -602,6 +660,7 @@ export function useUpdatePreescolarEvaluation() {
       fortalezas: string;
       debilidades: string;
       recomendaciones: string;
+      teacher_id?: string | null;
     }) => {
       const { id, ...updateData } = data;
       const { error } = await supabase
@@ -641,4 +700,3 @@ export function useDeletePreescolarEvaluation() {
     }
   });
 }
-

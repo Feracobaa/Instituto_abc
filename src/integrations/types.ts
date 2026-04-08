@@ -218,32 +218,41 @@ export type Database = {
         Row: {
           created_at: string
           day_of_week: number
+          end_date: string | null
           end_time: string
           grade_id: string
           id: string
+          start_date: string | null
           start_time: string
-          subject_id: string
-          teacher_id: string
+          subject_id: string | null
+          teacher_id: string | null
+          title: string | null
         }
         Insert: {
           created_at?: string
           day_of_week: number
+          end_date?: string | null
           end_time: string
           grade_id: string
           id?: string
+          start_date?: string | null
           start_time: string
-          subject_id: string
-          teacher_id: string
+          subject_id?: string | null
+          teacher_id?: string | null
+          title?: string | null
         }
         Update: {
           created_at?: string
           day_of_week?: number
+          end_date?: string | null
           end_time?: string
           grade_id?: string
           id?: string
+          start_date?: string | null
           start_time?: string
-          subject_id?: string
-          teacher_id?: string
+          subject_id?: string | null
+          teacher_id?: string | null
+          title?: string | null
         }
         Relationships: [
           {
@@ -271,7 +280,6 @@ export type Database = {
       }
       students: {
         Row: {
-          birth_date: string | null
           created_at: string
           full_name: string
           grade_id: string | null
@@ -282,7 +290,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          birth_date?: string | null
           created_at?: string
           full_name: string
           grade_id?: string | null
@@ -293,7 +300,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          birth_date?: string | null
           created_at?: string
           full_name?: string
           grade_id?: string | null
@@ -317,22 +323,72 @@ export type Database = {
         Row: {
           color: string
           created_at: string
+          grade_level: number | null
           id: string
           name: string
+          parent_id: string | null
         }
         Insert: {
           color?: string
           created_at?: string
+          grade_level?: number | null
           id?: string
           name: string
+          parent_id?: string | null
         }
         Update: {
           color?: string
           created_at?: string
+          grade_level?: number | null
           id?: string
           name?: string
+          parent_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subjects_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_grade_assignments: {
+        Row: {
+          created_at: string | null
+          grade_id: string
+          id: string
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          grade_id: string
+          id?: string
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string | null
+          grade_id?: string
+          id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_grade_assignments_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_grade_assignments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teacher_subjects: {
         Row: {
@@ -403,17 +459,17 @@ export type Database = {
       user_roles: {
         Row: {
           id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["user_role_enum"]
           user_id: string
         }
         Insert: {
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["user_role_enum"]
           user_id: string
         }
         Update: {
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["user_role_enum"]
           user_id?: string
         }
         Relationships: []
@@ -423,17 +479,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_teacher_id_for_user: { Args: { _user_id: string }; Returns: string }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      is_user_profesor: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_user_rector: { Args: Record<PropertyKey, never>; Returns: boolean }
     }
     Enums: {
-      app_role: "rector" | "profesor"
+      user_role_enum: "rector" | "profesor" | "parent" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -561,7 +611,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["rector", "profesor"],
+      user_role_enum: ["rector", "profesor", "parent", "admin"],
     },
   },
 } as const

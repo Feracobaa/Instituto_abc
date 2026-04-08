@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Pencil, Trash2, Loader2, Users, Calendar, Phone, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Users, Phone, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import { StudentFormDialog } from "@/components/students/StudentFormDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -209,12 +209,6 @@ const Estudiantes = () => {
 
                   {/* Info + avg */}
                   <div className="space-y-1.5 text-xs mb-3 flex-1">
-                    {student.birth_date && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{new Date(student.birth_date).toLocaleDateString('es-CO')}</span>
-                      </div>
-                    )}
                     {student.guardian_name && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Users className="w-3.5 h-3.5 flex-shrink-0" />

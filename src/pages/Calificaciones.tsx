@@ -71,6 +71,30 @@ const Calificaciones = () => {
 
   // Fetch schedules for the current teacher to filter available grades and subjects
   const { data: fetchSchedules } = useSchedules(undefined, isRector ? undefined : (teacherId || undefined));
+
+  const availableTeachersForSelectedGrade = selectedGrade
+    ? teachers?.filter((teacher) =>
+        teacher.teacher_grade_assignments?.some((assignment) => assignment.grade_id === selectedGrade)
+      ) ?? []
+    : [];
+
+  const getTeacherSubjects = (currentTeacherId?: string | null) => {
+    if (!currentTeacherId) return [];
+    const selectedTeacher = teachers?.find((teacher) => teacher.id === currentTeacherId);
+    const subjectIds = new Set(selectedTeacher?.teacher_subjects?.map((item) => item.subject_id) ?? []);
+
+    return subjects?.filter((subject) => subjectIds.has(subject.id)) ?? [];
+  };
+
+  const getTeacherOptionsForGradeRecord = () => {
+    if (!editingRecord?.subject_id) {
+      return availableTeachersForSelectedGrade;
+    }
+
+    return availableTeachersForSelectedGrade.filter((teacher) =>
+      teacher.teacher_subjects?.some((item) => item.subject_id === editingRecord.subject_id)
+    );
+  };
   
   const availableGrades = isRector 
     ? grades 
@@ -109,6 +133,7 @@ const Calificaciones = () => {
     id?: string;
     student_id: string;
     subject_id: string;
+    teacher_id: string;
     grade: number;
     achievements: string;
     comments: string;
@@ -120,6 +145,7 @@ const Calificaciones = () => {
     id?: string;
     student_id: string;
     dimension: string;
+    teacher_id: string;
     fortalezas: string;
     debilidades: string;
     recomendaciones: string;
@@ -171,7 +197,14 @@ const Calificaciones = () => {
 
   // ===================== PRIMARY HANDLERS =====================
   const handleAddGrade = (studentId: string) => {
-    setEditingRecord({ student_id: studentId, subject_id: '', grade: 3, achievements: '', comments: '' });
+    setEditingRecord({
+      student_id: studentId,
+      subject_id: '',
+      teacher_id: isRector ? '' : (teacherId || ''),
+      grade: 3,
+      achievements: '',
+      comments: ''
+    });
     setDialogOpen(true);
   };
 
@@ -180,6 +213,7 @@ const Calificaciones = () => {
       id: record.id,
       student_id: record.student_id,
       subject_id: record.subject_id,
+      teacher_id: record.teacher_id || '',
       grade: record.grade,
       achievements: record.achievements || '',
       comments: record.comments || ''
@@ -189,15 +223,34 @@ const Calificaciones = () => {
 
   const handleSaveGrade = async () => {
     if (!editingRecord || !selectedPeriod) return;
-    const currentTeacherId = isRector ? teachers?.[0]?.id : teacherId;
-    if (!currentTeacherId) return;
+    const currentTeacherId = isRector ? editingRecord.teacher_id : teacherId;
+    if (!currentTeacherId) {
+      toast.error("Debes seleccionar el docente responsable.");
+      return;
+    }
+
+    if (isRector) {
+      const selectedTeacher = teachers?.find((teacher) => teacher.id === currentTeacherId);
+      const isTeacherAssignedToGrade = selectedTeacher?.teacher_grade_assignments?.some(
+        (assignment) => assignment.grade_id === selectedGrade
+      );
+      const isTeacherAssignedToSubject = selectedTeacher?.teacher_subjects?.some(
+        (assignment) => assignment.subject_id === editingRecord.subject_id
+      );
+
+      if (!isTeacherAssignedToGrade || !isTeacherAssignedToSubject) {
+        toast.error("El docente seleccionado no está asignado a ese grado o materia.");
+        return;
+      }
+    }
 
     if (editingRecord.id) {
       await updateGradeRecord.mutateAsync({
         id: editingRecord.id,
         grade: editingRecord.grade,
         achievements: editingRecord.achievements,
-        comments: editingRecord.comments
+        comments: editingRecord.comments,
+        teacher_id: isRector ? currentTeacherId : undefined
       });
     } else {
       await createGradeRecord.mutateAsync({
@@ -229,6 +282,7 @@ const Calificaciones = () => {
     setEditingPreescolar({ 
       student_id: studentId, 
       dimension: '', 
+      teacher_id: isRector ? '' : (teacherId || ''),
       fortalezas: '', 
       debilidades: '', 
       recomendaciones: '' 
@@ -241,6 +295,7 @@ const Calificaciones = () => {
       id: record.id,
       student_id: record.student_id,
       dimension: record.dimension,
+      teacher_id: record.teacher_id || '',
       fortalezas: record.fortalezas || '',
       debilidades: record.debilidades || '',
       recomendaciones: record.recomendaciones || ''
@@ -262,15 +317,30 @@ const Calificaciones = () => {
        return;
     }
 
-    const currentTeacherId = isRector ? teachers?.[0]?.id : teacherId;
-    if (!currentTeacherId) return;
+    const currentTeacherId = isRector ? editingPreescolar.teacher_id : teacherId;
+    if (!currentTeacherId) {
+      toast.error("Debes seleccionar el docente responsable.");
+      return;
+    }
+
+    if (isRector) {
+      const isTeacherAssignedToGrade = availableTeachersForSelectedGrade.some(
+        (teacher) => teacher.id === currentTeacherId
+      );
+
+      if (!isTeacherAssignedToGrade) {
+        toast.error("El docente seleccionado no está asignado al grado elegido.");
+        return;
+      }
+    }
 
     if (editingPreescolar.id) {
       await updatePreescolarEvaluation.mutateAsync({
         id: editingPreescolar.id,
         fortalezas: editingPreescolar.fortalezas,
         debilidades: editingPreescolar.debilidades,
-        recomendaciones: editingPreescolar.recomendaciones
+        recomendaciones: editingPreescolar.recomendaciones,
+        teacher_id: isRector ? currentTeacherId : undefined
       });
     } else {
       await createPreescolarEvaluation.mutateAsync({
@@ -561,6 +631,30 @@ const Calificaciones = () => {
           </DialogHeader>
           <div className="space-y-4">
             {!editingRecord?.id && (
+              <>
+                {isRector && (
+                  <div className="space-y-2">
+                    <Label>Docente responsable</Label>
+                    <Select
+                      value={editingRecord?.teacher_id}
+                      onValueChange={(value) => setEditingRecord(prev => prev ? { ...prev, teacher_id: value, subject_id: '' } : null)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar docente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTeachersForSelectedGrade.map((teacher) => (
+                          <SelectItem key={teacher.id} value={teacher.id}>{teacher.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedGrade && availableTeachersForSelectedGrade.length === 0 && (
+                      <p className="text-xs text-destructive">
+                        No hay docentes asignados a este grado. Asígnalos desde Profesores antes de registrar notas.
+                      </p>
+                    )}
+                  </div>
+                )}
               <div className="space-y-2">
                 <Label>Materia</Label>
                 <Select
@@ -572,10 +666,35 @@ const Calificaciones = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {(isRector 
-                      ? subjects 
+                      ? getTeacherSubjects(editingRecord?.teacher_id)
                       : subjects?.filter(subject => fetchSchedules?.some(s => s.grade_id === selectedGrade && s.subject_id === subject.id))
                     )?.map((subject) => (
                       <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isRector && !editingRecord?.teacher_id && (
+                  <p className="text-xs text-muted-foreground">
+                    Primero selecciona el docente para mostrar solo las materias que realmente dicta.
+                  </p>
+                )}
+              </div>
+              </>
+            )}
+
+            {isRector && editingRecord?.id && (
+              <div className="space-y-2">
+                <Label>Docente responsable</Label>
+                <Select
+                  value={editingRecord?.teacher_id}
+                  onValueChange={(value) => setEditingRecord(prev => prev ? { ...prev, teacher_id: value } : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar docente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getTeacherOptionsForGradeRecord().map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>{teacher.full_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -627,7 +746,12 @@ const Calificaciones = () => {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button
                 onClick={handleSaveGrade}
-                disabled={createGradeRecord.isPending || updateGradeRecord.isPending || (!editingRecord?.id && !editingRecord?.subject_id)}
+                disabled={
+                  createGradeRecord.isPending ||
+                  updateGradeRecord.isPending ||
+                  (!editingRecord?.id && !editingRecord?.subject_id) ||
+                  (isRector && !editingRecord?.teacher_id)
+                }
               >
                 {(createGradeRecord.isPending || updateGradeRecord.isPending) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -647,6 +771,25 @@ const Calificaciones = () => {
           </DialogHeader>
           <div className="space-y-4">
             {!editingPreescolar?.id && (
+              <>
+                {isRector && (
+                  <div className="space-y-2">
+                    <Label>Docente responsable</Label>
+                    <Select
+                      value={editingPreescolar?.teacher_id}
+                      onValueChange={(value) => setEditingPreescolar(prev => prev ? { ...prev, teacher_id: value } : null)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar docente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTeachersForSelectedGrade.map((teacher) => (
+                          <SelectItem key={teacher.id} value={teacher.id}>{teacher.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               <div className="space-y-2">
                 <Label>Dimensión a Evaluar</Label>
                 <Select
@@ -665,6 +808,26 @@ const Calificaciones = () => {
                   <SelectContent>
                     {PREESCOLAR_DIMENSIONS.map((dim) => (
                       <SelectItem key={dim} value={dim}>{dim}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              </>
+            )}
+
+            {isRector && editingPreescolar?.id && (
+              <div className="space-y-2">
+                <Label>Docente responsable</Label>
+                <Select
+                  value={editingPreescolar?.teacher_id}
+                  onValueChange={(value) => setEditingPreescolar(prev => prev ? { ...prev, teacher_id: value } : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar docente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTeachersForSelectedGrade.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>{teacher.full_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -715,7 +878,12 @@ const Calificaciones = () => {
               <Button variant="outline" onClick={() => setPreescolarDialogOpen(false)}>Cancelar</Button>
               <Button
                 onClick={handleSavePreescolar}
-                disabled={createPreescolarEvaluation.isPending || updatePreescolarEvaluation.isPending || (!editingPreescolar?.id && !editingPreescolar?.dimension)}
+                disabled={
+                  createPreescolarEvaluation.isPending ||
+                  updatePreescolarEvaluation.isPending ||
+                  (!editingPreescolar?.id && !editingPreescolar?.dimension) ||
+                  (isRector && !editingPreescolar?.teacher_id)
+                }
               >
                 {(createPreescolarEvaluation.isPending || updatePreescolarEvaluation.isPending) && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
