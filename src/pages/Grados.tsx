@@ -1,9 +1,15 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useGrades, useStudents, useGradeRecords } from "@/hooks/useSchoolData";
-import { GraduationCap, Users, Loader2, ExternalLink, FileText, ClipboardList } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { GraduationCap, Users, Loader2, ExternalLink, Trophy, Medal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { downloadAttendanceListPDF, downloadGradingTemplatePDF } from "@/utils/pdfGenerator";
 import { cn } from "@/lib/utils";
+
+type FilterType = 'todos' | 'preescolar' | 'primaria';
+
+const PREESCOLAR_LEVELS = [1, 2, 3, 4]; // Párvulo, Pre-Jardín, Jardín, Transición
+const PRIMARIA_LEVELS = [5, 6, 7, 8, 9]; // Primero a Quinto
 
 const getBarColor = (avg: number | null) => {
   if (avg === null || avg === 0) return 'bg-muted-foreground/20';
@@ -21,11 +27,29 @@ const getAvgLabel = (avg: number | null) => {
   return 'Muy bajo';
 };
 
+const getMedalEmoji = (position: number) => {
+  if (position === 0) return '🥇';
+  if (position === 1) return '🥈';
+  if (position === 2) return '🥉';
+  return '';
+};
+
+const getMedalColor = (position: number) => {
+  if (position === 0) return 'from-yellow-400/20 to-yellow-500/5 border-yellow-400/30';
+  if (position === 1) return 'from-slate-300/20 to-slate-400/5 border-slate-300/30';
+  if (position === 2) return 'from-amber-600/20 to-amber-700/5 border-amber-600/30';
+  return '';
+};
+
 const Grados = () => {
   const { data: grades, isLoading: gradesLoading } = useGrades();
   const { data: students, isLoading: studentsLoading } = useStudents();
   const { data: gradeRecords } = useGradeRecords();
+  const { userRole } = useAuth();
   const navigate = useNavigate();
+  const [filter, setFilter] = useState<FilterType>('todos');
+
+  const isRector = userRole === 'rector';
 
   const getStudentCount = (gradeId: string) =>
     students?.filter(s => s.grade_id === gradeId).length || 0;
@@ -40,6 +64,33 @@ const Grados = () => {
     return records.reduce((a, r) => a + r.grade, 0) / records.length;
   };
 
+  // Calculate per-student average for a given grade
+  const getTopStudents = (gradeId: string, count: number = 3) => {
+    const gradeStudents = students?.filter(s => s.grade_id === gradeId) || [];
+    if (gradeStudents.length === 0 || !gradeRecords) return [];
+
+    const studentAverages = gradeStudents.map(student => {
+      const studentRecords = gradeRecords.filter(r => r.student_id === student.id);
+      if (studentRecords.length === 0) return null;
+      const avg = studentRecords.reduce((sum, r) => sum + r.grade, 0) / studentRecords.length;
+      return { student, avg, recordCount: studentRecords.length };
+    }).filter(Boolean) as { student: any; avg: number; recordCount: number }[];
+
+    return studentAverages
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, count);
+  };
+
+  // Apply filter
+  const filteredGrades = grades?.filter(grade => {
+    if (filter === 'todos') return true;
+    if (filter === 'preescolar') return PREESCOLAR_LEVELS.includes(grade.level);
+    if (filter === 'primaria') return PRIMARIA_LEVELS.includes(grade.level);
+    return true;
+  });
+
+  const isPrimariaGrade = (level: number) => PRIMARIA_LEVELS.includes(level);
+
   const isLoading = gradesLoading || studentsLoading;
 
   if (isLoading) {
@@ -52,21 +103,51 @@ const Grados = () => {
     );
   }
 
+  const filterButtons: { key: FilterType; label: string; icon?: string }[] = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'preescolar', label: 'Preescolar' },
+    { key: 'primaria', label: 'Primaria' },
+  ];
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground font-heading">Grados</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {grades?.length || 0} grado{(grades?.length || 0) !== 1 ? 's' : ''} configurado{(grades?.length || 0) !== 1 ? 's' : ''}
-          </p>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground font-heading">Grados</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {filteredGrades?.length || 0} grado{(filteredGrades?.length || 0) !== 1 ? 's' : ''} visible{(filteredGrades?.length || 0) !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center bg-secondary/50 rounded-xl p-1 border border-border/50">
+            {filterButtons.map(btn => (
+              <button
+                key={btn.key}
+                onClick={() => setFilter(btn.key)}
+                className={cn(
+                  "px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200",
+                  filter === btn.key
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                )}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Grade Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {grades?.map((grade, index) => {
+          {filteredGrades?.map((grade, index) => {
             const avg = getGradeAvg(grade.id);
             const count = getStudentCount(grade.id);
             const preview = getStudentsByGrade(grade.id).slice(0, 3);
+            const showTop3 = isRector && isPrimariaGrade(grade.level);
+            const topStudents = showTop3 ? getTopStudents(grade.id, 3) : [];
 
             return (
               <div
@@ -79,7 +160,7 @@ const Grados = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-semibold text-white/65 uppercase tracking-wider mb-1">
-                        Grado {grade.level}
+                        {isPrimariaGrade(grade.level) ? 'Primaria' : 'Preescolar'} · Grado {grade.level}
                       </p>
                       <h3 className="text-3xl font-bold font-heading">{grade.name}</h3>
                     </div>
@@ -125,7 +206,7 @@ const Grados = () => {
                       >
                         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <span className="text-[10px] font-bold text-primary">
-                            {student.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            {student.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                           </span>
                         </div>
                         <span className="text-sm font-medium text-foreground truncate">{student.full_name}</span>
@@ -140,11 +221,65 @@ const Grados = () => {
                       <p className="text-xs text-muted-foreground text-center py-3">Sin estudiantes</p>
                     )}
                   </div>
+
+                  {/* Top 3 Students — Rector only, Primaria only */}
+                  {showTop3 && topStudents.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Mejores estudiantes
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {topStudents.map((entry, i) => (
+                          <div
+                            key={entry.student.id}
+                            className={cn(
+                              "flex items-center gap-3 p-2.5 rounded-lg border bg-gradient-to-r transition-all duration-200",
+                              getMedalColor(i)
+                            )}
+                          >
+                            <span className="text-lg flex-shrink-0">{getMedalEmoji(i)}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">
+                                {entry.student.full_name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {entry.recordCount} nota{entry.recordCount !== 1 ? 's' : ''} registrada{entry.recordCount !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className={cn(
+                                "text-lg font-bold",
+                                entry.avg >= 4 ? 'text-success' : entry.avg >= 3 ? 'text-warning' : 'text-destructive'
+                              )}>
+                                {entry.avg.toFixed(1)}
+                              </p>
+                              <p className="text-[10px] font-medium text-muted-foreground">
+                                {getAvgLabel(entry.avg)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* Empty state */}
+        {filteredGrades?.length === 0 && (
+          <div className="text-center py-16">
+            <GraduationCap className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">
+              No hay grados de {filter === 'preescolar' ? 'Preescolar' : 'Primaria'} configurados
+            </p>
+          </div>
+        )}
       </div>
     </MainLayout>
   );
