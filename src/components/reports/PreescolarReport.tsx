@@ -40,6 +40,99 @@ export interface PreescolarReportHandle {
   exportPDF: () => Promise<void>;
 }
 
+const PDF_MARGIN_MM = 10;
+const PDF_SECTION_GAP_MM = 2;
+
+const getPrintableSections = (reportRoot: HTMLDivElement) => {
+  return Array.from(reportRoot.children).flatMap((node) => {
+    if (!(node instanceof HTMLElement)) {
+      return [];
+    }
+
+    if (node.classList.contains('dimensions-container')) {
+      return Array.from(node.querySelectorAll<HTMLElement>('.dimension-card'));
+    }
+
+    return [node];
+  });
+};
+
+const addCanvasToPdf = (
+  pdf: InstanceType<(typeof import('jspdf'))['default']>,
+  canvas: HTMLCanvasElement,
+  currentY: number,
+) => {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const contentWidth = pageWidth - PDF_MARGIN_MM * 2;
+  const availableHeight = pageHeight - PDF_MARGIN_MM * 2;
+  const mmPerPixel = contentWidth / canvas.width;
+  const maxSliceHeightPx = Math.floor(availableHeight / mmPerPixel);
+
+  let y = currentY;
+  let offsetPx = 0;
+
+  while (offsetPx < canvas.height) {
+    if (y > PDF_MARGIN_MM && y >= pageHeight - PDF_MARGIN_MM) {
+      pdf.addPage();
+      y = PDF_MARGIN_MM;
+    }
+
+    const remainingHeightMm = pageHeight - PDF_MARGIN_MM - y;
+    const remainingHeightPx = Math.floor(remainingHeightMm / mmPerPixel);
+    const sliceHeightPx = Math.min(canvas.height - offsetPx, Math.max(remainingHeightPx, maxSliceHeightPx > 0 ? 1 : canvas.height));
+
+    if (sliceHeightPx <= 0) {
+      pdf.addPage();
+      y = PDF_MARGIN_MM;
+      continue;
+    }
+
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHeightPx;
+
+    const context = sliceCanvas.getContext('2d');
+    if (!context) {
+      throw new Error('No se pudo crear el contexto del canvas para exportar el PDF.');
+    }
+
+    context.drawImage(
+      canvas,
+      0,
+      offsetPx,
+      canvas.width,
+      sliceHeightPx,
+      0,
+      0,
+      canvas.width,
+      sliceHeightPx,
+    );
+
+    const sliceHeightMm = sliceHeightPx * mmPerPixel;
+    pdf.addImage(
+      sliceCanvas.toDataURL('image/jpeg', 0.98),
+      'JPEG',
+      PDF_MARGIN_MM,
+      y,
+      contentWidth,
+      sliceHeightMm,
+    );
+
+    offsetPx += sliceHeightPx;
+    y += sliceHeightMm;
+
+    if (offsetPx < canvas.height) {
+      pdf.addPage();
+      y = PDF_MARGIN_MM;
+    } else {
+      y += PDF_SECTION_GAP_MM;
+    }
+  }
+
+  return y;
+};
+
 export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarReportProps>(({
   student,
   dimensions,
@@ -55,23 +148,37 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
   }));
 
   // Global function attached to window for external triggering if needed
-  // Since we're asked to provide an optimized html2pdf export.
+  // Export as PDF without relying on html2pdf.js so the bundle stays lighter.
   const handleExportPDF = async () => {
     const element = reportRef.current;
     if (!element) return;
-    
-    const html2pdf = (await import('html2pdf.js')).default;
-    
-    const opt = {
-      margin:       10, // Margins in mm
-      filename:     `Boletin_${student.name.replace(/\s+/g, '_')}_Preescolar.pdf`,
-      image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' as const },
-      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // Crucial for not cutting cards
-    };
-    
-    html2pdf().set(opt).from(element).save();
+
+    const [{ default: html2canvas }, { default: JsPdf }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
+
+    const pdf = new JsPdf({
+      format: 'letter',
+      orientation: 'portrait',
+      unit: 'mm',
+    });
+
+    let currentY = PDF_MARGIN_MM;
+    const sections = getPrintableSections(element);
+
+    for (const section of sections) {
+      const canvas = await html2canvas(section, {
+        backgroundColor: '#ffffff',
+        logging: false,
+        scale: 2,
+        useCORS: true,
+      });
+
+      currentY = addCanvasToPdf(pdf, canvas, currentY);
+    }
+
+    pdf.save(`Boletin_${student.name.replace(/\s+/g, '_')}_Preescolar.pdf`);
   };
 
   return (
