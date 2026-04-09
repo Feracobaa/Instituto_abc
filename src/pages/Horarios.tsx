@@ -5,21 +5,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2, Download, Coffee, Plus, Clock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScheduleFormDialog } from "@/components/schedules/ScheduleFormDialog";
+import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
 const Horarios = () => {
-  const { data: grades, isLoading: gradesLoading } = useGrades();
+  const { data: grades, isLoading: gradesLoading, error: gradesError } = useGrades();
   const { userRole, teacherId } = useAuth();
   const isRector = userRole === 'rector';
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   
   // El Rector busca por grado. El Profesor trae todos sus horarios a la vez y luego filtramos localmente.
-  const { data: fetchSchedules, isLoading: schedulesLoading } = useSchedules(
+  const { data: fetchSchedules, isLoading: schedulesLoading, error: schedulesError } = useSchedules(
     isRector ? (selectedGrade || undefined) : undefined, 
     isRector ? undefined : (teacherId || undefined)
   );
@@ -89,6 +91,7 @@ const Horarios = () => {
   };
 
   const isLoading = gradesLoading || schedulesLoading;
+  const pageError = gradesError || schedulesError;
 
   return (
     <MainLayout>
@@ -137,6 +140,13 @@ const Horarios = () => {
             </button>
           ))}
         </div>
+
+        {pageError && (
+          <Alert variant="destructive">
+            <AlertTitle>No fue posible cargar los horarios</AlertTitle>
+            <AlertDescription>{getFriendlyErrorMessage(pageError)}</AlertDescription>
+          </Alert>
+        )}
 
         {!selectedGrade ? (
           <EmptyState

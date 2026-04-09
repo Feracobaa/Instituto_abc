@@ -4,6 +4,7 @@ import type { AcademicPeriod, Grade, Subject } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { SubjectFormDialog } from "@/components/subjects/SubjectFormDialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   BookOpen, Users, Loader2, Calculator, FlaskConical, Languages, Music,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 // Assign icon by subject name keywords
 const getSubjectIcon = (name: string) => {
@@ -30,12 +32,12 @@ const getSubjectIcon = (name: string) => {
 };
 
 const Materias = () => {
-  const { data: subjects, isLoading: subjectsLoading } = useSubjects();
-  const { data: teachers, isLoading: teachersLoading } = useTeachers();
-  const { data: students } = useStudents();
-  const { data: gradeRecords } = useGradeRecords();
-  const { data: schedules } = useSchedules();
-  const { data: academicPeriods } = useAcademicPeriods();
+  const { data: subjects, isLoading: subjectsLoading, error: subjectsError } = useSubjects();
+  const { data: teachers, isLoading: teachersLoading, error: teachersError } = useTeachers();
+  const { data: students, error: studentsError } = useStudents();
+  const { data: gradeRecords, error: gradeRecordsError } = useGradeRecords();
+  const { data: schedules, error: schedulesError } = useSchedules();
+  const { data: academicPeriods, error: academicPeriodsError } = useAcademicPeriods();
 
   const { userRole, teacherId } = useAuth();
   const isRector = userRole === 'rector';
@@ -128,6 +130,13 @@ const Materias = () => {
   };
 
   const isLoading = subjectsLoading || teachersLoading;
+  const pageError =
+    subjectsError ||
+    teachersError ||
+    studentsError ||
+    gradeRecordsError ||
+    schedulesError ||
+    academicPeriodsError;
 
   if (isLoading) {
     return (
@@ -158,6 +167,14 @@ const Materias = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {pageError && (
+            <div className="col-span-full">
+              <Alert variant="destructive">
+                <AlertTitle>No fue posible cargar el modulo de materias</AlertTitle>
+                <AlertDescription>{getFriendlyErrorMessage(pageError)}</AlertDescription>
+              </Alert>
+            </div>
+          )}
           {visibleSubjects?.map((subject, index) => {
             const subjectTeachers = getTeachersForSubject(subject.id);
             const avg = getSubjectAvg(subject.id);

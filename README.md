@@ -1,73 +1,121 @@
-# Welcome to your Lovable project
+# Plataforma Instituto ABC
 
-## Project info
+Aplicacion academica para la gestion diaria del Instituto Pedagogico ABC.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Modulos vivos
 
-## How can I edit this code?
+- autenticacion por rol
+- dashboard para rector y profesor
+- profesores
+- estudiantes
+- grados
+- materias
+- horarios
+- calificaciones
+- evaluaciones de preescolar
+- generacion de PDF
 
-There are several ways of editing your application.
+## Stack
 
-**Use Lovable**
+- React 18
+- Vite 5
+- TypeScript
+- Tailwind CSS
+- shadcn/ui + Radix
+- TanStack Query
+- Supabase
+- Vitest
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Documentos clave del proyecto
 
-Changes made via Lovable will be committed automatically to this repo.
+Lee estos archivos antes de tocar codigo o base de datos:
 
-**Use your preferred IDE**
+- `CODEX_HANDOFF_2026-04-08.md`
+- `DIAGNOSTICO_PLATAFORMA_Y_PLAN.md`
+- `AUDITORIA_ESTRUCTURAL_PROYECTO_2026-04-08.md`
+- `PLAN_MAESTRO_DESARROLLO_2026-04-08.md`
+- `sql/README.md`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Requisitos
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js 20 o superior
+- npm 10 o superior
 
-Follow these steps:
+## Instalacion local
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install
 ```
 
-**Edit a file directly in GitHub**
+Crea un archivo `.env.local` con estas variables:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=tu_anon_key
+VITE_SUPABASE_PROJECT_ID=tu_project_id
+```
 
-**Use GitHub Codespaces**
+Tambien puedes partir de `.env.example`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Scripts
 
-## What technologies are used for this project?
+```bash
+npm run dev
+npm run build
+npm run lint
+npm run test
+npm run preview
+```
 
-This project is built with:
+## Estructura importante
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `src/pages/`: modulos principales de la plataforma
+- `src/hooks/`: acceso a datos y hooks compartidos
+- `src/contexts/`: auth y estado global de sesion
+- `src/components/`: componentes de negocio, layout y UI
+- `src/utils/pdfGenerator.ts`: generacion de PDFs de primaria, horarios y plantillas
+- `sql/migrations/`: migraciones activas y seguras
+- `sql/manual/`: scripts manuales o historicos utiles
+- `sql/legacy/`: scripts viejos o peligrosos para produccion
 
-## How can I deploy this project?
+## Regla de trabajo para SQL
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+- No crear scripts SQL en la raiz del repo.
+- Todo cambio nuevo de schema, RLS o integridad debe ir en `sql/migrations/`.
+- Antes de tocar seguridad o asignaciones de docentes, correr la auditoria:
 
-## Can I connect a custom domain to my Lovable project?
+```text
+sql/migrations/20260408_00_audit_school_integrity.sql
+```
 
-Yes, you can!
+## Estado actual
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Estado validado localmente:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `npm run lint`: OK
+- `npm run build`: OK
+- `npm run test`: OK
+
+Estado funcional ya estabilizado:
+
+- RLS endurecido en Supabase
+- asignaciones de docentes sincronizadas con horarios
+- flujo de notas del rector corregido
+- soporte real para bloques de rutina en horarios
+
+## Despliegue
+
+El proyecto esta preparado como SPA y usa `vercel.json` para redirigir todas las rutas a `index.html`.
+
+Flujo recomendado:
+
+1. validar `lint`, `build` y `test`
+2. revisar cambios de `sql/migrations` si aplica
+3. desplegar frontend
+4. ejecutar migraciones manualmente en Supabase cuando el cambio lo requiera
+
+## Notas operativas
+
+- `consultas/` es carpeta local del usuario y no debe ir a git
+- no reabrir politicas RLS con reglas permisivas por comodidad
+- no correr scripts de `sql/legacy/` sobre una base con datos reales

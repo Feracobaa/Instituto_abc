@@ -147,8 +147,7 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
     }
   }));
 
-  // Global function attached to window for external triggering if needed
-  // Export as PDF without relying on html2pdf.js so the bundle stays lighter.
+  // Export sections directly with html2canvas + jsPDF to keep the bundle lean.
   const handleExportPDF = async () => {
     const element = reportRef.current;
     if (!element) return;

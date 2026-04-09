@@ -1,4 +1,5 @@
 import { MainLayout } from "@/components/layout/MainLayout";
+import { AcademicPeriodsManager } from "@/components/dashboard/AcademicPeriodsManager";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RoleBadge } from "@/components/ui/RoleBadge";
@@ -182,6 +183,8 @@ const Index = () => {
                 alert={averageGrade > 0 && averageGrade < 3}
               />
             </div>
+
+            <AcademicPeriodsManager periods={periods} />
 
             {/* Promedio por grado */}
             {gradeAverages.length > 0 && (

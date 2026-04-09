@@ -597,11 +597,6 @@ export async function generateReportCard(
     periodIdToIndex[p.id] = String(idx + 1); // '1', '2', '3', '4'
   });
 
-  console.log('📊 PDF Debug — periodIdToIndex:', periodIdToIndex);
-  console.log('📊 PDF Debug — allPeriods:', allPeriods.map(p => `${p.id} → ${p.name}`));
-  console.log('📊 PDF Debug — current period:', period.id, period.name);
-  console.log('📊 PDF Debug — total grade records:', allGradeRecords.length);
-
   // 6. Build subjects map
   const subjectsMap: Record<string, SubjectGroup> = {};
 
@@ -626,14 +621,6 @@ export async function generateReportCard(
     if (record.period_id === period.id) {
       subjectsMap[sid].currentRecord = record;
     }
-  });
-
-  console.log('📊 PDF Debug — subjectsMap keys:', Object.keys(subjectsMap));
-  Object.entries(subjectsMap).forEach(([sid, subj]) => {
-    console.log(`📊 PDF Debug — ${subj.name}: grades keys=[${Object.keys(subj.grades).join(',')}]`,
-      'P1=', subj.grades['1']?.grade, 'P2=', subj.grades['2']?.grade,
-      'P3=', subj.grades['3']?.grade, 'P4=', subj.grades['4']?.grade,
-      'currentRecord=', subj.currentRecord?.grade);
   });
 
   // 6. Grade table

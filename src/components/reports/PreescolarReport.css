@@ -84,7 +84,7 @@
   font-size: 9.5px;
 }
 
-/* Using simple block/inline-block instead of float for better html2canvas support */
+/* Use simple block and inline-block layout for reliable html2canvas capture. */
 .info-row {
   margin-bottom: 3px;
 }
@@ -114,11 +114,6 @@
   page-break-inside: avoid;
   break-inside: avoid;
   table-layout: fixed;
-}
-
-.html2pdf__page-break {
-  page-break-inside: avoid !important;
-  break-inside: avoid-page !important;
 }
 
 .dimension-title {

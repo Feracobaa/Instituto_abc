@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useGrades, useCreateStudent, useUpdateStudent } from '@/hooks/useSchoolData';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useCreateStudent, useGrades, useUpdateStudent } from "@/hooks/useSchoolData";
+import { getFieldErrors, studentFormSchema } from "@/lib/schoolSchemas";
 
 interface Student {
   id: string;
@@ -21,53 +23,94 @@ interface StudentFormDialogProps {
   student?: Student | null;
 }
 
-export function StudentFormDialog({ open, onOpenChange, student }: StudentFormDialogProps) {
+type StudentFormData = {
+  full_name: string;
+  grade_id: string;
+  guardian_name: string;
+  guardian_phone: string;
+};
+
+const emptyFormData: StudentFormData = {
+  full_name: "",
+  grade_id: "",
+  guardian_name: "",
+  guardian_phone: "",
+};
+
+export function StudentFormDialog({
+  open,
+  onOpenChange,
+  student,
+}: StudentFormDialogProps) {
   const { data: grades } = useGrades();
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
+  const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
-    full_name: '',
-    grade_id: '',
-    guardian_name: '',
-    guardian_phone: ''
-  });
+  const [formData, setFormData] = useState<StudentFormData>(emptyFormData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (student) {
       setFormData({
         full_name: student.full_name,
-        grade_id: student.grade_id || '',
-        guardian_name: student.guardian_name || '',
-        guardian_phone: student.guardian_phone || ''
+        grade_id: student.grade_id || "",
+        guardian_name: student.guardian_name || "",
+        guardian_phone: student.guardian_phone || "",
       });
     } else {
-      setFormData({
-        full_name: '',
-        grade_id: '',
-        guardian_name: '',
-        guardian_phone: ''
-      });
+      setFormData(emptyFormData);
     }
+
+    setErrors({});
   }, [student, open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const data = {
-      full_name: formData.full_name,
-      grade_id: formData.grade_id,
-      guardian_name: formData.guardian_name || undefined,
-      guardian_phone: formData.guardian_phone || undefined
-    };
-    
-    if (student) {
-      await updateStudent.mutateAsync({ id: student.id, ...data });
-    } else {
-      await createStudent.mutateAsync(data);
+  const updateField = <K extends keyof StudentFormData>(field: K, value: StudentFormData[K]) => {
+    setFormData((previous) => ({ ...previous, [field]: value }));
+    setErrors((previous) => {
+      if (!previous[field]) {
+        return previous;
+      }
+
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const validation = studentFormSchema.safeParse(formData);
+    if (!validation.success) {
+      setErrors(getFieldErrors(validation.error));
+      toast({
+        title: "Revisa el formulario",
+        description: "Corrige los campos marcados antes de continuar.",
+        variant: "destructive",
+      });
+      return;
     }
-    
-    onOpenChange(false);
+
+    const payload = {
+      full_name: validation.data.full_name,
+      grade_id: validation.data.grade_id,
+      guardian_name: validation.data.guardian_name || undefined,
+      guardian_phone: validation.data.guardian_phone || undefined,
+    };
+
+    try {
+      if (student) {
+        await updateStudent.mutateAsync({ id: student.id, ...payload });
+      } else {
+        await createStudent.mutateAsync(payload);
+      }
+
+      setErrors({});
+      onOpenChange(false);
+    } catch {
+      // El hook ya muestra el error real.
+    }
   };
 
   const isLoading = createStudent.isPending || updateStudent.isPending;
@@ -76,24 +119,23 @@ export function StudentFormDialog({ open, onOpenChange, student }: StudentFormDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{student ? 'Editar Estudiante' : 'Nuevo Estudiante'}</DialogTitle>
+          <DialogTitle>{student ? "Editar estudiante" : "Nuevo estudiante"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="full_name">Nombre Completo</Label>
+            <Label htmlFor="full_name">Nombre completo</Label>
             <Input
               id="full_name"
               value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              onChange={(event) => updateField("full_name", event.target.value)}
               required
             />
+            {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="grade">Grado</Label>
-            <Select 
-              value={formData.grade_id} 
-              onValueChange={(value) => setFormData({ ...formData, grade_id: value })}
-            >
+            <Select value={formData.grade_id} onValueChange={(value) => updateField("grade_id", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar grado" />
               </SelectTrigger>
@@ -105,30 +147,37 @@ export function StudentFormDialog({ open, onOpenChange, student }: StudentFormDi
                 ))}
               </SelectContent>
             </Select>
+            {errors.grade_id && <p className="text-xs text-destructive">{errors.grade_id}</p>}
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="guardian_name">Nombre del Acudiente</Label>
+            <Label htmlFor="guardian_name">Nombre del acudiente</Label>
             <Input
               id="guardian_name"
               value={formData.guardian_name}
-              onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+              onChange={(event) => updateField("guardian_name", event.target.value)}
             />
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="guardian_phone">Teléfono del Acudiente</Label>
+            <Label htmlFor="guardian_phone">Telefono del acudiente</Label>
             <Input
               id="guardian_phone"
               value={formData.guardian_phone}
-              onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
+              onChange={(event) => updateField("guardian_phone", event.target.value)}
             />
+            {errors.guardian_phone && (
+              <p className="text-xs text-destructive">{errors.guardian_phone}</p>
+            )}
           </div>
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {student ? 'Guardar Cambios' : 'Crear Estudiante'}
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {student ? "Guardar cambios" : "Crear estudiante"}
             </Button>
           </div>
         </form>

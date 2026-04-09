@@ -21,7 +21,7 @@ const pageTitles: Record<string, string> = {
 };
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const { user, loading } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: periods } = useAcademicPeriods();
@@ -58,10 +58,15 @@ export function MainLayout({ children }: MainLayoutProps) {
             <div className="h-4 w-px bg-border" />
             <h2 className="text-sm font-semibold text-foreground">{pageTitle}</h2>
             <div className="flex-1" />
-            {activePeriod && (
+            {activePeriod ? (
               <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium bg-success/10 text-success border border-success/20 px-2.5 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse-glow" />
                 {activePeriod.name}
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                {userRole === "rector" ? "Sin bimestre activo" : "Modo consulta"}
               </span>
             )}
           </header>
