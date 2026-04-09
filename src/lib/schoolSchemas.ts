@@ -19,11 +19,44 @@ export const teacherFormSchema = z.object({
 });
 
 export const studentFormSchema = z.object({
+  address: z.string().trim().optional(),
+  birth_date: z.string().trim().optional(),
   full_name: z.string().trim().min(3, "El nombre debe tener al menos 3 caracteres."),
   grade_id: z.string().trim().min(1, "Selecciona un grado."),
   guardian_name: z.string().trim().optional(),
   guardian_phone: optionalPhoneField,
 });
+
+export const guardianProfileFormSchema = z
+  .object({
+    address: z.string().trim().min(5, "Ingresa una direccion mas completa."),
+    birth_date: z.string().trim().min(1, "Selecciona la fecha de nacimiento del estudiante."),
+    guardian_name: z.string().trim().min(3, "Ingresa el nombre del acudiente."),
+    guardian_phone: optionalPhoneField.refine((value) => value.length > 0, {
+      message: "Ingresa un telefono de contacto.",
+    }),
+    new_password: z.string().trim(),
+    confirm_password: z.string().trim(),
+  })
+  .superRefine((value, context) => {
+    const hasPassword = value.new_password.length > 0 || value.confirm_password.length > 0;
+
+    if (hasPassword && value.new_password.length < 6) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La nueva contrasena debe tener al menos 6 caracteres.",
+        path: ["new_password"],
+      });
+    }
+
+    if (hasPassword && value.new_password !== value.confirm_password) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La confirmacion de contrasena no coincide.",
+        path: ["confirm_password"],
+      });
+    }
+  });
 
 export const subjectFormSchema = z.object({
   color: z.string().trim().min(1, "Selecciona un color."),

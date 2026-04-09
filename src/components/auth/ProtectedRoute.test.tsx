@@ -21,7 +21,7 @@ const defaultAuthState = {
   userRole: "rector" as const,
 };
 
-function renderProtectedRoute(allowedRoles?: Array<"rector" | "profesor">) {
+function renderProtectedRoute(allowedRoles?: Array<"rector" | "profesor" | "parent">) {
   return render(
     <MemoryRouter initialEntries={["/privada"]}>
       <Routes>
@@ -70,6 +70,17 @@ describe("ProtectedRoute", () => {
 
   it("renderiza el contenido cuando el rol si esta autorizado", () => {
     renderProtectedRoute(["rector"]);
+
+    expect(screen.getByText("Contenido privado")).toBeInTheDocument();
+  });
+
+  it("permite el acceso cuando el rol parent esta autorizado", () => {
+    mockedUseAuth.mockReturnValue({
+      ...defaultAuthState,
+      userRole: "parent",
+    } as never);
+
+    renderProtectedRoute(["parent"]);
 
     expect(screen.getByText("Contenido privado")).toBeInTheDocument();
   });

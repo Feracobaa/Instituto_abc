@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { buildGuardianAuthEmail, isLikelyEmailLogin } from '@/lib/guardianAuth';
 
-type SupportedUserRole = 'rector' | 'profesor';
+type SupportedUserRole = 'rector' | 'profesor' | 'parent';
 type UserRole = SupportedUserRole | null;
+type LoginMode = 'staff' | 'family';
 
 interface AuthContextType {
   user: User | null;
@@ -11,7 +13,11 @@ interface AuthContextType {
   userRole: UserRole;
   teacherId: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (
+    identifier: string,
+    password: string,
+    options?: { loginMode?: LoginMode }
+  ) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, role: 'rector' | 'profesor') => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -19,7 +25,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const isSupportedUserRole = (role: string): role is SupportedUserRole =>
-  role === 'rector' || role === 'profesor';
+  role === 'rector' || role === 'profesor' || role === 'parent';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -45,9 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', userId)
       .maybeSingle();
     
-    if (data) {
-      setTeacherId(data.id);
-    }
+    setTeacherId(data ? data.id : null);
   };
 
   useEffect(() => {
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        supabase.functions.setAuth(session?.access_token ?? '');
         
         if (session?.user) {
           setTimeout(() => {
@@ -72,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      supabase.functions.setAuth(session?.access_token ?? '');
       if (session?.user) {
         fetchUserRole(session.user.id);
         fetchTeacherId(session.user.id);
@@ -82,8 +88,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signIn = async (
+    identifier: string,
+    password: string,
+    options?: { loginMode?: LoginMode },
+  ) => {
+    const loginMode = options?.loginMode ?? 'staff';
+    const normalizedIdentifier =
+      loginMode === 'family' && !isLikelyEmailLogin(identifier)
+        ? buildGuardianAuthEmail(identifier)
+        : identifier.trim();
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: normalizedIdentifier,
+      password,
+    });
     return { error };
   };
 
@@ -114,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    supabase.functions.setAuth('');
     setUserRole(null);
     setTeacherId(null);
   };

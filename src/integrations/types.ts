@@ -278,8 +278,54 @@ export type Database = {
           },
         ]
       }
+      student_guardian_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          last_credentials_issued_at: string
+          must_change_password: boolean
+          onboarding_completed_at: string | null
+          student_id: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_credentials_issued_at?: string
+          must_change_password?: boolean
+          onboarding_completed_at?: string | null
+          student_id: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_credentials_issued_at?: string
+          must_change_password?: boolean
+          onboarding_completed_at?: string | null
+          student_id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_guardian_accounts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
+          address: string | null
+          birth_date: string | null
           created_at: string
           full_name: string
           grade_id: string | null
@@ -290,6 +336,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          birth_date?: string | null
           created_at?: string
           full_name: string
           grade_id?: string | null
@@ -300,6 +348,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          birth_date?: string | null
           created_at?: string
           full_name?: string
           grade_id?: string | null
@@ -479,8 +529,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_user_parent: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_profesor: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_rector: { Args: Record<PropertyKey, never>; Returns: boolean }
+      update_guardian_profile: {
+        Args: {
+          p_address: string
+          p_birth_date: string | null
+          p_guardian_name: string
+          p_guardian_phone: string
+          p_mark_onboarding_complete?: boolean
+        }
+        Returns: Database["public"]["Tables"]["student_guardian_accounts"]["Row"]
+      }
     }
     Enums: {
       user_role_enum: "rector" | "profesor" | "parent" | "admin"

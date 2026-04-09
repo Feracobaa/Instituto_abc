@@ -2,10 +2,11 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AllowedRole = "rector" | "profesor";
+type SupportedAllowedRole = AllowedRole | "parent";
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
-  allowedRoles?: AllowedRole[];
+  allowedRoles?: SupportedAllowedRole[];
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {

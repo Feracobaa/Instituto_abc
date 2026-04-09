@@ -2,19 +2,32 @@ export { schoolQueryKeys } from "@/hooks/school/queryKeys";
 export type {
   AcademicPeriod,
   Grade,
+  GuardianAccount,
+  GuardianGradeRecord,
+  GuardianSchedule,
   GradeRecord,
   GradeRecordFilters,
   PreescolarEvaluation,
   PreescolarEvaluationFilters,
+  ProvisionGuardianAccountResult,
   Schedule,
   ScheduleInsert,
   Student,
+  StudentGuardianAccountBase,
   Subject,
   Teacher,
   TeacherBase,
   TeacherGradeAssignment,
   TeacherSubjectAssignment,
 } from "@/hooks/school/types";
+export {
+  useGuardianAccount,
+  useGuardianAccounts,
+  useGuardianGradeRecords,
+  useGuardianSchedules,
+  useProvisionGuardianAccounts,
+  useUpdateGuardianProfile,
+} from "@/hooks/school/useGuardianPortal";
 export {
   useAcademicPeriods,
   useCreateSubject,

@@ -14,6 +14,10 @@ export const schoolQueryKeys = {
     all: ["students"] as const,
     list: (gradeId?: string) => ["students", gradeId ?? "all"] as const,
   },
+  guardianAccounts: {
+    all: ["guardian_accounts"] as const,
+    self: ["guardian_accounts", "self"] as const,
+  },
   academicPeriods: {
     all: ["academic_periods"] as const,
   },
@@ -26,6 +30,15 @@ export const schoolQueryKeys = {
     all: ["grade_records"] as const,
     list: (filters?: GradeRecordFilters) =>
       ["grade_records", filters?.studentId ?? null, filters?.periodId ?? null] as const,
+  },
+  guardianGradeRecords: {
+    all: ["guardian_grade_records"] as const,
+    list: (studentId?: string, periodId?: string) =>
+      ["guardian_grade_records", studentId ?? null, periodId ?? null] as const,
+  },
+  guardianSchedules: {
+    all: ["guardian_schedules"] as const,
+    list: (gradeId?: string) => ["guardian_schedules", gradeId ?? null] as const,
   },
   preescolarEvaluations: {
     all: ["preescolar_evaluations"] as const,

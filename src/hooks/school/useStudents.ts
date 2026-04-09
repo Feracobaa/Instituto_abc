@@ -35,6 +35,8 @@ export function useCreateStudent() {
 
   return useMutation({
     mutationFn: async (data: {
+      address?: string;
+      birth_date?: string | null;
       full_name: string;
       grade_id: string;
       guardian_name?: string;
@@ -64,6 +66,8 @@ export function useUpdateStudent() {
 
   return useMutation({
     mutationFn: async (data: {
+      address?: string;
+      birth_date?: string | null;
       id: string;
       full_name: string;
       grade_id: string;

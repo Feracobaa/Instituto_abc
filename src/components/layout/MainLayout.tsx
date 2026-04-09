@@ -1,23 +1,27 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "./AppSidebar";
-import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
-import { useAcademicPeriods } from "@/hooks/useSchoolData";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAcademicPeriods, useGuardianAccount } from "@/hooks/useSchoolData";
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/profesores': 'Profesores',
-  '/estudiantes': 'Estudiantes',
-  '/horarios': 'Horarios',
-  '/grados': 'Grados',
-  '/materias': 'Materias',
-  '/calificaciones': 'Calificaciones',
+  "/": "Dashboard",
+  "/profesores": "Profesores",
+  "/estudiantes": "Estudiantes",
+  "/familias": "Portal Estudiantil",
+  "/horarios": "Horarios",
+  "/grados": "Grados",
+  "/materias": "Materias",
+  "/calificaciones": "Calificaciones",
+  "/mis-notas": "Mis Notas",
+  "/mi-horario": "Mi Horario",
+  "/mi-perfil": "Mi Perfil",
 };
 
 export function MainLayout({ children }: MainLayoutProps) {
@@ -25,20 +29,34 @@ export function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: periods } = useAcademicPeriods();
+  const guardianAccountQuery = useGuardianAccount(userRole === "parent");
 
-  const activePeriod = periods?.find(p => p.is_active);
-  const pageTitle = pageTitles[location.pathname] ?? 'Instituto ABC';
+  const activePeriod = periods?.find((period) => period.is_active);
+  const pageTitle = pageTitles[location.pathname] ?? "Instituto ABC";
+  const needsGuardianOnboarding = Boolean(
+    userRole === "parent"
+    && guardianAccountQuery.data
+    && (
+      guardianAccountQuery.data.must_change_password
+      || !guardianAccountQuery.data.onboarding_completed_at
+    ),
+  );
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth');
+      navigate("/auth");
+      return;
     }
-  }, [user, loading, navigate]);
 
-  if (loading) {
+    if (needsGuardianOnboarding && location.pathname !== "/mi-perfil") {
+      navigate("/mi-perfil", { replace: true });
+    }
+  }, [user, loading, navigate, needsGuardianOnboarding, location.pathname]);
+
+  if (loading || (userRole === "parent" && guardianAccountQuery.isLoading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -49,33 +67,34 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
-        <main className="flex-1 flex flex-col min-w-0">
-          {/* Top header */}
-          <header className="h-14 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 sticky top-0 z-10 gap-3">
+        <main className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-sm">
             <SidebarTrigger className="flex-shrink-0" />
             <div className="h-4 w-px bg-border" />
             <h2 className="text-sm font-semibold text-foreground">{pageTitle}</h2>
             <div className="flex-1" />
-            {activePeriod ? (
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium bg-success/10 text-success border border-success/20 px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse-glow" />
+            {needsGuardianOnboarding ? (
+              <span className="hidden items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Completa tu perfil inicial
+              </span>
+            ) : activePeriod ? (
+              <span className="hidden items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-medium text-success sm:inline-flex">
+                <span className="h-1.5 w-1.5 animate-pulse-glow rounded-full bg-success" />
                 {activePeriod.name}
               </span>
             ) : (
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span className="hidden items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 {userRole === "rector" ? "Sin bimestre activo" : "Modo consulta"}
               </span>
             )}
           </header>
 
-          {/* Content */}
-          <div className="flex-1 p-4 sm:p-6 overflow-auto">
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
+          <div className="flex-1 overflow-auto p-4 sm:p-6">
+            <div className="mx-auto max-w-7xl">{children}</div>
           </div>
         </main>
       </div>

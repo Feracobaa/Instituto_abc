@@ -11,10 +11,14 @@ const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Profesores = lazy(() => import("./pages/Profesores"));
 const Estudiantes = lazy(() => import("./pages/Estudiantes"));
+const Familias = lazy(() => import("./pages/Familias"));
 const Horarios = lazy(() => import("./pages/Horarios"));
 const Grados = lazy(() => import("./pages/Grados"));
 const Materias = lazy(() => import("./pages/Materias"));
 const Calificaciones = lazy(() => import("./pages/Calificaciones"));
+const MisNotas = lazy(() => import("./pages/MisNotas"));
+const MiHorario = lazy(() => import("./pages/MiHorario"));
+const MiPerfil = lazy(() => import("./pages/MiPerfil"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -38,7 +42,7 @@ const App = () => (
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor", "parent"]}>
                     <Index />
                   </ProtectedRoute>
                 }
@@ -56,6 +60,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["rector"]}>
                     <Estudiantes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/familias"
+                element={
+                  <ProtectedRoute allowedRoles={["rector"]}>
+                    <Familias />
                   </ProtectedRoute>
                 }
               />
@@ -88,6 +100,30 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["rector", "profesor"]}>
                     <Calificaciones />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mis-notas"
+                element={
+                  <ProtectedRoute allowedRoles={["parent"]}>
+                    <MisNotas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mi-horario"
+                element={
+                  <ProtectedRoute allowedRoles={["parent"]}>
+                    <MiHorario />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mi-perfil"
+                element={
+                  <ProtectedRoute allowedRoles={["parent"]}>
+                    <MiPerfil />
                   </ProtectedRoute>
                 }
               />

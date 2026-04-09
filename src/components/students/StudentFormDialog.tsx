@@ -10,6 +10,8 @@ import { useCreateStudent, useGrades, useUpdateStudent } from "@/hooks/useSchool
 import { getFieldErrors, studentFormSchema } from "@/lib/schoolSchemas";
 
 interface Student {
+  address: string | null;
+  birth_date: string | null;
   id: string;
   full_name: string;
   grade_id: string | null;
@@ -24,6 +26,8 @@ interface StudentFormDialogProps {
 }
 
 type StudentFormData = {
+  address: string;
+  birth_date: string;
   full_name: string;
   grade_id: string;
   guardian_name: string;
@@ -31,6 +35,8 @@ type StudentFormData = {
 };
 
 const emptyFormData: StudentFormData = {
+  address: "",
+  birth_date: "",
   full_name: "",
   grade_id: "",
   guardian_name: "",
@@ -53,6 +59,8 @@ export function StudentFormDialog({
   useEffect(() => {
     if (student) {
       setFormData({
+        address: student.address || "",
+        birth_date: student.birth_date || "",
         full_name: student.full_name,
         grade_id: student.grade_id || "",
         guardian_name: student.guardian_name || "",
@@ -93,6 +101,8 @@ export function StudentFormDialog({
     }
 
     const payload = {
+      address: validation.data.address || undefined,
+      birth_date: validation.data.birth_date || undefined,
       full_name: validation.data.full_name,
       grade_id: validation.data.grade_id,
       guardian_name: validation.data.guardian_name || undefined,
@@ -169,6 +179,25 @@ export function StudentFormDialog({
             {errors.guardian_phone && (
               <p className="text-xs text-destructive">{errors.guardian_phone}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Direccion</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(event) => updateField("address", event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="birth_date">Cumpleanos del estudiante</Label>
+            <Input
+              id="birth_date"
+              type="date"
+              value={formData.birth_date}
+              onChange={(event) => updateField("birth_date", event.target.value)}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
