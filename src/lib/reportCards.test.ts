@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { formatReportAverage, formatReportRank } from "@/lib/reportCardFormatting";
 
 describe("reportCards helpers", () => {
-  it("formatea el promedio con dos decimales", () => {
-    expect(formatReportAverage(4.125)).toBe("4.13");
+  it("formatea el promedio con un decimal igual que la plataforma", () => {
+    expect(formatReportAverage(4.15)).toBe("4.2");
     expect(formatReportAverage(null)).toBe("-");
   });
 

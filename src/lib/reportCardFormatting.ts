@@ -1,5 +1,10 @@
 export function formatReportAverage(periodAverage: number | null) {
-  return typeof periodAverage === "number" ? periodAverage.toFixed(2) : "-";
+  if (typeof periodAverage !== "number") {
+    return "-";
+  }
+
+  const roundedAverage = Math.round((periodAverage + Number.EPSILON) * 10) / 10;
+  return roundedAverage.toFixed(1);
 }
 
 export function formatReportRank(rank: number | null, totalStudents: number) {

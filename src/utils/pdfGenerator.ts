@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatReportAverage } from '@/lib/reportCardFormatting';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ function getLastAutoTableY(doc: jsPDF): number {
 }
 
 function formatAverageForReport(periodAverage?: number | null) {
-  return typeof periodAverage === 'number' ? periodAverage.toFixed(2) : '-';
+  return formatReportAverage(periodAverage ?? null);
 }
 
 function formatRankForReport(rank?: number | null, totalStudents?: number) {
