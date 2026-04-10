@@ -6,10 +6,12 @@ export function PreescolarPdfRenderer({
   deliveryDate,
   downloadingStudent,
   gradeName,
+  groupDirectorName,
   isPreescolar,
   periodName,
   preescolarRef,
   records,
+  reportSummary,
 }: PreescolarRendererProps) {
   if (!downloadingStudent || !isPreescolar) {
     return null;
@@ -17,8 +19,10 @@ export function PreescolarPdfRenderer({
 
   const { schoolInfo, studentInfo } = buildPreescolarReportPayload({
     deliveryDate,
+    groupDirectorName,
     gradeName,
     periodName,
+    reportSummary,
     student: downloadingStudent,
   });
 

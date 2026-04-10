@@ -51,9 +51,8 @@ import {
   useUpdatePreescolarEvaluation,
 } from "@/hooks/useSchoolData";
 import type { GradeRecord, PreescolarEvaluation, Student } from "@/hooks/useSchoolData";
-import { supabase } from "@/integrations/supabase/client";
+import { getStudentReportSnapshot } from "@/lib/reportCards";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
-import type { DetailedGradeRecord } from "@/utils/pdfGenerator";
 
 const MAX_PREESCOLAR_TEXT_LENGTH = 1000;
 
@@ -85,6 +84,9 @@ const Calificaciones = () => {
   const [editingPreescolar, setEditingPreescolar] =
     useState<EditablePreescolarEvaluation | null>(null);
   const [downloadingStudent, setDownloadingStudent] = useState<Student | null>(null);
+  const [downloadingSnapshot, setDownloadingSnapshot] = useState<Awaited<
+    ReturnType<typeof getStudentReportSnapshot>
+  > | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
 
   const preescolarRef = useRef<PreescolarReportHandle>(null);
@@ -154,6 +156,7 @@ const Calificaciones = () => {
         toast.error("Hubo un error exportando el PDF.");
       } finally {
         setDownloadingStudent(null);
+        setDownloadingSnapshot(null);
       }
     }, 800);
 
@@ -397,36 +400,34 @@ const Calificaciones = () => {
     }
 
     if (isPreescolar) {
-      setDownloadingStudent(student);
+      try {
+        const snapshot = await getStudentReportSnapshot(student.id, selectedPeriod);
+        setDownloadingSnapshot(snapshot);
+        setDownloadingStudent(student);
+      } catch (error) {
+        console.error(error);
+        toast.error("No fue posible preparar el boletin.");
+      }
       return;
     }
 
     try {
-      const { data: allRecords } = await supabase
-        .from("grade_records")
-        .select(`
-          period_id,
-          grade,
-          achievements,
-          comments,
-          subjects (id, name),
-          academic_periods (name)
-        `)
-        .eq("student_id", student.id);
+      const snapshot = await getStudentReportSnapshot(student.id, selectedPeriod);
 
-      const { data: classSchedules } = await supabase
-        .from("schedules")
-        .select("subject_id")
-        .eq("grade_id", student.grade_id);
-
-      if (allRecords?.length) {
+      if (snapshot.studentGradeRecords.length) {
         const { downloadReportCard } = await import("@/utils/pdfGenerator");
         await downloadReportCard(
           { full_name: student.full_name, grades: student.grades },
           { id: period.id, name: period.name },
-          allRecords as DetailedGradeRecord[],
-          classSchedules || [],
+          snapshot.studentGradeRecords,
+          snapshot.classSchedules,
           periods || [],
+          {
+            groupDirectorName: snapshot.groupDirectorName,
+            periodAverage: snapshot.periodAverage,
+            rank: snapshot.rank,
+            totalStudents: snapshot.totalStudents,
+          },
           deliveryDate,
         );
       }
@@ -436,7 +437,7 @@ const Calificaciones = () => {
   };
 
   const preescolarPdfRecords = getVisiblePreescolarEvaluationsForStudent(
-    preescolarRecords,
+    downloadingSnapshot?.preescolarEvaluations ?? preescolarRecords,
     downloadingStudent?.id,
   );
 
@@ -560,10 +561,20 @@ const Calificaciones = () => {
         deliveryDate={deliveryDate}
         downloadingStudent={downloadingStudent}
         gradeName={selectedGradeData?.name}
+        groupDirectorName={downloadingSnapshot?.groupDirectorName}
         isPreescolar={isPreescolar}
         periodName={selectedPeriodData?.name}
         preescolarRef={preescolarRef}
         records={preescolarPdfRecords}
+        reportSummary={
+          downloadingSnapshot
+            ? {
+                periodAverage: downloadingSnapshot.periodAverage,
+                rank: downloadingSnapshot.rank,
+                totalStudents: downloadingSnapshot.totalStudents,
+              }
+            : undefined
+        }
       />
     </MainLayout>
   );

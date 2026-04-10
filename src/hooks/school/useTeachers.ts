@@ -6,6 +6,7 @@ import type { Teacher } from "@/hooks/school/types";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 interface TeacherPayload {
+  director_grade_ids: string[];
   full_name: string;
   email: string;
   phone?: string;
@@ -23,6 +24,7 @@ export function useTeachers() {
           *,
           teacher_grade_assignments(
             grade_id,
+            is_group_director,
             grades(
               id,
               name,
@@ -74,6 +76,7 @@ export function useCreateTeacher() {
         const teacherGradeAssignments = data.grade_ids.map((gradeId) => ({
           teacher_id: teacher.id,
           grade_id: gradeId,
+          is_group_director: data.director_grade_ids.includes(gradeId),
         }));
 
         const { error: gradeError } = await supabase
@@ -133,6 +136,7 @@ export function useUpdateTeacher() {
         const teacherGradeAssignments = data.grade_ids.map((gradeId) => ({
           teacher_id: data.id,
           grade_id: gradeId,
+          is_group_director: data.director_grade_ids.includes(gradeId),
         }));
 
         const { error: gradeInsertError } = await supabase

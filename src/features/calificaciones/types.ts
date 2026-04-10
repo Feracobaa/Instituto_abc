@@ -42,8 +42,14 @@ export interface GradeRecordVisibilityInput {
 
 export interface PreescolarReportPayloadInput {
   deliveryDate: string;
+  groupDirectorName?: string | null;
   gradeName?: string | null;
   periodName?: string | null;
+  reportSummary?: {
+    periodAverage: number | null;
+    rank: number | null;
+    totalStudents: number;
+  };
   student: Student;
 }
 
@@ -51,10 +57,16 @@ export interface PreescolarRendererProps {
   deliveryDate: string;
   downloadingStudent: Student | null;
   gradeName?: string | null;
+  groupDirectorName?: string | null;
   isPreescolar: boolean;
   periodName?: string | null;
   preescolarRef: RefObject<PreescolarReportHandle | null>;
   records: PreescolarEvaluation[];
+  reportSummary?: {
+    periodAverage: number | null;
+    rank: number | null;
+    totalStudents: number;
+  };
 }
 
 export interface GradeRecordDialogProps {

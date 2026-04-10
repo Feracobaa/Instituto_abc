@@ -11,11 +11,24 @@ const optionalPhoneField = z
   });
 
 export const teacherFormSchema = z.object({
+  director_grade_ids: z.array(z.string()),
   email: z.string().trim().email("Ingresa un correo electronico valido."),
   full_name: z.string().trim().min(3, "El nombre debe tener al menos 3 caracteres."),
   grade_ids: z.array(z.string()).min(1, "Selecciona al menos un grado."),
   phone: optionalPhoneField,
   subject_ids: z.array(z.string()).min(1, "Selecciona al menos una materia."),
+}).superRefine((value, context) => {
+  const invalidDirectorGrades = value.director_grade_ids.filter(
+    (gradeId) => !value.grade_ids.includes(gradeId),
+  );
+
+  if (invalidDirectorGrades.length > 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Todos los grados dirigidos deben estar asignados al docente.",
+      path: ["director_grade_ids"],
+    });
+  }
 });
 
 export const studentFormSchema = z.object({

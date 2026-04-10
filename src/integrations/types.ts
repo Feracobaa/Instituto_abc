@@ -409,18 +409,21 @@ export type Database = {
           created_at: string | null
           grade_id: string
           id: string
+          is_group_director: boolean
           teacher_id: string
         }
         Insert: {
           created_at?: string | null
           grade_id: string
           id?: string
+          is_group_director?: boolean
           teacher_id: string
         }
         Update: {
           created_at?: string | null
           grade_id?: string
           id?: string
+          is_group_director?: boolean
           teacher_id?: string
         }
         Relationships: [
@@ -529,6 +532,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_student_report_snapshot: {
+        Args: { p_period_id: string; p_student_id: string }
+        Returns: Json
+      }
       is_user_parent: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_profesor: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_rector: { Args: Record<PropertyKey, never>; Returns: boolean }

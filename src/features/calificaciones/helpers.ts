@@ -14,6 +14,7 @@ import type {
   GradeRecordVisibilityInput,
   PreescolarReportPayloadInput,
 } from "@/features/calificaciones/types";
+import { formatReportAverage, formatReportRank } from "@/lib/reportCardFormatting";
 import { PREESCOLAR_DEFAULT_FORTALEZAS } from "@/utils/constants";
 
 const PREESCOLAR_TERMS = ["parvulo", "pre-jardin", "jardin", "transicion", "preescolar"];
@@ -305,8 +306,10 @@ export function formatDeliveryDate(deliveryDate: string) {
 
 export function buildPreescolarReportPayload({
   deliveryDate,
+  groupDirectorName,
   gradeName,
   periodName,
+  reportSummary,
   student,
 }: PreescolarReportPayloadInput): {
   schoolInfo: SchoolInfo;
@@ -315,11 +318,13 @@ export function buildPreescolarReportPayload({
   return {
     schoolInfo: preescolarSchoolInfo,
     studentInfo: {
+      average: formatReportAverage(reportSummary?.periodAverage ?? null),
       deliveryDate: formatDeliveryDate(deliveryDate),
-      director: "_______________________",
+      director: groupDirectorName || "_______________________",
       grade: gradeName || "Preescolar",
       name: student.full_name,
       period: periodName || "Primer Periodo",
+      rank: formatReportRank(reportSummary?.rank ?? null, reportSummary?.totalStudents ?? 0),
       year: new Date().getFullYear().toString(),
     },
   };

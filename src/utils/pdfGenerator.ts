@@ -17,6 +17,13 @@ interface Student {
   grades: { name: string } | null;
 }
 
+export interface ReportCardStudentSummary {
+  groupDirectorName?: string | null;
+  periodAverage?: number | null;
+  rank?: number | null;
+  totalStudents?: number;
+}
+
 interface Period {
   id: string;
   name: string;
@@ -110,6 +117,18 @@ function getLastAutoTableY(doc: jsPDF): number {
   return (doc as AutoTableCapableDoc).lastAutoTable?.finalY ?? 0;
 }
 
+function formatAverageForReport(periodAverage?: number | null) {
+  return typeof periodAverage === 'number' ? periodAverage.toFixed(2) : '-';
+}
+
+function formatRankForReport(rank?: number | null, totalStudents?: number) {
+  if (!rank || !totalStudents) {
+    return '-';
+  }
+
+  return `${rank} de ${totalStudents}`;
+}
+
 function setDocumentOpacity(doc: jsPDF, opacity: number) {
   const pdf = doc as Partial<GStateCapableDoc>;
 
@@ -176,11 +195,18 @@ function drawTitleBanner(doc: jsPDF, y: number, isPre: boolean): number {
 
 // ─── Student Info Block ───────────────────────────────────────────────────────
 
-function drawStudentInfo(doc: jsPDF, student: Student, period: Period, y: number, deliveryDate?: string): number {
+function drawStudentInfo(
+  doc: jsPDF,
+  student: Student,
+  period: Period,
+  y: number,
+  reportSummary?: ReportCardStudentSummary,
+  deliveryDate?: string,
+): number {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
   const w = pageWidth - margin * 2;
-  const bh = 24;
+  const bh = 31;
 
   // Outer box
   doc.setDrawColor(0);
@@ -215,7 +241,17 @@ function drawStudentInfo(doc: jsPDF, student: Student, period: Period, y: number
   doc.setFont('helvetica', 'bold'); doc.text('FECHA ENTREGA:', margin + labelGap, r3y);
   doc.setFont('helvetica', 'normal'); doc.text(' ' + formattedDeliveryDate, margin + 33, r3y);
   doc.setFont('helvetica', 'bold'); doc.text('DIRECTOR(A) DE GRUPO:', margin + w * 0.55 + labelGap, r3y);
-  doc.setFont('helvetica', 'normal'); doc.text(' _______________________', margin + w * 0.55 + 42, r3y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(` ${reportSummary?.groupDirectorName || '_______________________'}`, margin + w * 0.55 + 42, r3y);
+
+  // Row 4
+  const r4y = y + 28;
+  doc.setFont('helvetica', 'bold'); doc.text('PROMEDIO BIMESTRAL:', margin + labelGap, r4y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(` ${formatAverageForReport(reportSummary?.periodAverage)}`, margin + 36, r4y);
+  doc.setFont('helvetica', 'bold'); doc.text('PUESTO:', margin + w * 0.55 + labelGap, r4y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(` ${formatRankForReport(reportSummary?.rank, reportSummary?.totalStudents)}`, margin + w * 0.55 + 18, r4y);
 
   return y + bh + 3;
 }
@@ -569,6 +605,7 @@ export async function generateReportCard(
   allGradeRecords: DetailedGradeRecord[],
   classSchedules: { subject_id: string }[],
   allPeriods: Period[],
+  reportSummary?: ReportCardStudentSummary,
   deliveryDate?: string
 ) {
   const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
@@ -584,7 +621,7 @@ export async function generateReportCard(
   y = drawTitleBanner(doc, y, isPre);
 
   // 3. Student info
-  y = drawStudentInfo(doc, student, period, y, deliveryDate);
+  y = drawStudentInfo(doc, student, period, y, reportSummary, deliveryDate);
 
   // 4. Scale legend
   y = drawScaleLegend(doc, y);
@@ -655,9 +692,18 @@ export async function downloadReportCard(
   allGradeRecords: DetailedGradeRecord[],
   classSchedules: { subject_id: string }[],
   allPeriods: Period[],
+  reportSummary?: ReportCardStudentSummary,
   deliveryDate?: string
 ) {
-  const doc = await generateReportCard(student, period, allGradeRecords, classSchedules, allPeriods, deliveryDate);
+  const doc = await generateReportCard(
+    student,
+    period,
+    allGradeRecords,
+    classSchedules,
+    allPeriods,
+    reportSummary,
+    deliveryDate,
+  );
   const name = `Boletin_${student.full_name.replace(/\s+/g, '_')}_${period.name.replace(/\s+/g, '_')}.pdf`;
   doc.save(name);
 }

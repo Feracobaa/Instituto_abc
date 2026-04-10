@@ -15,14 +15,16 @@ import {
   usePreescolarEvaluations,
 } from "@/hooks/useSchoolData";
 import type { Student } from "@/hooks/useSchoolData";
-import { supabase } from "@/integrations/supabase/client";
-import type { DetailedGradeRecord } from "@/utils/pdfGenerator";
+import { getStudentReportSnapshot } from "@/lib/reportCards";
 
 export default function MisNotas() {
   const guardianAccountQuery = useGuardianAccount();
   const periodsQuery = useAcademicPeriods();
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [downloadingStudent, setDownloadingStudent] = useState<Student | null>(null);
+  const [downloadingSnapshot, setDownloadingSnapshot] = useState<Awaited<
+    ReturnType<typeof getStudentReportSnapshot>
+  > | null>(null);
   const [isDownloadingReport, setIsDownloadingReport] = useState(false);
   const preescolarRef = useRef<PreescolarReportHandle>(null);
 
@@ -76,6 +78,7 @@ export default function MisNotas() {
         toast.error("No fue posible descargar el boletin.");
       } finally {
         setDownloadingStudent(null);
+        setDownloadingSnapshot(null);
         setIsDownloadingReport(false);
       }
     }, 600);
@@ -95,8 +98,16 @@ export default function MisNotas() {
         return;
       }
 
-      setIsDownloadingReport(true);
-      setDownloadingStudent(student);
+      try {
+        setIsDownloadingReport(true);
+        const snapshot = await getStudentReportSnapshot(student.id, selectedPeriodData.id);
+        setDownloadingSnapshot(snapshot);
+        setDownloadingStudent(student);
+      } catch (error) {
+        console.error(error);
+        toast.error("No fue posible preparar el boletin.");
+        setIsDownloadingReport(false);
+      }
       return;
     }
 
@@ -108,32 +119,9 @@ export default function MisNotas() {
     setIsDownloadingReport(true);
 
     try {
-      const { data: allRecords, error: recordsError } = await supabase
-        .from("grade_records")
-        .select(`
-          period_id,
-          grade,
-          achievements,
-          comments,
-          subjects (id, name),
-          academic_periods (name)
-        `)
-        .eq("student_id", student.id);
+      const snapshot = await getStudentReportSnapshot(student.id, selectedPeriodData.id);
 
-      if (recordsError) {
-        throw recordsError;
-      }
-
-      const { data: classSchedules, error: schedulesError } = await supabase
-        .from("schedules")
-        .select("subject_id")
-        .eq("grade_id", student.grade_id);
-
-      if (schedulesError) {
-        throw schedulesError;
-      }
-
-      if (!allRecords?.length) {
+      if (!snapshot.studentGradeRecords.length) {
         toast.error("No hay informacion suficiente para generar el boletin.");
         return;
       }
@@ -142,9 +130,15 @@ export default function MisNotas() {
       await downloadReportCard(
         { full_name: student.full_name, grades: student.grades },
         { id: selectedPeriodData.id, name: selectedPeriodData.name },
-        allRecords as DetailedGradeRecord[],
-        classSchedules ?? [],
+        snapshot.studentGradeRecords,
+        snapshot.classSchedules,
         periods,
+        {
+          groupDirectorName: snapshot.groupDirectorName,
+          periodAverage: snapshot.periodAverage,
+          rank: snapshot.rank,
+          totalStudents: snapshot.totalStudents,
+        },
         deliveryDate,
       );
     } catch (error) {
@@ -282,10 +276,20 @@ export default function MisNotas() {
         deliveryDate={deliveryDate}
         downloadingStudent={downloadingStudent}
         gradeName={student?.grades?.name}
+        groupDirectorName={downloadingSnapshot?.groupDirectorName}
         isPreescolar={isPreescolar}
         periodName={selectedPeriodData?.name}
         preescolarRef={preescolarRef}
-        records={preescolarRecords}
+        records={downloadingSnapshot?.preescolarEvaluations ?? preescolarRecords}
+        reportSummary={
+          downloadingSnapshot
+            ? {
+                periodAverage: downloadingSnapshot.periodAverage,
+                rank: downloadingSnapshot.rank,
+                totalStudents: downloadingSnapshot.totalStudents,
+              }
+            : undefined
+        }
       />
     </MainLayout>
   );

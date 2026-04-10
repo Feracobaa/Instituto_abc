@@ -17,6 +17,7 @@ interface Teacher {
   teacher_subjects?: { subject_id: string; subjects: { id: string; name: string } }[];
   teacher_grade_assignments?: {
     grade_id: string;
+    is_group_director?: boolean;
     grades: { id: string; name: string; level: number };
   }[];
 }
@@ -28,6 +29,7 @@ interface TeacherFormDialogProps {
 }
 
 type TeacherFormData = {
+  director_grade_ids: string[];
   email: string;
   full_name: string;
   grade_ids: string[];
@@ -36,6 +38,7 @@ type TeacherFormData = {
 };
 
 const emptyFormData: TeacherFormData = {
+  director_grade_ids: [],
   email: "",
   full_name: "",
   grade_ids: [],
@@ -61,6 +64,10 @@ export function TeacherFormDialog({
   useEffect(() => {
     if (teacher) {
       setFormData({
+        director_grade_ids:
+          teacher.teacher_grade_assignments
+            ?.filter((assignment) => assignment.is_group_director)
+            .map((assignment) => assignment.grade_id) || [],
         email: teacher.email,
         full_name: teacher.full_name,
         grade_ids: teacher.teacher_grade_assignments?.map((assignment) => assignment.grade_id) || [],
@@ -88,14 +95,27 @@ export function TeacherFormDialog({
     });
   };
 
-  const toggleArrayValue = (field: "subject_ids" | "grade_ids", value: string) => {
+  const toggleArrayValue = (
+    field: "director_grade_ids" | "subject_ids" | "grade_ids",
+    value: string,
+  ) => {
     const currentValues = formData[field];
-    updateField(
-      field,
+    const nextValues =
       currentValues.includes(value)
         ? currentValues.filter((currentValue) => currentValue !== value)
-        : [...currentValues, value],
-    );
+        : [...currentValues, value];
+
+    if (field === "grade_ids") {
+      const nextDirectorGradeIds = formData.director_grade_ids.filter((gradeId) =>
+        nextValues.includes(gradeId),
+      );
+
+      if (nextDirectorGradeIds.length !== formData.director_grade_ids.length) {
+        updateField("director_grade_ids", nextDirectorGradeIds);
+      }
+    }
+
+    updateField(field, nextValues);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -128,6 +148,9 @@ export function TeacherFormDialog({
 
   const filteredSubjects = subjects?.filter((subject) =>
     subject.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+  const selectedGradeOptions = (grades ?? []).filter((grade) =>
+    formData.grade_ids.includes(grade.id),
   );
 
   const isLoading = createTeacher.isPending || updateTeacher.isPending;
@@ -240,6 +263,36 @@ export function TeacherFormDialog({
               docentes validos para el grado.
             </p>
             {errors.grade_ids && <p className="text-xs text-destructive">{errors.grade_ids}</p>}
+          </div>
+
+          <div className="space-y-3">
+            <Label>Director de grupo</Label>
+            <div className="grid max-h-32 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-border/50 bg-secondary/30 p-2">
+              {selectedGradeOptions.length === 0 ? (
+                <div className="col-span-2 py-3 text-center text-sm text-muted-foreground">
+                  Primero asigna uno o mas grados al docente.
+                </div>
+              ) : (
+                selectedGradeOptions.map((grade) => (
+                  <div key={`director-${grade.id}`} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`director-grade-${grade.id}`}
+                      checked={formData.director_grade_ids.includes(grade.id)}
+                      onCheckedChange={() => toggleArrayValue("director_grade_ids", grade.id)}
+                    />
+                    <Label htmlFor={`director-grade-${grade.id}`} className="cursor-pointer text-sm">
+                      {grade.name}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Puedes marcar varios cursos cuando el mismo docente tenga doble direccion de grupo.
+            </p>
+            {errors.director_grade_ids && (
+              <p className="text-xs text-destructive">{errors.director_grade_ids}</p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

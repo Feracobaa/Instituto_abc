@@ -72,3 +72,13 @@ export interface ProvisionGuardianAccountResult {
   temporaryPassword?: string;
   username?: string;
 }
+
+export interface ReportCardSnapshot {
+  classSchedules: { subject_id: string }[];
+  groupDirectorName: string | null;
+  periodAverage: number | null;
+  preescolarEvaluations: PreescolarEvaluation[];
+  rank: number | null;
+  studentGradeRecords: import("@/utils/pdfGenerator").DetailedGradeRecord[];
+  totalStudents: number;
+}

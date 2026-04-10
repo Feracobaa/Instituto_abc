@@ -10,11 +10,13 @@ export interface DimensionData {
 }
 
 export interface StudentInfo {
+  average: string;
   name: string;
   grade: string;
   year: string;
   director: string;
   period: string;
+  rank: string;
   deliveryDate: string;
 }
 
@@ -268,6 +270,16 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
             <div className="info-item">
               <span className="info-label">DIRECTOR(A):</span>
               <span className="info-value">{student.director}</span>
+            </div>
+          </div>
+          <div className="info-row" style={{ marginBottom: 0 }}>
+            <div className="info-item">
+              <span className="info-label">PROMEDIO:</span>
+              <span className="info-value">{student.average}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">PUESTO:</span>
+              <span className="info-value">{student.rank}</span>
             </div>
           </div>
         </div>

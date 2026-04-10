@@ -32,6 +32,14 @@ const getAvatarColor = (name: string) => {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 };
 
+const getDirectorGrades = (
+  assignments?: { grade_id: string; is_group_director?: boolean; grades?: { name: string } | null }[] | null,
+) =>
+  assignments?.filter((assignment) => assignment.is_group_director).map((assignment) => ({
+    grade_id: assignment.grade_id,
+    name: assignment.grades?.name || "Grado",
+  })) ?? [];
+
 const Profesores = () => {
   const { data: teachers, isLoading } = useTeachers();
   const deleteTeacher = useDeleteTeacher();
@@ -189,6 +197,16 @@ const Profesores = () => {
                   )}
                 </div>
 
+                {getDirectorGrades(teacher.teacher_grade_assignments).length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {getDirectorGrades(teacher.teacher_grade_assignments).map((grade) => (
+                      <Badge key={`${teacher.id}-${grade.grade_id}`} variant="secondary" className="text-xs">
+                        Director de grupo: {grade.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
                 {/* Materias */}
                 <div className="mt-4 pt-3 border-t border-border">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -232,6 +250,11 @@ const Profesores = () => {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-foreground">{teacher.full_name}</p>
                   <p className="text-xs text-muted-foreground">{teacher.email}</p>
+                  {getDirectorGrades(teacher.teacher_grade_assignments).length > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Director de grupo: {getDirectorGrades(teacher.teacher_grade_assignments).map((grade) => grade.name).join(", ")}
+                    </p>
+                  )}
                 </div>
                 <div className="hidden sm:flex flex-wrap gap-1">
                   {teacher.teacher_subjects?.slice(0, 2).map(ts => (
