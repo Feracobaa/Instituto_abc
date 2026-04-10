@@ -67,10 +67,30 @@ const addCanvasToPdf = (
   const contentWidth = pageWidth - PDF_MARGIN_MM * 2;
   const availableHeight = pageHeight - PDF_MARGIN_MM * 2;
   const mmPerPixel = contentWidth / canvas.width;
-  const maxSliceHeightPx = Math.floor(availableHeight / mmPerPixel);
+  const canvasHeightMm = canvas.height * mmPerPixel;
 
   let y = currentY;
   let offsetPx = 0;
+
+  // If the whole section fits on a clean page, never split it:
+  // push it to the next page when the current page does not have enough room.
+  if (canvasHeightMm <= availableHeight && y + canvasHeightMm > pageHeight - PDF_MARGIN_MM) {
+    pdf.addPage();
+    y = PDF_MARGIN_MM;
+  }
+
+  if (canvasHeightMm <= availableHeight) {
+    pdf.addImage(
+      canvas.toDataURL('image/jpeg', 0.98),
+      'JPEG',
+      PDF_MARGIN_MM,
+      y,
+      contentWidth,
+      canvasHeightMm,
+    );
+
+    return y + canvasHeightMm + PDF_SECTION_GAP_MM;
+  }
 
   while (offsetPx < canvas.height) {
     if (y > PDF_MARGIN_MM && y >= pageHeight - PDF_MARGIN_MM) {
@@ -80,7 +100,7 @@ const addCanvasToPdf = (
 
     const remainingHeightMm = pageHeight - PDF_MARGIN_MM - y;
     const remainingHeightPx = Math.floor(remainingHeightMm / mmPerPixel);
-    const sliceHeightPx = Math.min(canvas.height - offsetPx, Math.max(remainingHeightPx, maxSliceHeightPx > 0 ? 1 : canvas.height));
+    const sliceHeightPx = Math.min(canvas.height - offsetPx, Math.max(remainingHeightPx, 1));
 
     if (sliceHeightPx <= 0) {
       pdf.addPage();
