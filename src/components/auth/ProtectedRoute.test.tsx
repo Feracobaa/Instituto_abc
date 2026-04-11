@@ -91,8 +91,19 @@ describe("ProtectedRoute", () => {
       loading: true,
     } as never);
 
-    const { container } = renderProtectedRoute(["rector"]);
+    renderProtectedRoute(["rector"]);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(document.querySelector(".animate-spin")).toBeTruthy();
+  });
+
+  it("envia a auth cuando hay usuario pero aun no existe un rol valido", () => {
+    mockedUseAuth.mockReturnValue({
+      ...defaultAuthState,
+      userRole: null,
+    } as never);
+
+    renderProtectedRoute(["rector"]);
+
+    expect(screen.getByText("Auth")).toBeInTheDocument();
   });
 });

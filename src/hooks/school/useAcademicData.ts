@@ -13,8 +13,7 @@ export function useSubjects() {
       if (error) throw error;
       return (data ?? []) as Subject[];
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
@@ -26,8 +25,7 @@ export function useGrades() {
       if (error) throw error;
       return (data ?? []) as Grade[];
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 10 * 60 * 1000,
   });
 }
 

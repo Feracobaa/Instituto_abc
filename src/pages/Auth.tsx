@@ -90,7 +90,6 @@ export default function Auth() {
         ? "Ingresaste al portal del estudiante."
         : "Has iniciado sesion correctamente.",
     });
-    navigate("/");
   };
 
   const handleRegister = async (event: React.FormEvent) => {
@@ -130,7 +129,6 @@ export default function Auth() {
       title: "Registro exitoso",
       description: "Tu cuenta ha sido creada.",
     });
-    navigate("/");
   };
 
   if (loading) {
