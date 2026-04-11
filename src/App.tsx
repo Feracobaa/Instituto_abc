@@ -2,6 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -21,7 +23,19 @@ const MiHorario = lazy(() => import("./pages/MiHorario"));
 const MiPerfil = lazy(() => import("./pages/MiPerfil"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 30 * 60 * 1000,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      // The platform already invalidates queries after mutations, so a longer
+      // freshness window keeps idle sessions from re-fetching the whole dashboard.
+      staleTime: 15 * 60 * 1000,
+    },
+  },
+});
 
 const AppFallback = () => (
   <div className="flex min-h-screen items-center justify-center bg-background">
@@ -35,6 +49,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <Analytics />
+        <SpeedInsights />
         <AuthProvider>
           <Suspense fallback={<AppFallback />}>
             <Routes>
