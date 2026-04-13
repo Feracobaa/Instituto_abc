@@ -15,7 +15,7 @@ export function useStudents(gradeId?: string) {
           *,
           grades(*)
         `)
-        .eq("is_active", true)
+        .or("is_active.is.null,is_active.eq.true")
         .order("full_name");
 
       if (gradeId) {
@@ -42,7 +42,14 @@ export function useCreateStudent() {
       guardian_name?: string;
       guardian_phone?: string;
     }) => {
-      const { data: student, error } = await supabase.from("students").insert(data).select().single();
+      const { data: student, error } = await supabase
+        .from("students")
+        .insert({
+          ...data,
+          is_active: true,
+        })
+        .select()
+        .single();
       if (error) throw error;
       return student;
     },

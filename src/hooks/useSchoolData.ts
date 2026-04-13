@@ -65,3 +65,23 @@ export {
   usePreescolarEvaluations,
   useUpdatePreescolarEvaluation,
 } from "@/hooks/school/usePreescolarEvaluations";
+export {
+  useAccountingLedger,
+  useAccountingStudents,
+  useBulkAssignTuitionProfiles,
+  useCreateFinancialTransaction,
+  useCreateInventoryItem,
+  useCreateTuitionProfile,
+  useDeleteFinancialTransaction,
+  useDeleteInventoryItem,
+  useDeleteTuitionPayment,
+  useFinancialTransactions,
+  useInventoryItems,
+  useRegisterStudentPayment,
+  useTuitionPayments,
+  useTuitionMonthStatus,
+  useTuitionProfiles,
+  useTuitionSummary,
+  useUpdateTuitionProfile,
+  useUpdateInventoryItem,
+} from "@/hooks/school/useAccounting";

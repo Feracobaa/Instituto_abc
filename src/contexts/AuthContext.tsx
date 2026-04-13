@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { buildGuardianAuthEmail, isLikelyEmailLogin } from '@/lib/guardianAuth';
 
-type SupportedUserRole = 'rector' | 'profesor' | 'parent';
+type SupportedUserRole = 'rector' | 'profesor' | 'parent' | 'contable';
 type UserRole = SupportedUserRole | null;
 type LoginMode = 'staff' | 'family';
 
@@ -18,7 +18,12 @@ interface AuthContextType {
     password: string,
     options?: { loginMode?: LoginMode }
   ) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, role: 'rector' | 'profesor') => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role: 'rector' | 'profesor' | 'contable'
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -27,7 +32,7 @@ const AUTH_CONTEXT_CACHE_KEY = 'iabc.auth-context';
 const AUTH_CONTEXT_CACHE_MAX_AGE = 15 * 60 * 1000;
 
 const isSupportedUserRole = (role: string): role is SupportedUserRole =>
-  role === 'rector' || role === 'profesor' || role === 'parent';
+  role === 'rector' || role === 'profesor' || role === 'parent' || role === 'contable';
 
 interface CachedAuthContext {
   cachedAt: number;
@@ -214,7 +219,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'rector' | 'profesor') => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    role: 'rector' | 'profesor' | 'contable'
+  ) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { data, error } = await supabase.auth.signUp({

@@ -11,7 +11,7 @@ interface QuickAction {
 }
 
 interface QuickActionsBarProps {
-  role: "rector" | "profesor" | "parent";
+  role: "rector" | "profesor" | "parent" | "contable";
   className?: string;
 }
 
@@ -37,7 +37,17 @@ export function QuickActionsBar({ role, className }: QuickActionsBarProps) {
     { label: "Completar Perfil", icon: Users, onClick: () => navigate("/mi-perfil"), variant: "outline" },
   ];
 
-  const actions = role === "rector" ? rectorActions : role === "parent" ? parentActions : profesorActions;
+  const contableActions: QuickAction[] = [
+    { label: "Contabilidad", icon: FileText, onClick: () => navigate("/contabilidad") },
+  ];
+
+  const actions = role === "rector"
+    ? rectorActions
+    : role === "parent"
+      ? parentActions
+      : role === "contable"
+        ? contableActions
+        : profesorActions;
 
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>

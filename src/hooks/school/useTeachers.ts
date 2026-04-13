@@ -36,7 +36,7 @@ export function useTeachers() {
             subjects(*)
           )
         `)
-        .eq("is_active", true)
+        .or("is_active.is.null,is_active.eq.true")
         .order("full_name");
       if (error) throw error;
       return (data ?? []) as Teacher[];
@@ -55,6 +55,7 @@ export function useCreateTeacher() {
         .insert({
           full_name: data.full_name,
           email: data.email,
+          is_active: true,
           phone: data.phone,
         })
         .select()

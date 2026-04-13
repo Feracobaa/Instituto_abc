@@ -12,6 +12,8 @@ interface MainLayoutProps {
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
+  "/contabilidad": "Contabilidad",
+  "/usuarios": "Usuarios",
   "/profesores": "Profesores",
   "/estudiantes": "Estudiantes",
   "/familias": "Portal Estudiantil",

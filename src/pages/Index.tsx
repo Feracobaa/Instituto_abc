@@ -4,6 +4,7 @@ import { AcademicPeriodsManager } from "@/components/dashboard/AcademicPeriodsMa
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RoleBadge } from "@/components/ui/RoleBadge";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { Button } from "@/components/ui/button";
 import {
   AlertTriangle,
   Award,
@@ -15,6 +16,7 @@ import {
   Loader2,
   TrendingUp,
   Users,
+  Calculator,
 } from "lucide-react";
 import {
   useAcademicPeriods,
@@ -27,6 +29,7 @@ import {
 } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const dayNames = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
@@ -324,12 +327,54 @@ function StaffDashboard() {
   );
 }
 
+function ContableDashboard() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const displayName = (user?.user_metadata?.full_name || user?.email || "Usuario").split(" ")[0];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div>
+          <div className="mb-1 flex items-center gap-2">
+            <h1 className="font-heading text-2xl font-bold text-foreground">
+              Bienvenida, {displayName}
+            </h1>
+            <RoleBadge role="contable" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Acceso directo a la gestion contable del colegio.
+          </p>
+        </div>
+        <QuickActionsBar role="contable" />
+      </div>
+
+      <div className="rounded-xl border bg-card p-6 shadow-card">
+        <div className="mb-4 flex items-center gap-2">
+          <Calculator className="h-4 w-4 text-primary" />
+          <h3 className="font-heading font-bold text-foreground">Modulo de contabilidad</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Desde aqui puedes registrar pagos de pensiones, egresos y movimientos generales.
+        </p>
+        <Button className="mt-4 gap-2" onClick={() => navigate("/contabilidad")}>
+          Ir a contabilidad
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Index() {
   const { userRole } = useAuth();
 
   return (
     <MainLayout>
-      {userRole === "parent" ? <ParentDashboard /> : <StaffDashboard />}
+      {userRole === "parent"
+        ? <ParentDashboard />
+        : userRole === "contable"
+          ? <ContableDashboard />
+          : <StaffDashboard />}
     </MainLayout>
   );
 }

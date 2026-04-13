@@ -214,6 +214,102 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_transactions: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["accounting_category_enum"]
+          created_at: string
+          description: string | null
+          id: string
+          inventory_item_id: string | null
+          movement_type: Database["public"]["Enums"]["accounting_movement_type"]
+          period_month: string
+          teacher_id: string | null
+          transaction_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: Database["public"]["Enums"]["accounting_category_enum"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          movement_type: Database["public"]["Enums"]["accounting_movement_type"]
+          period_month: string
+          teacher_id?: string | null
+          transaction_date: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["accounting_category_enum"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          movement_type?: Database["public"]["Enums"]["accounting_movement_type"]
+          period_month?: string
+          teacher_id?: string | null
+          transaction_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          acquisition_date: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          notes: string | null
+          outstanding_debt: number
+          payment_mode: Database["public"]["Enums"]["inventory_payment_mode"]
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          acquisition_date: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          outstanding_debt?: number
+          payment_mode?: Database["public"]["Enums"]["inventory_payment_mode"]
+          total_cost: number
+          updated_at?: string
+        }
+        Update: {
+          acquisition_date?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          outstanding_debt?: number
+          payment_mode?: Database["public"]["Enums"]["inventory_payment_mode"]
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       schedules: {
         Row: {
           created_at: string
@@ -315,6 +411,85 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "student_guardian_accounts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_tuition_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          period_month: string
+          student_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date: string
+          period_month: string
+          student_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          period_month?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_tuition_payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_tuition_profiles: {
+        Row: {
+          charge_end_month: string | null
+          charge_start_month: string
+          created_at: string
+          id: string
+          monthly_tuition: number
+          notes: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          charge_end_month?: string | null
+          charge_start_month: string
+          created_at?: string
+          id?: string
+          monthly_tuition: number
+          notes?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          charge_end_month?: string | null
+          charge_start_month?: string
+          created_at?: string
+          id?: string
+          monthly_tuition?: number
+          notes?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_tuition_profiles_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: true
             referencedRelation: "students"
@@ -529,13 +704,72 @@ export type Database = {
       }
     }
     Views: {
+      accounting_ledger: {
+        Row: {
+          amount: number
+          category_label: string
+          created_at: string
+          description: string | null
+          inventory_item_id: string | null
+          movement_id: string
+          movement_type: Database["public"]["Enums"]["accounting_movement_type"]
+          period_month: string
+          student_id: string | null
+          teacher_id: string | null
+          transaction_date: string
+        }
+        Relationships: []
+      }
+      student_tuition_month_status: {
+        Row: {
+          expected_amount: number
+          paid_amount: number
+          pending_amount: number
+          period_month: string
+          status: string
+          student_id: string
+          student_name: string
+        }
+        Relationships: []
+      }
+      student_tuition_summary: {
+        Row: {
+          pending_months: number
+          student_id: string
+          student_name: string
+          total_expected: number
+          total_paid: number
+          total_pending: number
+        }
+        Relationships: []
+      }
       [_ in never]: never
     }
     Functions: {
+      bulk_assign_tuition_profiles: {
+        Args: {
+          p_charge_end_month?: string | null
+          p_charge_start_month: string
+          p_monthly_tuition: number
+          p_overwrite?: boolean
+        }
+        Returns: number
+      }
       get_student_report_snapshot: {
         Args: { p_period_id: string; p_student_id: string }
         Returns: Json
       }
+      register_student_payment: {
+        Args: {
+          p_amount: number
+          p_notes?: string | null
+          p_payment_date: string
+          p_period_month: string
+          p_student_id: string
+        }
+        Returns: Database["public"]["Tables"]["student_tuition_payments"]["Row"]
+      }
+      is_user_contable: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_parent: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_profesor: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_user_rector: { Args: Record<PropertyKey, never>; Returns: boolean }
@@ -551,7 +785,19 @@ export type Database = {
       }
     }
     Enums: {
-      user_role_enum: "rector" | "profesor" | "parent" | "admin"
+      accounting_category_enum:
+        | "other_income"
+        | "teacher_payment"
+        | "rent"
+        | "water"
+        | "electricity"
+        | "cleaning"
+        | "inventory_purchase"
+        | "repair"
+        | "other_expense"
+      accounting_movement_type: "income" | "expense"
+      inventory_payment_mode: "paid" | "financed"
+      user_role_enum: "rector" | "profesor" | "parent" | "admin" | "contable"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -679,7 +925,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      user_role_enum: ["rector", "profesor", "parent", "admin"],
+      accounting_category_enum: [
+        "other_income",
+        "teacher_payment",
+        "rent",
+        "water",
+        "electricity",
+        "cleaning",
+        "inventory_purchase",
+        "repair",
+        "other_expense",
+      ],
+      accounting_movement_type: ["income", "expense"],
+      inventory_payment_mode: ["paid", "financed"],
+      user_role_enum: ["rector", "profesor", "parent", "admin", "contable"],
     },
   },
 } as const

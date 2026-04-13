@@ -27,6 +27,8 @@ dist-ssr
 /*.sql
 !/sql/
 !/sql/**
+sql/migrations/*.sql
+sql/migrations/**/*.sql
 *.docx
 *.tsbuildinfo
 .env

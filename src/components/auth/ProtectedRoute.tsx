@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-type AllowedRole = "rector" | "profesor";
+type AllowedRole = "rector" | "profesor" | "contable";
 type SupportedAllowedRole = AllowedRole | "parent";
 
 interface ProtectedRouteProps {

@@ -45,4 +45,17 @@ export const schoolQueryKeys = {
     list: (filters?: PreescolarEvaluationFilters) =>
       ["preescolar_evaluations", filters?.studentId ?? null, filters?.periodId ?? null] as const,
   },
+  accounting: {
+    tuitionProfiles: ["accounting", "tuition_profiles"] as const,
+    tuitionSummary: ["accounting", "tuition_summary"] as const,
+    tuitionMonthStatus: (periodMonth?: string) =>
+      ["accounting", "tuition_month_status", periodMonth ?? null] as const,
+    payments: (periodMonth?: string) =>
+      ["accounting", "tuition_payments", periodMonth ?? null] as const,
+    ledger: (periodMonth?: string) => ["accounting", "ledger", periodMonth ?? null] as const,
+    transactions: (filters?: { periodMonth?: string; movementType?: string; category?: string }) =>
+      ["accounting", "transactions", filters?.periodMonth ?? null, filters?.movementType ?? null, filters?.category ?? null] as const,
+    inventory: ["accounting", "inventory"] as const,
+    students: ["accounting", "students"] as const,
+  },
 };

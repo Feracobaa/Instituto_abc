@@ -11,6 +11,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
+const Contabilidad = lazy(() => import("./pages/Contabilidad"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
 const Profesores = lazy(() => import("./pages/Profesores"));
 const Estudiantes = lazy(() => import("./pages/Estudiantes"));
 const Familias = lazy(() => import("./pages/Familias"));
@@ -58,8 +60,24 @@ const App = () => (
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor", "parent"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor", "parent", "contable"]}>
                     <Index />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/contabilidad"
+                element={
+                  <ProtectedRoute allowedRoles={["rector", "contable"]}>
+                    <Contabilidad />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/usuarios"
+                element={
+                  <ProtectedRoute allowedRoles={["rector"]}>
+                    <Usuarios />
                   </ProtectedRoute>
                 }
               />

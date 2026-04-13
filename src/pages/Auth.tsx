@@ -194,7 +194,7 @@ export default function Auth() {
             <p className="mb-6 text-sm text-white/55">
               {loginMode === "family"
                 ? "Acceso al portal del estudiante"
-                : "Ingreso para rectoria y docentes"}
+                : "Ingreso para rectoria, docentes y contabilidad"}
             </p>
 
             <Tabs defaultValue="login">

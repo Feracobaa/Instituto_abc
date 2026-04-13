@@ -9,6 +9,7 @@ import {
   UserPlus,
   Sun,
   Moon,
+  Calculator,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -29,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGuardianAccount } from "@/hooks/useSchoolData";
 import { cn } from "@/lib/utils";
 
-type MenuRole = "rector" | "profesor" | "parent";
+type MenuRole = "rector" | "profesor" | "parent" | "contable";
 
 const menuItems: Array<{
   icon: React.ElementType;
@@ -37,7 +38,9 @@ const menuItems: Array<{
   title: string;
   url: string;
 }> = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["rector", "profesor", "parent"] },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["rector", "profesor", "parent", "contable"] },
+  { title: "Contabilidad", url: "/contabilidad", icon: Calculator, roles: ["rector", "contable"] },
+  { title: "Usuarios", url: "/usuarios", icon: Users, roles: ["rector"] },
   { title: "Profesores", url: "/profesores", icon: Users, roles: ["rector"] },
   { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, roles: ["rector"] },
   { title: "Portal Estudiantil", url: "/familias", icon: Users, roles: ["rector"] },
@@ -94,6 +97,13 @@ export function AppSidebar() {
       badgeClass: "bg-rector text-rector-foreground",
       gradientClass: "gradient-rector",
       label: "RECTOR",
+      lightBg: "bg-rector-light",
+    },
+    contable: {
+      activeColor: "hsl(var(--rector-accent))",
+      badgeClass: "bg-rector text-rector-foreground",
+      gradientClass: "gradient-rector",
+      label: "CONTABLE",
       lightBg: "bg-rector-light",
     },
     profesor: {
