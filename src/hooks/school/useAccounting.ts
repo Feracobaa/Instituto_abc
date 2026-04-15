@@ -145,6 +145,21 @@ export function useAccountingStudents() {
   });
 }
 
+export function useAccountingTeachers() {
+  return useQuery({
+    queryKey: ["accounting_teachers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, full_name, is_active")
+        .or("is_active.is.null,is_active.eq.true")
+        .order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useTuitionSummary() {
   return useQuery({
     queryKey: schoolQueryKeys.accounting.tuitionSummary,
@@ -269,6 +284,44 @@ export function useDeleteTuitionPayment() {
   });
 }
 
+export function useDeleteTuitionProfile() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (studentId: string) => {
+      // First delete all payments for this student
+      const { error: paymentsError } = await supabase
+        .from("student_tuition_payments")
+        .delete()
+        .eq("student_id", studentId);
+      if (paymentsError) throw paymentsError;
+
+      // Then delete the tuition profile
+      const { error: profileError } = await supabase
+        .from("student_tuition_profiles")
+        .delete()
+        .eq("student_id", studentId);
+      if (profileError) throw profileError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.accounting.tuitionProfiles });
+      queryClient.invalidateQueries({ queryKey: ["accounting", "tuition_month_status"] });
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.accounting.tuitionSummary });
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.accounting.payments() });
+      queryClient.invalidateQueries({ queryKey: ["accounting", "ledger"] });
+      toast({ title: "Estudiante reseteado", description: "Se eliminó el perfil de pensión y todos los pagos registrados." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al resetear estudiante",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useAccountingLedger(periodMonth?: string) {
   return useQuery({
     queryKey: schoolQueryKeys.accounting.ledger(periodMonth),
@@ -306,7 +359,7 @@ export function useFinancialTransactions(filters?: {
         query = query.eq("movement_type", filters.movementType);
       }
       if (filters?.category) {
-        query = query.eq("category", filters.category);
+        query = query.eq("category", filters.category as any);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -323,7 +376,7 @@ export function useCreateFinancialTransaction() {
     mutationFn: async (payload: Omit<FinancialTransaction, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
         .from("financial_transactions")
-        .insert(payload)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;

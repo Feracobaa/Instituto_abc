@@ -75,6 +75,7 @@ export {
   useDeleteFinancialTransaction,
   useDeleteInventoryItem,
   useDeleteTuitionPayment,
+  useDeleteTuitionProfile,
   useFinancialTransactions,
   useInventoryItems,
   useRegisterStudentPayment,
@@ -84,4 +85,5 @@ export {
   useTuitionSummary,
   useUpdateTuitionProfile,
   useUpdateInventoryItem,
+  useAccountingTeachers,
 } from "@/hooks/school/useAccounting";

@@ -85,7 +85,9 @@ export interface ReportCardSnapshot {
 
 export type TuitionProfile = Tables<"student_tuition_profiles">;
 export type TuitionPayment = Tables<"student_tuition_payments">;
-export type FinancialTransaction = Tables<"financial_transactions">;
+export type FinancialTransaction = Omit<Tables<"financial_transactions">, "category"> & {
+  category: Tables<"financial_transactions">["category"] | "internet" | "suplent_payment";
+};
 export type InventoryItem = Tables<"inventory_items">;
 export type TuitionMonthStatus = Tables<"student_tuition_month_status">;
 export type TuitionSummary = Tables<"student_tuition_summary">;
