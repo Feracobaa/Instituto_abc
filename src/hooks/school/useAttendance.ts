@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buildAttendanceClassContexts, getScheduleDayIndex } from "@/features/asistencias/helpers";
+import { buildAttendanceClassContexts } from "@/features/asistencias/helpers";
 import { useToast } from "@/hooks/use-toast";
 import { schoolQueryKeys } from "@/hooks/school/queryKeys";
 import type {
@@ -31,11 +31,6 @@ export function useAttendanceClassContexts(filters?: AttendanceClassFilters) {
         return [];
       }
 
-      const dayIndex = getScheduleDayIndex(filters.date);
-      if (dayIndex === null) {
-        return [];
-      }
-
       let query = supabase
         .from("schedules")
         .select(`
@@ -44,7 +39,6 @@ export function useAttendanceClassContexts(filters?: AttendanceClassFilters) {
           subjects(*),
           teachers(*)
         `)
-        .eq("day_of_week", dayIndex)
         .not("subject_id", "is", null)
         .not("teacher_id", "is", null);
 

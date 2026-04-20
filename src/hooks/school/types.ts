@@ -47,6 +47,7 @@ export type StudentAttendance = Tables<"student_attendance"> & {
 export interface AttendanceClassContext {
   grade_id: string;
   grade_name: string;
+  is_scheduled_for_selected_date: boolean;
   subject_id: string;
   subject_name: string;
   teacher_id: string;

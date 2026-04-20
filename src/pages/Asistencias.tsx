@@ -40,7 +40,11 @@ const STATUS_OPTIONS: Array<{ label: string; value: AttendanceStatus }> = [
 const EMPTY_STATUS_VALUE = "__empty__";
 
 function buildTodayISODate() {
-  return new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, "0");
+  const day = `${now.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const Asistencias = () => {
@@ -269,6 +273,15 @@ const Asistencias = () => {
       return;
     }
 
+    if (!selectedContext.is_scheduled_for_selected_date) {
+      toast({
+        description: "No hay clase programada para ese docente, grado y materia en la fecha seleccionada.",
+        title: "Clase no programada",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { missingStudentIds, rows } = buildAttendanceSaveRows(students, draftMap);
 
     if (missingStudentIds.length > 0) {
@@ -381,6 +394,17 @@ const Asistencias = () => {
           </Alert>
         )}
 
+        {selectedContext && canEditDate && !selectedContext.is_scheduled_for_selected_date && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Sin clase programada ese dia</AlertTitle>
+            <AlertDescription>
+              El docente tiene asignada esta materia en el grado, pero no hay bloque de horario en la
+              fecha seleccionada.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {!selectedDate ? (
           <EmptyState
             icon={ClipboardCheck}
@@ -394,8 +418,8 @@ const Asistencias = () => {
         ) : allClassContexts.length === 0 ? (
           <EmptyState
             icon={ClipboardCheck}
-            title="Sin clases programadas"
-            description="No hay clases academicas programadas para la fecha seleccionada."
+            title="Sin clases asignadas"
+            description="No hay materias academicas asignadas para el docente seleccionado."
           />
         ) : !selectedContext ? (
           <EmptyState
@@ -417,7 +441,11 @@ const Asistencias = () => {
               </div>
               <Button
                 onClick={handleSave}
-                disabled={saveAttendance.isPending || !canEditDate}
+                disabled={
+                  saveAttendance.isPending
+                  || !canEditDate
+                  || !selectedContext.is_scheduled_for_selected_date
+                }
                 className="gap-2"
               >
                 {saveAttendance.isPending ? (

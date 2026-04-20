@@ -67,18 +67,16 @@ export function buildAttendanceClassContexts(
   schedules: Schedule[] | null | undefined,
   attendanceDate: string,
 ): AttendanceClassContext[] {
-  const scheduleDayIndex = getScheduleDayIndex(attendanceDate);
-
-  if (!schedules?.length || scheduleDayIndex === null) {
+  if (!schedules?.length || !attendanceDate) {
     return [];
   }
 
+  const scheduleDayIndex = getScheduleDayIndex(attendanceDate);
   const contextsByKey = new Map<string, AttendanceClassContext>();
 
   schedules.forEach((schedule) => {
     if (
-      schedule.day_of_week !== scheduleDayIndex
-      || !schedule.grade_id
+      !schedule.grade_id
       || !schedule.subject_id
       || !schedule.teacher_id
       || !isScheduleActiveOnDate(schedule, attendanceDate)
@@ -92,11 +90,19 @@ export function buildAttendanceClassContexts(
       contextsByKey.set(key, {
         grade_id: schedule.grade_id,
         grade_name: schedule.grades?.name ?? "Sin grado",
+        is_scheduled_for_selected_date: false,
         subject_id: schedule.subject_id,
         subject_name: schedule.subjects?.name ?? "Sin materia",
         teacher_id: schedule.teacher_id,
         teacher_name: schedule.teachers?.full_name ?? "Sin docente",
       });
+    }
+
+    if (scheduleDayIndex !== null && schedule.day_of_week === scheduleDayIndex) {
+      const current = contextsByKey.get(key);
+      if (current) {
+        current.is_scheduled_for_selected_date = true;
+      }
     }
   });
 
