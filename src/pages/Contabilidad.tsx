@@ -375,6 +375,12 @@ export default function Contabilidad() {
     return [...(reportMonthStatus ?? [])].sort((a, b) => a.student_name.localeCompare(b.student_name));
   }, [reportMonthStatus]);
 
+  const pendingReportRows = useMemo(
+    () =>
+      reportRows.filter((row) => normalizeLegacyAmount(row.pending_amount) > 0),
+    [reportRows],
+  );
+
   const reportTotals = useMemo(() => {
     const paidCount = reportRows.filter((row) => row.status === "paid").length;
     const partialCount = reportRows.filter((row) => row.status === "partial").length;
@@ -659,6 +665,45 @@ export default function Contabilidad() {
     toast({
       title: "Informe generado",
       description: `Se descargo el PDF de ${reportMonthLabel}.`,
+    });
+  };
+
+  const handleDownloadPendingTuitionReport = async () => {
+    if (pendingReportRows.length === 0) {
+      toast({
+        title: "Sin cartera pendiente",
+        description: "Todos los estudiantes tienen el mes cancelado en el periodo consultado.",
+      });
+      return;
+    }
+
+    const { downloadPendingTuitionMonthlyReportPDF } = await import("@/utils/accountingPdf");
+    const reportIncomeEntries = (reportLedger ?? []).filter((e) => e.movement_type === "income");
+    const reportExpenseEntries = (reportLedger ?? []).filter((e) => e.movement_type === "expense");
+    const reportIncomeTotal = reportIncomeEntries.reduce((sum, e) => sum + e.amount, 0);
+    const reportExpenseTotal = reportExpenseEntries.reduce((sum, e) => sum + e.amount, 0);
+
+    downloadPendingTuitionMonthlyReportPDF({
+      periodMonth: reportMonth,
+      monthLabel: reportMonthLabel,
+      rows: pendingReportRows.map((row) => ({
+        studentName: row.student_name,
+        status: row.status,
+        expectedAmount: normalizeLegacyAmount(row.expected_amount),
+        paidAmount: normalizeLegacyAmount(row.paid_amount),
+        pendingAmount: normalizeLegacyAmount(row.pending_amount),
+      })),
+      financialSummary: {
+        incomeCount: reportIncomeEntries.length,
+        incomeTotal: reportIncomeTotal,
+        expenseCount: reportExpenseEntries.length,
+        expenseTotal: reportExpenseTotal,
+      },
+    });
+
+    toast({
+      title: "Informe de no cancelados generado",
+      description: `Se descargo el PDF de cartera pendiente de ${reportMonthLabel}.`,
     });
   };
 
@@ -1549,11 +1594,13 @@ export default function Contabilidad() {
               <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Informes PDF</p>
-                  <p className="text-xs text-muted-foreground">Exporta el estado mensual de pagos por estudiante</p>
+                  <p className="text-xs text-muted-foreground">
+                    Exporta el estado mensual y un informe exclusivo de alumnos que no cancelaron el mes.
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Badge variant="outline">{reportTotals.paidCount} pagados</Badge>
-                  <Badge variant="outline">{reportTotals.unpaidCount} no pagados</Badge>
+                  <Badge variant="outline">{pendingReportRows.length} con saldo pendiente</Badge>
                 </div>
               </div>
             </AccordionTrigger>
@@ -1606,6 +1653,19 @@ export default function Contabilidad() {
                       <Download className="h-4 w-4" />
                       Generar PDF mensual
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={() => void handleDownloadPendingTuitionReport()}
+                      disabled={reportMonthStatusLoading || pendingReportRows.length === 0}
+                    >
+                      <Download className="h-4 w-4" />
+                      PDF alumnos no cancelados
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Este informe incluye estudiantes con saldo pendiente (parcial o no pago) en el mes consultado.
+                    </p>
                   </div>
                 </Card>
 
