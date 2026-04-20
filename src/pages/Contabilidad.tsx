@@ -889,13 +889,23 @@ export default function Contabilidad() {
           </Card>
         </div>
 
-        <Accordion type="single" collapsible defaultValue="pensiones" className="space-y-4">
-          <AccordionItem value="pensiones" className="overflow-hidden rounded-xl border bg-card shadow-card">
+        {/* Banner contextual: el selector de mes afecta todas las secciones */}
+        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-primary">Periodo activo:</span>
+          <span>{selectedMonthLabel}</span>
+          <span className="mx-1 text-border">·</span>
+          <span>Las secciones de Pensiones, Movimientos e Inventario reflejan el mes seleccionado arriba.</span>
+        </div>
+
+        <Accordion type="multiple" defaultValue={["estado-mes"]} className="space-y-4">
+
+          {/* ── ACCORDION: Estado del mes (lectura) ── */}
+          <AccordionItem value="estado-mes" className="overflow-hidden rounded-xl border bg-card shadow-card">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Pensiones</p>
-                  <p className="text-xs text-muted-foreground">Cobro mensual, abonos y cartera estudiantil</p>
+                  <p className="text-sm font-semibold text-foreground">Estado del mes</p>
+                  <p className="text-xs text-muted-foreground">Resumen de cobros y cartera de {selectedMonthLabel}</p>
                 </div>
                 <div className="flex gap-2">
                   <Badge variant="outline">{pendingCount} pendientes</Badge>
@@ -904,39 +914,6 @@ export default function Contabilidad() {
               </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-4 px-4 pb-4">
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
-                  <span className="select-none font-medium">¿Cómo funciona? — Ver guía de pasos</span>
-                  <span className="ml-auto transition-transform group-open:rotate-180">▾</span>
-                </summary>
-                <div className="mt-2">
-                  <Card className="border-primary/15 bg-gradient-to-r from-primary/5 via-background to-background shadow-card">
-                    <CardContent className="grid gap-3 p-4 md:grid-cols-3">
-                      <div className="rounded-lg border bg-background/80 p-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Paso 1</p>
-                        <p className="mt-1 font-semibold text-foreground">Carga base de pensiones</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Asigna el valor a todos los estudiantes activos al iniciar el periodo.
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background/80 p-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Paso 2</p>
-                        <p className="mt-1 font-semibold text-foreground">Ajusta excepciones</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Usa el formulario individual solo cuando un estudiante necesite una condicion distinta.
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background/80 p-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Paso 3</p>
-                        <p className="mt-1 font-semibold text-foreground">Registra abonos</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Lleva los pagos del mes mientras ves al frente el saldo pendiente real.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </details>
 
               {/* --- Zona de datos: 3 columnas --- */}
               <div className="grid gap-4 xl:grid-cols-3">
@@ -1001,7 +978,7 @@ export default function Contabilidad() {
                   <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
                       <ClipboardList className="h-4 w-4 text-primary" />
-                      <h3 className="font-heading font-bold text-foreground">Estado del mes</h3>
+                      <h3 className="font-heading font-bold text-foreground">Cobros del mes</h3>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <Badge variant="outline">{pendingCount} pendientes</Badge>
@@ -1013,92 +990,98 @@ export default function Contabilidad() {
                   ) : (monthStatus ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground">No hay registros para este mes.</p>
                   ) : (
-                    <div className="space-y-1">
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] gap-x-3 px-2 pb-1 text-xs font-medium text-muted-foreground">
-                        <span>Estudiante</span>
-                        <span className="text-right">Cuota</span>
-                        <span className="text-right">Pagado</span>
-                        <span className="text-right">Pendiente</span>
-                        <span className="text-right">Estado</span>
-                      </div>
-                      {monthStatus?.map((row) => {
-                        const paymentIds =
-                          paymentsByStudent.byId.get(row.student_id) ??
-                          paymentsByStudent.byName.get(row.student_name) ??
-                          [];
-                        const hasPay = paymentIds.length > 0;
-                        return (
-                          <div
-                            key={row.student_id}
-                            className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] items-center gap-x-3 rounded-lg border px-2 py-2 text-sm"
-                          >
-                            <span className="truncate font-medium text-foreground" title={row.student_name}>
-                              {row.student_name}
-                            </span>
-                            <span className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
-                              {formatCurrency(normalizeLegacyAmount(row.expected_amount))}
-                            </span>
-                            <span className="whitespace-nowrap text-right tabular-nums">
-                              {formatCurrency(normalizeLegacyAmount(row.paid_amount))}
-                            </span>
-                            <span className={cn(
-                              "whitespace-nowrap text-right tabular-nums font-semibold",
-                              row.pending_amount > 0 ? "text-destructive" : "text-success",
-                            )}>
-                              {formatCurrency(normalizeLegacyAmount(row.pending_amount))}
-                            </span>
-                            <div className="flex items-center justify-end gap-1">
-                              <Badge variant={statusVariant(row.status)} className="shrink-0 text-xs">
-                                {row.status === "paid" ? "Al dia" : row.status === "partial" ? "Parcial" : "Pend."}
-                              </Badge>
-                              {isContable && hasPay && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 shrink-0 p-0 text-destructive hover:text-destructive"
-                                  title={"Borrar pagos de " + row.student_name + " en este mes"}
-                                  onClick={() =>
-                                    openDeleteDialog({
-                                      kind: "tuition_payment",
-                                      id: paymentIds[paymentIds.length - 1],
-                                      title: "Borrar pago del mes",
-                                      description:
-                                        "Se eliminara el pago registrado de " +
-                                        row.student_name +
-                                        " en este periodo. El perfil de pension se conserva.",
-                                    })
-                                  }
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                              {isContable && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 shrink-0 p-0 text-orange-500 hover:text-orange-600"
-                                  title={"Resetear todo de " + row.student_name + " (perfil + pagos)"}
-                                  onClick={() =>
-                                    openDeleteDialog({
-                                      kind: "tuition_profile_reset",
-                                      studentId: row.student_id,
-                                      title: "Resetear estudiante",
-                                      description:
-                                        "Se eliminará el perfil de pensión y TODOS los pagos de " +
-                                        row.student_name +
-                                        ". Deberás volver a configurar su pensión desde cero.",
-                                    })
-                                  }
-                                >
-                                  <RotateCcw className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="max-h-[360px] overflow-auto rounded-md border">
+                      <Table>
+                        <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
+                          <TableRow>
+                            <TableHead>Estudiante</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Cuota</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Pagado</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Pendiente</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Estado</TableHead>
+                            {isContable && <TableHead className="text-right">Accion</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {monthStatus?.map((row) => {
+                            const paymentIds =
+                              paymentsByStudent.byId.get(row.student_id) ??
+                              paymentsByStudent.byName.get(row.student_name) ??
+                              [];
+                            const hasPay = paymentIds.length > 0;
+                            return (
+                              <TableRow key={row.student_id}>
+                                <TableCell className="font-medium">{row.student_name}</TableCell>
+                                <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
+                                  {formatCurrency(normalizeLegacyAmount(row.expected_amount))}
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap text-right tabular-nums">
+                                  {formatCurrency(normalizeLegacyAmount(row.paid_amount))}
+                                </TableCell>
+                                <TableCell className={cn(
+                                  "whitespace-nowrap text-right tabular-nums font-semibold",
+                                  row.pending_amount > 0 ? "text-destructive" : "text-success",
+                                )}>
+                                  {formatCurrency(normalizeLegacyAmount(row.pending_amount))}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={statusVariant(row.status)} className="text-xs">
+                                    {row.status === "paid" ? "Al dia" : row.status === "partial" ? "Parcial" : "Pend."}
+                                  </Badge>
+                                </TableCell>
+                                {isContable && (
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {hasPay && (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                          title={"Borrar pago de " + row.student_name + " en este mes"}
+                                          onClick={() =>
+                                            openDeleteDialog({
+                                              kind: "tuition_payment",
+                                              id: paymentIds[paymentIds.length - 1],
+                                              title: "Borrar pago del mes",
+                                              description:
+                                                "Se eliminara el pago registrado de " +
+                                                row.student_name +
+                                                " en este periodo. El perfil de pension se conserva.",
+                                            })
+                                          }
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600"
+                                        title={"Resetear todo de " + row.student_name + " (perfil + pagos)"}
+                                        onClick={() =>
+                                          openDeleteDialog({
+                                            kind: "tuition_profile_reset",
+                                            studentId: row.student_id,
+                                            title: "Resetear estudiante",
+                                            description:
+                                              "Se eliminará el perfil de pensión y TODOS los pagos de " +
+                                              row.student_name +
+                                              ". Deberás volver a configurar su pensión desde cero.",
+                                          })
+                                        }
+                                      >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </Card>
@@ -1186,7 +1169,61 @@ export default function Contabilidad() {
                 </Card>
               </div>
 
-              {/* --- Zona de formularios: registro de pago + herramientas colapsables --- */}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── ACCORDION: Registrar y configurar pensiones (acción) ── */}
+          <AccordionItem value="registrar-configurar" className="overflow-hidden rounded-xl border bg-card shadow-card">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+              <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Registrar y configurar pensiones</p>
+                  <p className="text-xs text-muted-foreground">Abonos, asignación masiva y ajustes individuales</p>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline">{studentsWithoutProfile.length} sin perfil</Badge>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4 px-4 pb-4">
+
+              {/* Guía de pasos como Accordion anidado */}
+              <Accordion type="single" collapsible className="rounded-lg border border-dashed">
+                <AccordionItem value="guia" className="border-0">
+                  <AccordionTrigger className="px-3 py-2 text-xs text-muted-foreground hover:no-underline hover:text-foreground">
+                    <span className="font-medium">¿Cómo funciona? — Ver guía de pasos</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-3 pb-3">
+                    <Card className="border-primary/15 bg-gradient-to-r from-primary/5 via-background to-background shadow-card">
+                      <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+                        <div className="rounded-lg border bg-background/80 p-3">
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Paso 1</p>
+                          <p className="mt-1 font-semibold text-foreground">Carga base de pensiones</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Asigna el valor a todos los estudiantes activos al iniciar el periodo.
+                          </p>
+                        </div>
+                        <div className="rounded-lg border bg-background/80 p-3">
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Paso 2</p>
+                          <p className="mt-1 font-semibold text-foreground">Ajusta excepciones</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Usa el formulario individual solo cuando un estudiante necesite una condicion distinta.
+                          </p>
+                        </div>
+                        <div className="rounded-lg border bg-background/80 p-3">
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Paso 3</p>
+                          <p className="mt-1 font-semibold text-foreground">Registra abonos</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Lleva los pagos del mes mientras ves al frente el saldo pendiente real.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
+              {/* --- Zona de formularios: registro de pago + herramientas --- */}
               <div className="grid gap-4 xl:grid-cols-2">
 
                 {/* Registrar pago: acción principal, siempre visible */}
@@ -1330,15 +1367,17 @@ export default function Contabilidad() {
                   </form>
                 </Card>
 
-                {/* Herramientas ocasionales: Asignar masivo + Ajuste individual colapsables */}
+                {/* Herramientas ocasionales: Asignar masivo + Ajuste individual */}
                 <div className="space-y-3">
-                  <details className="group overflow-hidden rounded-xl border bg-card shadow-card">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 hover:bg-muted/30">
-                      <Users className="h-4 w-4 text-primary" />
-                      <span className="font-heading font-bold text-foreground">Asignar pensiones masivas</span>
-                      <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-180">▾</span>
-                    </summary>
-                    <div className="px-5 pb-5">
+                  <Accordion type="single" collapsible className="space-y-3">
+                  <AccordionItem value="masivo" className="overflow-hidden rounded-xl border bg-card shadow-card">
+                    <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        <span className="font-heading font-bold text-foreground">Asignar pensiones masivas</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-5 pb-5">
                       <form onSubmit={handleBulkSubmit} className="space-y-4">
                         <div className="space-y-1.5">
                           <Label>Valor mensual</Label>
@@ -1406,16 +1445,17 @@ export default function Contabilidad() {
                           Asignar a todos los estudiantes
                         </Button>
                       </form>
-                    </div>
-                  </details>
+                    </AccordionContent>
+                  </AccordionItem>
 
-                  <details className="group overflow-hidden rounded-xl border bg-card shadow-card">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 hover:bg-muted/30">
-                      <Users className="h-4 w-4 text-primary" />
-                      <span className="font-heading font-bold text-foreground">Ajuste individual</span>
-                      <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-180">▾</span>
-                    </summary>
-                    <div className="px-5 pb-5">
+                  <AccordionItem value="individual" className="overflow-hidden rounded-xl border bg-card shadow-card">
+                    <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        <span className="font-heading font-bold text-foreground">Ajuste individual</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-5 pb-5">
                       <form onSubmit={handleProfileSubmit} className="space-y-4">
                         <div className="space-y-1.5">
                           <Label>Estudiante</Label>
@@ -1496,8 +1536,9 @@ export default function Contabilidad() {
                           {profilesByStudent.has(profileForm.studentId) ? "Actualizar pension" : "Guardar pension"}
                         </Button>
                       </form>
-                    </div>
-                  </details>
+                    </AccordionContent>
+                  </AccordionItem>
+                  </Accordion>
                 </div>
               </div>
             </AccordionContent>

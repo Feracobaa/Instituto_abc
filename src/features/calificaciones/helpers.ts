@@ -2,6 +2,7 @@ import type { SchoolInfo, StudentInfo } from "@/components/reports/PreescolarRep
 import type {
   Grade,
   GradeRecord,
+  GradeRecordPartial,
   PreescolarEvaluation,
   Schedule,
   Student,
@@ -10,6 +11,7 @@ import type {
 } from "@/hooks/useSchoolData";
 import type {
   EditableGradeRecord,
+  EditablePartialGrade,
   EditablePreescolarEvaluation,
   GradeRecordVisibilityInput,
   PreescolarReportPayloadInput,
@@ -67,6 +69,75 @@ export function getGradeColor(grade: number) {
   return "bg-destructive text-destructive-foreground";
 }
 
+export function buildDefaultPartialGrades(): EditablePartialGrade[] {
+  return [{
+    activity_name: "Actividad 1",
+    achievements: "",
+    comments: "",
+    grade: "",
+    partial_index: 1,
+  }];
+}
+
+export function calculateWeightedFinalGrade(
+  partials?: Array<{
+    grade: number | "" | null;
+  }>,
+) {
+  const validPartials = (partials ?? []).filter(
+    (partial) =>
+      typeof partial.grade === "number"
+      && !Number.isNaN(partial.grade),
+  );
+
+  if (validPartials.length === 0) {
+    return null;
+  }
+
+  const totalGrades = validPartials.reduce(
+    (accumulator, partial) => accumulator + (partial.grade as number),
+    0,
+  );
+
+  return Number((totalGrades / validPartials.length).toFixed(1));
+}
+
+export function buildEditablePartialsFromExisting(
+  partials?: GradeRecordPartial[] | null,
+  fallbackGrade?: number | null,
+): EditablePartialGrade[] {
+  if (partials && partials.length > 0) {
+    return [...partials]
+      .sort((first, second) => first.partial_index - second.partial_index)
+      .map((partial, index) => ({
+        activity_name: partial.activity_name ?? `Actividad ${index + 1}`,
+        achievements: partial.achievements ?? "",
+        comments: partial.comments ?? "",
+        grade: typeof partial.grade === "number" ? partial.grade : "",
+        partial_index: index + 1,
+      }));
+  }
+
+  return [{
+    activity_name: "Actividad 1",
+    achievements: "",
+    comments: "",
+    grade: typeof fallbackGrade === "number" ? fallbackGrade : "",
+    partial_index: 1,
+  }];
+}
+
+export function deriveRecordSummaryFromPartials(
+  partials?: EditablePartialGrade[],
+) {
+  const achievements =
+    partials?.find((partial) => partial.achievements.trim().length > 0)?.achievements ?? "";
+  const comments =
+    partials?.find((partial) => partial.comments.trim().length > 0)?.comments ?? "";
+
+  return { achievements, comments };
+}
+
 export function buildEmptyGradeRecord(
   studentId: string,
   isRector: boolean,
@@ -75,7 +146,8 @@ export function buildEmptyGradeRecord(
   return {
     achievements: "",
     comments: "",
-    grade: 3,
+    final_grade: null,
+    partials: buildDefaultPartialGrades(),
     student_id: studentId,
     subject_id: "",
     teacher_id: isRector ? "" : teacherId ?? "",
@@ -241,10 +313,16 @@ export function buildGradeRecordCreatePayload(
   periodId: string,
   teacherId: string,
 ) {
+  const finalGrade = typeof draft.grade === "number"
+    ? draft.grade
+    : typeof draft.final_grade === "number"
+      ? draft.final_grade
+      : calculateWeightedFinalGrade(draft.partials) ?? 3;
+
   return {
     achievements: draft.achievements,
     comments: draft.comments,
-    grade: draft.grade as number,
+    grade: finalGrade,
     period_id: periodId,
     student_id: draft.student_id,
     subject_id: draft.subject_id,
@@ -257,10 +335,16 @@ export function buildGradeRecordUpdatePayload(
   teacherId: string,
   isRector: boolean,
 ) {
+  const finalGrade = typeof draft.grade === "number"
+    ? draft.grade
+    : typeof draft.final_grade === "number"
+      ? draft.final_grade
+      : calculateWeightedFinalGrade(draft.partials) ?? 3;
+
   return {
     achievements: draft.achievements,
     comments: draft.comments,
-    grade: draft.grade as number,
+    grade: finalGrade,
     id: draft.id as string,
     teacher_id: isRector ? teacherId : undefined,
   };

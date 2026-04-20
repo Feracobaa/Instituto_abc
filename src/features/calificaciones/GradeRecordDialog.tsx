@@ -1,11 +1,16 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getGradeColor, getGradeSublabel } from "@/features/calificaciones/helpers";
+import {
+  buildDefaultPartialGrades,
+  calculateWeightedFinalGrade,
+  getGradeColor,
+  getGradeSublabel,
+} from "@/features/calificaciones/helpers";
 import type { GradeRecordDialogProps } from "@/features/calificaciones/types";
 import { cn } from "@/lib/utils";
 
@@ -21,14 +26,98 @@ export function GradeRecordDialog({
   setEditingRecord,
   teacherOptionsForRecord,
 }: GradeRecordDialogProps) {
-  const editableGradeValue =
-    editingRecord && typeof editingRecord.grade === "number" && !Number.isNaN(editingRecord.grade)
-      ? editingRecord.grade
-      : null;
+  const partials = editingRecord?.partials ?? buildDefaultPartialGrades();
+  const weightedFinal = calculateWeightedFinalGrade(partials);
+  const finalGrade =
+    typeof weightedFinal === "number"
+      ? weightedFinal
+      : typeof editingRecord?.final_grade === "number"
+        ? editingRecord.final_grade
+        : null;
+
+  const hasAtLeastOneGrade = partials.some(
+    (partial) => typeof partial.grade === "number" && !Number.isNaN(partial.grade),
+  );
+
+  const updatePartial = (
+    partialIndex: number,
+    patch: Partial<(typeof partials)[number]>,
+  ) => {
+    setEditingRecord((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const previousPartials = previous.partials ?? buildDefaultPartialGrades();
+      const nextPartials = previousPartials.map((partial) =>
+        partial.partial_index === partialIndex ? { ...partial, ...patch } : partial,
+      );
+
+      return {
+        ...previous,
+        final_grade: calculateWeightedFinalGrade(nextPartials),
+        partials: nextPartials,
+      };
+    });
+  };
+
+  const addActivity = () => {
+    setEditingRecord((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const previousPartials = previous.partials ?? buildDefaultPartialGrades();
+      const nextIndex = previousPartials.length + 1;
+      const nextPartials = [
+        ...previousPartials,
+        {
+          activity_name: `Actividad ${nextIndex}`,
+          achievements: "",
+          comments: "",
+          grade: "",
+          partial_index: nextIndex,
+        },
+      ];
+
+      return {
+        ...previous,
+        final_grade: calculateWeightedFinalGrade(nextPartials),
+        partials: nextPartials,
+      };
+    });
+  };
+
+  const removeActivity = (partialIndex: number) => {
+    setEditingRecord((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const previousPartials = previous.partials ?? buildDefaultPartialGrades();
+      if (previousPartials.length <= 1) {
+        return previous;
+      }
+
+      const filteredPartials = previousPartials
+        .filter((partial) => partial.partial_index !== partialIndex)
+        .map((partial, index) => ({
+          ...partial,
+          activity_name: partial.activity_name || `Actividad ${index + 1}`,
+          partial_index: index + 1,
+        }));
+
+      return {
+        ...previous,
+        final_grade: calculateWeightedFinalGrade(filteredPartials),
+        partials: filteredPartials,
+      };
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {editingRecord?.id ? "Editar calificacion" : "Nueva calificacion"}
@@ -124,69 +213,114 @@ export function GradeRecordDialog({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Calificacion (1.0 a 5.0)</Label>
+          <div className="space-y-3 rounded-lg border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Label className="text-sm">Nota final automatica</Label>
+              <div className="text-sm text-muted-foreground">
+                Promedio simple de las actividades registradas
+              </div>
+            </div>
+
             <div className="flex items-center gap-4">
-              <Input
-                type="number"
-                step="0.1"
-                min="1.0"
-                max="5.0"
-                className="h-12 w-32 text-center text-lg font-bold"
-                value={editingRecord?.grade ?? ""}
-                onChange={(event) =>
-                  setEditingRecord((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          grade:
-                            event.target.value === ""
-                              ? ""
-                              : parseFloat(event.target.value),
-                        }
-                      : null,
-                  )
-                }
-              />
-              {editableGradeValue !== null && (
+              <div className="flex h-12 w-24 items-center justify-center rounded-lg border bg-muted text-lg font-bold">
+                {typeof finalGrade === "number" ? finalGrade.toFixed(1) : "-"}
+              </div>
+              {typeof finalGrade === "number" && (
                 <div
                   className={cn(
                     "rounded-lg px-4 py-2 text-sm font-bold shadow-sm",
-                    getGradeColor(editableGradeValue),
+                    getGradeColor(finalGrade),
                   )}
                 >
-                  {getGradeSublabel(editableGradeValue)}
+                  {getGradeSublabel(finalGrade)}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Logros</Label>
-            <Textarea
-              placeholder="Describe los logros alcanzados..."
-              value={editingRecord?.achievements || ""}
-              onChange={(event) =>
-                setEditingRecord((previous) =>
-                  previous ? { ...previous, achievements: event.target.value } : null,
-                )
-              }
-              rows={2}
-            />
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Actividades evaluadas</Label>
+            <Button type="button" size="sm" variant="outline" className="gap-1" onClick={addActivity}>
+              <Plus className="h-3.5 w-3.5" />
+              Agregar actividad
+            </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label>Observaciones</Label>
-            <Textarea
-              placeholder="Observaciones adicionales..."
-              value={editingRecord?.comments || ""}
-              onChange={(event) =>
-                setEditingRecord((previous) =>
-                  previous ? { ...previous, comments: event.target.value } : null,
-                )
-              }
-              rows={2}
-            />
+          <div className="space-y-3">
+            {partials.map((partial) => (
+              <div key={partial.partial_index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Actividad {partial.partial_index}</Label>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    disabled={partials.length <= 1}
+                    onClick={() => removeActivity(partial.partial_index)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Nombre de actividad</Label>
+                  <Input
+                    value={partial.activity_name}
+                    onChange={(event) =>
+                      updatePartial(partial.partial_index, { activity_name: event.target.value })
+                    }
+                    placeholder={`Actividad ${partial.partial_index}`}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Nota de actividad (1.0 a 5.0)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="1.0"
+                    max="5.0"
+                    value={partial.grade}
+                    onChange={(event) =>
+                      updatePartial(
+                        partial.partial_index,
+                        {
+                          grade:
+                            event.target.value === ""
+                              ? ""
+                              : parseFloat(event.target.value),
+                        },
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Logros de la actividad</Label>
+                  <Textarea
+                    placeholder="Logros de esta actividad..."
+                    rows={2}
+                    value={partial.achievements}
+                    onChange={(event) =>
+                      updatePartial(partial.partial_index, { achievements: event.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Observaciones de la actividad</Label>
+                  <Textarea
+                    placeholder="Observaciones de esta actividad..."
+                    rows={2}
+                    value={partial.comments}
+                    onChange={(event) =>
+                      updatePartial(partial.partial_index, { comments: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -198,7 +332,8 @@ export function GradeRecordDialog({
               disabled={
                 isPending ||
                 (!editingRecord?.id && !editingRecord?.subject_id) ||
-                (isRector && !editingRecord?.teacher_id)
+                (isRector && !editingRecord?.teacher_id) ||
+                !hasAtLeastOneGrade
               }
             >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

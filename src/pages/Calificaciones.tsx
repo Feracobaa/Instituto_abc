@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ClipboardList, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { PreescolarReportHandle } from "@/components/reports/PreescolarReport";
@@ -12,12 +12,13 @@ import { CalificacionesTable } from "@/features/calificaciones/CalificacionesTab
 import { GradeLegend } from "@/features/calificaciones/GradeLegend";
 import { GradeRecordDialog } from "@/features/calificaciones/GradeRecordDialog";
 import {
+  buildEditablePartialsFromExisting,
   buildEmptyGradeRecord,
   buildEmptyPreescolarEvaluation,
-  buildGradeRecordCreatePayload,
-  buildGradeRecordUpdatePayload,
   buildPreescolarCreatePayload,
   buildPreescolarUpdatePayload,
+  calculateWeightedFinalGrade,
+  deriveRecordSummaryFromPartials,
   getAvailableGradesForRole,
   getTeacherOptionsForSubject,
   getTeachersForGrade,
@@ -36,10 +37,10 @@ import type {
 } from "@/features/calificaciones/types";
 import {
   useAcademicPeriods,
-  useCreateGradeRecord,
   useCreatePreescolarEvaluation,
   useDeleteGradeRecord,
   useDeletePreescolarEvaluation,
+  useGradeRecordPartials,
   useGradeRecords,
   useGrades,
   usePreescolarEvaluations,
@@ -47,8 +48,8 @@ import {
   useStudents,
   useSubjects,
   useTeachers,
-  useUpdateGradeRecord,
   useUpdatePreescolarEvaluation,
+  useUpsertGradeRecordPartials,
 } from "@/hooks/useSchoolData";
 import type { GradeRecord, PreescolarEvaluation, Student } from "@/hooks/useSchoolData";
 import { getStudentReportSnapshot } from "@/lib/reportCards";
@@ -125,20 +126,35 @@ const Calificaciones = () => {
   const gradeRecordsQuery = useGradeRecords({
     periodId: selectedPeriod || undefined,
   });
+  const gradeRecordPartialsQuery = useGradeRecordPartials({
+    periodId: selectedPeriod || undefined,
+  });
   const preescolarQuery = usePreescolarEvaluations({
     periodId: selectedPeriod || undefined,
   });
 
   const students = studentsQuery.data;
   const gradeRecords = gradeRecordsQuery.data;
+  const gradeRecordPartials = gradeRecordPartialsQuery.data;
   const preescolarRecords = preescolarQuery.data;
 
-  const createGradeRecord = useCreateGradeRecord();
-  const updateGradeRecord = useUpdateGradeRecord();
+  const upsertGradeRecordPartials = useUpsertGradeRecordPartials();
   const deleteGradeRecord = useDeleteGradeRecord();
   const createPreescolarEvaluation = useCreatePreescolarEvaluation();
   const updatePreescolarEvaluation = useUpdatePreescolarEvaluation();
   const deletePreescolarEvaluation = useDeletePreescolarEvaluation();
+
+  const gradeRecordPartialsByRecordId = useMemo(() => {
+    const partialsMap = new Map<string, NonNullable<typeof gradeRecordPartials>>();
+
+    (gradeRecordPartials ?? []).forEach((partial) => {
+      const currentPartials = partialsMap.get(partial.grade_record_id) ?? [];
+      currentPartials.push(partial);
+      partialsMap.set(partial.grade_record_id, currentPartials);
+    });
+
+    return partialsMap;
+  }, [gradeRecordPartials]);
 
   useEffect(() => {
     if (!downloadingStudent || !isPreescolar) {
@@ -179,7 +195,8 @@ const Calificaciones = () => {
   const filteredStudents = students?.filter(
     (student) => !selectedGrade || student.grade_id === selectedGrade,
   ) ?? [];
-  const isLoading = gradeRecordsQuery.isLoading || preescolarQuery.isLoading;
+  const isLoading =
+    gradeRecordsQuery.isLoading || gradeRecordPartialsQuery.isLoading || preescolarQuery.isLoading;
 
   const pageError =
     gradesQuery.error ||
@@ -189,6 +206,7 @@ const Calificaciones = () => {
     teacherSchedulesQuery.error ||
     studentsQuery.error ||
     gradeRecordsQuery.error ||
+    gradeRecordPartialsQuery.error ||
     preescolarQuery.error;
 
   const getStudentRecords = (studentId: string, gradeId: string) =>
@@ -226,11 +244,18 @@ const Calificaciones = () => {
       return;
     }
 
+    const editablePartials = buildEditablePartialsFromExisting(
+      gradeRecordPartialsByRecordId.get(record.id),
+      record.grade,
+    );
+    const partialSummary = deriveRecordSummaryFromPartials(editablePartials);
+
     setEditingRecord({
-      achievements: record.achievements || "",
-      comments: record.comments || "",
-      grade: record.grade,
+      achievements: partialSummary.achievements || record.achievements || "",
+      comments: partialSummary.comments || record.comments || "",
+      final_grade: calculateWeightedFinalGrade(editablePartials) ?? record.grade,
       id: record.id,
+      partials: editablePartials,
       student_id: record.student_id,
       subject_id: record.subject_id,
       teacher_id: record.teacher_id || "",
@@ -243,8 +268,24 @@ const Calificaciones = () => {
       return;
     }
 
-    if (typeof editingRecord.grade !== "number" || Number.isNaN(editingRecord.grade)) {
-      toast.error("Debes ingresar una nota valida.");
+    const draftPartials = editingRecord.partials ?? [];
+    const gradedActivities = draftPartials.filter(
+      (partial) => typeof partial.grade === "number" && !Number.isNaN(partial.grade),
+    );
+
+    if (gradedActivities.length === 0) {
+      toast.error("Debes ingresar al menos una nota de actividad valida.");
+      return;
+    }
+
+    const hasInvalidGrade = draftPartials.some(
+      (partial) =>
+        typeof partial.grade === "number"
+        && (Number.isNaN(partial.grade) || partial.grade < 1 || partial.grade > 5),
+    );
+
+    if (hasInvalidGrade) {
+      toast.error("Cada nota de actividad debe estar entre 1.0 y 5.0.");
       return;
     }
 
@@ -266,15 +307,26 @@ const Calificaciones = () => {
       }
     }
 
-    if (editingRecord.id) {
-      await updateGradeRecord.mutateAsync(
-        buildGradeRecordUpdatePayload(editingRecord, currentTeacherId, isRector),
-      );
-    } else {
-      await createGradeRecord.mutateAsync(
-        buildGradeRecordCreatePayload(editingRecord, selectedPeriod, currentTeacherId),
-      );
-    }
+    const partialSummary = deriveRecordSummaryFromPartials(draftPartials);
+    const normalizedPartials = gradedActivities
+      .map((partial, index) => ({
+        activity_name: partial.activity_name || `Actividad ${index + 1}`,
+        achievements: partial.achievements,
+        comments: partial.comments,
+        grade: partial.grade as number,
+        partial_index: index + 1,
+      }));
+
+    await upsertGradeRecordPartials.mutateAsync({
+      achievements: partialSummary.achievements || editingRecord.achievements || null,
+      comments: partialSummary.comments || editingRecord.comments || null,
+      id: editingRecord.id,
+      partials: normalizedPartials,
+      period_id: selectedPeriod,
+      student_id: editingRecord.student_id,
+      subject_id: editingRecord.subject_id,
+      teacher_id: currentTeacherId,
+    });
 
     setDialogOpen(false);
     setEditingRecord(null);
@@ -519,7 +571,7 @@ const Calificaciones = () => {
         onOpenChange={setDialogOpen}
         editingRecord={editingRecord}
         setEditingRecord={setEditingRecord}
-        isPending={createGradeRecord.isPending || updateGradeRecord.isPending}
+        isPending={upsertGradeRecordPartials.isPending}
         isRector={isRector}
         availableTeachersForSelectedGrade={availableTeachersForSelectedGrade}
         availableSubjects={availableSubjectsForDialog}

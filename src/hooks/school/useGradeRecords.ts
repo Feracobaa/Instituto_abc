@@ -54,6 +54,7 @@ export function useCreateGradeRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: schoolQueryKeys.gradeRecords.all });
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.gradeRecordPartials.all });
       toast({ title: "Calificacion registrada exitosamente" });
     },
     onError: (error) => {
@@ -84,6 +85,7 @@ export function useUpdateGradeRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: schoolQueryKeys.gradeRecords.all });
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.gradeRecordPartials.all });
       toast({ title: "Calificacion actualizada exitosamente" });
     },
     onError: (error) => {
@@ -107,6 +109,7 @@ export function useDeleteGradeRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: schoolQueryKeys.gradeRecords.all });
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.gradeRecordPartials.all });
       toast({ title: "Calificacion eliminada exitosamente" });
     },
     onError: (error) => {

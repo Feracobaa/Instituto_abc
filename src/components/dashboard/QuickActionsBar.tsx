@@ -26,6 +26,7 @@ export function QuickActionsBar({ role, className }: QuickActionsBarProps) {
   ];
 
   const profesorActions: QuickAction[] = [
+    { label: "Tomar Asistencia", icon: ClipboardList, onClick: () => navigate("/asistencias") },
     { label: "Registrar Calificacion", icon: ClipboardList, onClick: () => navigate("/calificaciones") },
     { label: "Mi Horario", icon: Calendar, onClick: () => navigate("/horarios"), variant: "outline" },
     { label: "Mis Materias", icon: FileText, onClick: () => navigate("/materias"), variant: "outline" },

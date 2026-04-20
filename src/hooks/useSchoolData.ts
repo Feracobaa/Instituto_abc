@@ -1,17 +1,25 @@
 export { schoolQueryKeys } from "@/hooks/school/queryKeys";
 export type {
   AcademicPeriod,
+  AttendanceClassContext,
+  AttendanceClassFilters,
+  AttendanceSaveRow,
+  AttendanceStatus,
   Grade,
   GuardianAccount,
   GuardianGradeRecord,
   GuardianSchedule,
   GradeRecord,
   GradeRecordFilters,
+  GradeRecordPartial,
+  GradeRecordPartialFilters,
   PreescolarEvaluation,
   PreescolarEvaluationFilters,
   ProvisionGuardianAccountResult,
   Schedule,
   ScheduleInsert,
+  StudentAttendance,
+  StudentAttendanceFilters,
   Student,
   StudentGuardianAccountBase,
   Subject,
@@ -20,6 +28,12 @@ export type {
   TeacherGradeAssignment,
   TeacherSubjectAssignment,
 } from "@/hooks/school/types";
+export {
+  useAttendanceClassContexts,
+  useAttendanceStudents,
+  useSaveStudentAttendance,
+  useStudentAttendance,
+} from "@/hooks/school/useAttendance";
 export {
   useGuardianAccount,
   useGuardianAccounts,
@@ -59,6 +73,10 @@ export {
   useGradeRecords,
   useUpdateGradeRecord,
 } from "@/hooks/school/useGradeRecords";
+export {
+  useGradeRecordPartials,
+  useUpsertGradeRecordPartials,
+} from "@/hooks/school/useGradeRecordPartials";
 export {
   useCreatePreescolarEvaluation,
   useDeletePreescolarEvaluation,

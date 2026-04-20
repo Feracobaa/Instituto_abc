@@ -1,4 +1,4 @@
-import type { Tables, TablesInsert } from "@/integrations/types";
+import type { Enums, Tables, TablesInsert } from "@/integrations/types";
 
 export type AcademicPeriod = Tables<"academic_periods">;
 export type Grade = Tables<"grades">;
@@ -34,12 +34,47 @@ export type Schedule = Tables<"schedules"> & {
   teachers: TeacherBase | null;
 };
 
+export type AttendanceStatus = Enums<"attendance_status_enum">;
+
+export type StudentAttendance = Tables<"student_attendance"> & {
+  academic_periods: AcademicPeriod | null;
+  grades: Grade | null;
+  students: Student | null;
+  subjects: Subject | null;
+  teachers: TeacherBase | null;
+};
+
+export interface AttendanceClassContext {
+  grade_id: string;
+  grade_name: string;
+  subject_id: string;
+  subject_name: string;
+  teacher_id: string;
+  teacher_name: string;
+}
+
 export type GradeRecord = Tables<"grade_records"> & {
   academic_periods: AcademicPeriod | null;
   students: Student | null;
   subjects: Subject | null;
   teachers: TeacherBase | null;
 };
+
+export interface GradeRecordPartial {
+  activity_name: string | null;
+  achievements: string | null;
+  comments: string | null;
+  created_at: string;
+  grade: number | null;
+  grade_record_id: string;
+  id: string;
+  partial_index: number;
+  updated_at: string;
+  grade_records: Pick<
+    GradeRecord,
+    "id" | "period_id" | "student_id" | "subject_id" | "teacher_id"
+  > | null;
+}
 
 export type PreescolarEvaluation = Tables<"preescolar_evaluations">;
 export type GuardianGradeRecord = Tables<"grade_records"> & {
@@ -59,9 +94,34 @@ export interface GradeRecordFilters {
   periodId?: string;
 }
 
+export interface GradeRecordPartialFilters {
+  gradeRecordId?: string;
+  periodId?: string;
+  studentId?: string;
+}
+
 export interface PreescolarEvaluationFilters {
   studentId?: string;
   periodId?: string;
+}
+
+export interface StudentAttendanceFilters {
+  date?: string;
+  gradeId?: string;
+  studentId?: string;
+  subjectId?: string;
+  teacherId?: string;
+}
+
+export interface AttendanceClassFilters {
+  date?: string;
+  teacherId?: string;
+}
+
+export interface AttendanceSaveRow {
+  justification_note?: string | null;
+  status: AttendanceStatus;
+  student_id: string;
 }
 
 export interface ProvisionGuardianAccountResult {

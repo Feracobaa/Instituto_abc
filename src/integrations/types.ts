@@ -374,6 +374,84 @@ export type Database = {
           },
         ]
       }
+      student_attendance: {
+        Row: {
+          attendance_date: string
+          created_at: string
+          grade_id: string
+          id: string
+          justification_note: string | null
+          period_id: string
+          status: Database["public"]["Enums"]["attendance_status_enum"]
+          student_id: string
+          subject_id: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string
+          grade_id: string
+          id?: string
+          justification_note?: string | null
+          period_id: string
+          status: Database["public"]["Enums"]["attendance_status_enum"]
+          student_id: string
+          subject_id: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string
+          grade_id?: string
+          id?: string
+          justification_note?: string | null
+          period_id?: string
+          status?: Database["public"]["Enums"]["attendance_status_enum"]
+          student_id?: string
+          subject_id?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_attendance_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_attendance_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "academic_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_attendance_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_attendance_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_guardian_accounts: {
         Row: {
           created_at: string
@@ -743,7 +821,6 @@ export type Database = {
         }
         Relationships: []
       }
-      [_ in never]: never
     }
     Functions: {
       bulk_assign_tuition_profiles: {
@@ -758,6 +835,16 @@ export type Database = {
       get_student_report_snapshot: {
         Args: { p_period_id: string; p_student_id: string }
         Returns: Json
+      }
+      save_student_attendance: {
+        Args: {
+          p_attendance_date: string
+          p_grade_id: string
+          p_rows: Json
+          p_subject_id: string
+          p_teacher_id: string
+        }
+        Returns: number
       }
       register_student_payment: {
         Args: {
@@ -785,6 +872,7 @@ export type Database = {
       }
     }
     Enums: {
+      attendance_status_enum: "present" | "absent" | "justified"
       accounting_category_enum:
         | "other_income"
         | "teacher_payment"
@@ -799,9 +887,7 @@ export type Database = {
       inventory_payment_mode: "paid" | "financed"
       user_role_enum: "rector" | "profesor" | "parent" | "admin" | "contable"
     }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    CompositeTypes: Record<never, never>
   }
 }
 

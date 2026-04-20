@@ -12,11 +12,21 @@ import type {
 export type EditableGradeRecord = {
   achievements: string;
   comments: string;
-  grade: number | "";
+  final_grade?: number | null;
+  grade?: number | "";
   id?: string;
+  partials?: EditablePartialGrade[];
   student_id: string;
   subject_id: string;
   teacher_id: string;
+};
+
+export type EditablePartialGrade = {
+  activity_name: string;
+  achievements: string;
+  comments: string;
+  grade: number | "";
+  partial_index: number;
 };
 
 export type EditablePreescolarEvaluation = {

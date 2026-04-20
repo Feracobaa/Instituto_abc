@@ -20,6 +20,7 @@ const Horarios = lazy(() => import("./pages/Horarios"));
 const Grados = lazy(() => import("./pages/Grados"));
 const Materias = lazy(() => import("./pages/Materias"));
 const Calificaciones = lazy(() => import("./pages/Calificaciones"));
+const Asistencias = lazy(() => import("./pages/Asistencias"));
 const MisNotas = lazy(() => import("./pages/MisNotas"));
 const MiHorario = lazy(() => import("./pages/MiHorario"));
 const MiPerfil = lazy(() => import("./pages/MiPerfil"));
@@ -134,6 +135,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["rector", "profesor"]}>
                     <Calificaciones />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/asistencias"
+                element={
+                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                    <Asistencias />
                   </ProtectedRoute>
                 }
               />

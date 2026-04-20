@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildEditablePartialsFromExisting,
   buildGradeRecordCreatePayload,
   buildGradeRecordUpdatePayload,
+  calculateWeightedFinalGrade,
   buildPreescolarCreatePayload,
   buildPreescolarReportPayload,
   buildPreescolarUpdatePayload,
@@ -182,6 +184,38 @@ describe("calificaciones helpers", () => {
       id: "pre-1",
       recomendaciones: "Seguir practicando",
       teacher_id: undefined,
+    });
+  });
+
+  it("calcula promedio simple de actividades y omite vacias", () => {
+    expect(
+      calculateWeightedFinalGrade([
+        { grade: 4.0 },
+        { grade: 5.0 },
+        { grade: 3.0 },
+        { grade: 4.0 },
+      ]),
+    ).toBe(4);
+
+    expect(
+      calculateWeightedFinalGrade([
+        { grade: 4.0 },
+        { grade: "" },
+        { grade: 5.0 },
+      ]),
+    ).toBe(4.5);
+
+    expect(calculateWeightedFinalGrade([{ grade: "" }])).toBeNull();
+  });
+
+  it("crea una actividad inicial para el dialogo usando fallback legacy", () => {
+    const partials = buildEditablePartialsFromExisting(undefined, 4.2);
+
+    expect(partials).toHaveLength(1);
+    expect(partials[0]).toMatchObject({
+      activity_name: "Actividad 1",
+      grade: 4.2,
+      partial_index: 1,
     });
   });
 

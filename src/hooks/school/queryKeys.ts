@@ -1,4 +1,9 @@
-import type { GradeRecordFilters, PreescolarEvaluationFilters } from "@/hooks/school/types";
+import type {
+  StudentAttendanceFilters,
+  GradeRecordFilters,
+  GradeRecordPartialFilters,
+  PreescolarEvaluationFilters,
+} from "@/hooks/school/types";
 
 export const schoolQueryKeys = {
   subjects: {
@@ -31,6 +36,16 @@ export const schoolQueryKeys = {
     list: (filters?: GradeRecordFilters) =>
       ["grade_records", filters?.studentId ?? null, filters?.periodId ?? null] as const,
   },
+  gradeRecordPartials: {
+    all: ["grade_record_partials"] as const,
+    list: (filters?: GradeRecordPartialFilters) =>
+      [
+        "grade_record_partials",
+        filters?.gradeRecordId ?? null,
+        filters?.studentId ?? null,
+        filters?.periodId ?? null,
+      ] as const,
+  },
   guardianGradeRecords: {
     all: ["guardian_grade_records"] as const,
     list: (studentId?: string, periodId?: string) =>
@@ -44,6 +59,22 @@ export const schoolQueryKeys = {
     all: ["preescolar_evaluations"] as const,
     list: (filters?: PreescolarEvaluationFilters) =>
       ["preescolar_evaluations", filters?.studentId ?? null, filters?.periodId ?? null] as const,
+  },
+  attendance: {
+    all: ["student_attendance"] as const,
+    list: (filters?: StudentAttendanceFilters) =>
+      [
+        "student_attendance",
+        filters?.date ?? null,
+        filters?.gradeId ?? null,
+        filters?.subjectId ?? null,
+        filters?.teacherId ?? null,
+        filters?.studentId ?? null,
+      ] as const,
+    classContexts: (date?: string, teacherId?: string) =>
+      ["student_attendance_classes", date ?? null, teacherId ?? null] as const,
+    students: (gradeId?: string) =>
+      ["student_attendance_students", gradeId ?? null] as const,
   },
   accounting: {
     tuitionProfiles: ["accounting", "tuition_profiles"] as const,
