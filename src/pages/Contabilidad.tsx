@@ -107,7 +107,7 @@ const monthLabel = (value: string) => {
   return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
-const DEFAULT_TUITION_VALUE = 120000;
+const DEFAULT_TUITION_VALUE = 100000;
 const SCHOOL_MONTH_START = 2;
 const SCHOOL_MONTH_END = 11;
 
