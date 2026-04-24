@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Package, ClipboardList, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInventoryItems, useCreateInventoryItem } from "@/hooks/useSchoolData";
-import { parseMoneyInput, formatMoneyInput, formatCurrency, todayIso } from "@/features/accounting/utils";
+import { parseMoneyInput, formatMoneyInput, formatCurrency, todayIso } from "@/features/contabilidad/utils";
 import type { InventoryItem } from "@/hooks/school/types";
 import { ContabilidadSectionProps } from "../types";
 
@@ -85,21 +85,12 @@ export function InventorySection({ isContable, openDeleteDialog }: ContabilidadS
   };
 
   return (
-    <AccordionItem value="inventario" className="overflow-hidden rounded-xl border bg-card shadow-card">
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Inventario</p>
-            <p className="text-xs text-muted-foreground">Compras, financiacion y deuda pendiente</p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="outline">{inventoryItems?.length ?? 0} items</Badge>
-            <Badge variant="outline">{financedInventory.length} financiados</Badge>
-          </div>
-        </div>
-      </AccordionTrigger>
-      <AccordionContent className="space-y-4 px-4 pb-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_390px]">
+    <TabsContent value="inventario" className="space-y-4 outline-none">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Badge variant="outline" className="bg-background">{inventoryItems?.length ?? 0} items</Badge>
+        <Badge variant="outline" className="bg-background">{financedInventory.length} financiados</Badge>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_390px]">
           <Card className="p-5 shadow-card xl:order-2 xl:sticky xl:top-24 xl:self-start">
             <div className="mb-3 flex items-center gap-2">
               <Package className="h-4 w-4 text-primary" />
@@ -214,7 +205,7 @@ export function InventorySection({ isContable, openDeleteDialog }: ContabilidadS
             {(inventoryItems ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay inventario registrado.</p>
             ) : (
-              <div className="max-h-[560px] overflow-auto">
+              <div className="max-h-[560px] w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -267,7 +258,6 @@ export function InventorySection({ isContable, openDeleteDialog }: ContabilidadS
             </p>
           </Card>
         </div>
-      </AccordionContent>
-    </AccordionItem>
+    </TabsContent>
   );
 }

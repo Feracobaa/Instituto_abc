@@ -7,14 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, TrendingUp, TrendingDown, ClipboardList, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAccountingLedger, useCreateFinancialTransaction, useAccountingTeachers, useInventoryItems } from "@/hooks/useSchoolData";
-import { parseMoneyInput, formatMoneyInput, formatCurrency, todayIso } from "@/features/accounting/utils";
-import { incomeCategories, expenseCategories, categoryLabels } from "@/features/accounting/constants";
-import { normalizeLegacyAmount } from "@/features/accounting/utils";
+import { parseMoneyInput, formatMoneyInput, formatCurrency, todayIso } from "@/features/contabilidad/utils";
+import { incomeCategories, expenseCategories, categoryLabels } from "@/features/contabilidad/constants";
+import { normalizeLegacyAmount } from "@/features/contabilidad/utils";
 import type { FinancialTransaction } from "@/hooks/school/types";
 import { ContabilidadSectionProps } from "../types";
 
@@ -97,20 +97,12 @@ export function LedgerSection({ selectedMonth, isContable, openDeleteDialog }: C
   };
 
   return (
-    <AccordionItem value="movimientos" className="overflow-hidden rounded-xl border bg-card shadow-card">
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Movimientos</p>
-            <p className="text-xs text-muted-foreground">Ingresos y egresos operativos del periodo</p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="outline">{formatCurrency(monthTotals.income)} ingresos</Badge>
-            <Badge variant="outline">{formatCurrency(monthTotals.expenses)} egresos</Badge>
-          </div>
-        </div>
-      </AccordionTrigger>
-      <AccordionContent className="space-y-4 px-4 pb-4">
+    <TabsContent value="movimientos" className="space-y-4 outline-none">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Badge variant="outline" className="bg-background">{formatCurrency(monthTotals.income)} ingresos</Badge>
+        <Badge variant="outline" className="bg-background">{formatCurrency(monthTotals.expenses)} egresos</Badge>
+      </div>
+      <div className="space-y-4">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_390px]">
           <Card className="p-5 shadow-card xl:order-2 xl:sticky xl:top-24 xl:self-start">
             <div className="mb-3 flex items-center gap-2">
@@ -407,7 +399,7 @@ export function LedgerSection({ selectedMonth, isContable, openDeleteDialog }: C
             </Card>
           </div>
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      </div>
+    </TabsContent>
   );
 }

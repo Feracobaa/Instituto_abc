@@ -1,4 +1,4 @@
-import { SCHOOL_MONTH_END, SCHOOL_MONTH_START } from "@/features/accounting/constants";
+import { SCHOOL_MONTH_END, SCHOOL_MONTH_START } from "@/features/contabilidad/constants";
 
 export const formatCurrency = (value: number) =>
   new Intl.NumberFormat("es-CO", {

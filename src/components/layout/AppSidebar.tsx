@@ -43,6 +43,7 @@ const menuItems: Array<{
 }> = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleCode: "dashboard", roles: ["rector", "profesor", "parent", "contable"] },
   { title: "Contabilidad", url: "/contabilidad", icon: Calculator, moduleCode: "contabilidad", roles: ["rector", "contable"] },
+  { title: "Pensiones", url: "/pensiones", icon: GraduationCap, moduleCode: "contabilidad", roles: ["rector", "contable"] },
   { title: "Usuarios", url: "/usuarios", icon: Users, moduleCode: "usuarios", roles: ["rector"] },
   { title: "Profesores", url: "/profesores", icon: Users, moduleCode: "profesores", roles: ["rector"] },
   { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, moduleCode: "estudiantes", roles: ["rector"] },

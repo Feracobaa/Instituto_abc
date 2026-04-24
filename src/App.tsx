@@ -13,6 +13,7 @@ import { ProviderRoute } from "@/components/auth/ProviderRoute";
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Contabilidad = lazy(() => import("./pages/Contabilidad"));
+const Pensiones = lazy(() => import("./pages/Pensiones"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
 const Profesores = lazy(() => import("./pages/Profesores"));
 const Estudiantes = lazy(() => import("./pages/Estudiantes"));
@@ -78,6 +79,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["rector", "contable"]} requiredModule="contabilidad">
                     <Contabilidad />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pensiones"
+                element={
+                  <ProtectedRoute allowedRoles={["rector", "contable"]} requiredModule="contabilidad">
+                    <Pensiones />
                   </ProtectedRoute>
                 }
               />

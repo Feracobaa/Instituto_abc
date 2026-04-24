@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatCurrency } from "@/features/accounting/utils";
+import { formatCurrency } from "@/features/contabilidad/utils";
 
 export interface TuitionMonthlyReportRow {
   studentName: string;

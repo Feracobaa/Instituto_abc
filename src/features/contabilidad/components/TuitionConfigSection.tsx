@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { TabsContent } from "@/components/ui/tabs";
 import { Wallet, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -26,7 +27,7 @@ import {
   SCHOOL_MONTH_START,
   SCHOOL_MONTH_END,
   isProfileActiveInSchoolYear,
-} from "@/features/accounting/constants";
+} from "@/features/contabilidad/constants";
 import {
   formatCurrency,
   formatMoneyInput,
@@ -37,7 +38,7 @@ import {
   todayIso,
   normalizeLegacyAmount,
   monthLabel,
-} from "@/features/accounting/utils";
+} from "@/features/contabilidad/utils";
 import { ContabilidadSectionProps } from "../types";
 import type { TuitionMonthStatus } from "@/hooks/school/types";
 
@@ -350,19 +351,10 @@ export function TuitionConfigSection({ selectedMonth, selectedYear, isContable }
     : monthLabel(selectedMonth);
 
   return (
-    <AccordionItem value="registrar-configurar" className="overflow-hidden rounded-xl border bg-card shadow-card">
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Registrar y configurar pensiones</p>
-            <p className="text-xs text-muted-foreground">Abonos, asignación masiva y ajustes individuales</p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="outline">{studentsWithoutProfile.length} sin perfil</Badge>
-          </div>
-        </div>
-      </AccordionTrigger>
-      <AccordionContent className="space-y-4 px-4 pb-4">
+    <TabsContent value="registrar-configurar" className="space-y-4 outline-none">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Badge variant="outline" className="bg-background">{studentsWithoutProfile.length} sin perfil</Badge>
+      </div>
         <Accordion type="single" collapsible className="rounded-lg border border-dashed">
           <AccordionItem value="guia" className="border-0">
             <AccordionTrigger className="px-3 py-2 text-xs text-muted-foreground hover:no-underline hover:text-foreground">
@@ -714,7 +706,6 @@ export function TuitionConfigSection({ selectedMonth, selectedYear, isContable }
             </Accordion>
           </div>
         </div>
-      </AccordionContent>
-    </AccordionItem>
+    </TabsContent>
   );
 }

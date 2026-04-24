@@ -4,11 +4,11 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Wallet, ClipboardList, Users, Trash2, RotateCcw } from "lucide-react";
 import { useTuitionPayments, useTuitionMonthStatus, useTuitionSummary, useAccountingStudents, useTuitionProfiles } from "@/hooks/useSchoolData";
-import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant } from "@/features/accounting/utils";
+import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant } from "@/features/contabilidad/utils";
 import { cn } from "@/lib/utils";
 import { ContabilidadSectionProps } from "../types";
 
@@ -61,21 +61,12 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
   }, [tuitionPayments]);
 
   return (
-    <AccordionItem value="estado-mes" className="overflow-hidden rounded-xl border bg-card shadow-card">
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Estado del mes</p>
-            <p className="text-xs text-muted-foreground">Resumen de cobros y cartera de {selectedMonthLabel}</p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="outline">{pendingCount} pendientes</Badge>
-            <Badge variant="outline">{(tuitionPayments ?? []).length} pagos</Badge>
-          </div>
-        </div>
-      </AccordionTrigger>
-      <AccordionContent className="space-y-4 px-4 pb-4">
-        <div className="grid gap-4 xl:grid-cols-3">
+    <TabsContent value="estado-mes" className="space-y-4 outline-none">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Badge variant="outline" className="bg-background">{pendingCount} pendientes</Badge>
+        <Badge variant="outline" className="bg-background">{(tuitionPayments ?? []).length} pagos</Badge>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-3">
           {/* Pagos del periodo */}
           <Card className="p-5 shadow-card">
             <div className="mb-3 flex items-center gap-2">
@@ -85,7 +76,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
             {(tuitionPayments ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay pagos registrados para este mes.</p>
             ) : (
-              <div className="max-h-[300px] overflow-auto">
+              <div className="max-h-[300px] w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -148,7 +139,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
             ) : (monthStatus ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay registros para este mes.</p>
             ) : (
-              <div className="max-h-[360px] overflow-auto rounded-md border">
+              <div className="max-h-[360px] w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
                     <TableRow>
@@ -326,7 +317,6 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
             </p>
           </Card>
         </div>
-      </AccordionContent>
-    </AccordionItem>
+    </TabsContent>
   );
 }

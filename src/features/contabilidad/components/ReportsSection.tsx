@@ -5,13 +5,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, ClipboardList, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTuitionMonthStatus, useAccountingLedger, useInstitutionSettings } from "@/hooks/useSchoolData";
-import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant, toSchoolMonthDate } from "@/features/accounting/utils";
-import { SCHOOL_MONTH_START, SCHOOL_MONTH_END } from "@/features/accounting/constants";
+import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant, toSchoolMonthDate } from "@/features/contabilidad/utils";
+import { SCHOOL_MONTH_START, SCHOOL_MONTH_END } from "@/features/contabilidad/constants";
 import { ContabilidadSectionProps } from "../types";
 
 export function ReportsSection({ selectedMonth, selectedYear }: ContabilidadSectionProps) {
@@ -148,23 +148,12 @@ export function ReportsSection({ selectedMonth, selectedYear }: ContabilidadSect
   };
 
   return (
-    <AccordionItem value="informes" className="overflow-hidden rounded-xl border bg-card shadow-card">
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex w-full items-center justify-between gap-3 pr-2 text-left">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Informes PDF</p>
-            <p className="text-xs text-muted-foreground">
-              Exporta el estado mensual y un informe exclusivo de alumnos que no cancelaron el mes.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Badge variant="outline">{reportTotals.paidCount} pagados</Badge>
-            <Badge variant="outline">{pendingReportRows.length} con saldo pendiente</Badge>
-          </div>
-        </div>
-      </AccordionTrigger>
-      <AccordionContent className="space-y-4 px-4 pb-4">
-        <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+    <TabsContent value="reportes" className="space-y-4 outline-none">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Badge variant="outline" className="bg-background">{reportTotals.paidCount} pagados</Badge>
+        <Badge variant="outline" className="bg-background">{pendingReportRows.length} con saldo pendiente</Badge>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
           <Card className="p-5 shadow-card">
             <div className="mb-3 flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
@@ -245,7 +234,7 @@ export function ReportsSection({ selectedMonth, selectedYear }: ContabilidadSect
             ) : reportRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay datos para este mes.</p>
             ) : (
-              <div className="max-h-[480px] overflow-auto">
+              <div className="max-h-[480px] w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -282,7 +271,6 @@ export function ReportsSection({ selectedMonth, selectedYear }: ContabilidadSect
             )}
           </Card>
         </div>
-      </AccordionContent>
-    </AccordionItem>
+    </TabsContent>
   );
 }

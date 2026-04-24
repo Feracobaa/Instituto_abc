@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Calculator, Wallet, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatCurrency, monthLabel, clampSchoolMonth, toSchoolMonthDate } from "@/features/accounting/utils";
+import { formatCurrency, monthLabel, clampSchoolMonth, toSchoolMonthDate } from "@/features/contabilidad/utils";
 import { useTuitionMonthStatus, useAccountingLedger, useTuitionSummary } from "@/hooks/useSchoolData";
 
 interface ContabilidadSummaryProps {

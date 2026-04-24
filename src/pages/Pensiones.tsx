@@ -2,21 +2,22 @@ import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  useDeleteFinancialTransaction,
-  useDeleteInventoryItem,
+  useDeleteTuitionPayment,
+  useDeleteTuitionProfile
 } from "@/hooks/useSchoolData";
 import { clampSchoolMonth, toSchoolMonthDate } from "@/features/contabilidad/utils";
 import type { PendingDeleteAction } from "@/features/contabilidad/types";
 
 import { ContabilidadSummary } from "@/features/contabilidad/components/ContabilidadSummary";
-import { LedgerSection } from "@/features/contabilidad/components/LedgerSection";
-import { InventorySection } from "@/features/contabilidad/components/InventorySection";
+import { TuitionStatusSection } from "@/features/contabilidad/components/TuitionStatusSection";
+import { TuitionConfigSection } from "@/features/contabilidad/components/TuitionConfigSection";
+import { ReportsSection } from "@/features/contabilidad/components/ReportsSection";
 
-export default function Contabilidad() {
+export default function Pensiones() {
   const { userRole } = useAuth();
   const isContable = userRole === "contable";
   const isReadOnly = userRole === "rector";
@@ -31,19 +32,19 @@ export default function Contabilidad() {
 
   const [pendingDeleteAction, setPendingDeleteAction] = useState<PendingDeleteAction | null>(null);
 
-  const deleteFinancialTransaction = useDeleteFinancialTransaction();
-  const deleteInventoryItem = useDeleteInventoryItem();
+  const deleteTuitionPayment = useDeleteTuitionPayment();
+  const deleteTuitionProfile = useDeleteTuitionProfile();
 
-  const isDeletePending = deleteFinancialTransaction.isPending || deleteInventoryItem.isPending;
+  const isDeletePending = deleteTuitionPayment.isPending || deleteTuitionProfile.isPending;
 
   const handleConfirmDelete = async () => {
     if (!pendingDeleteAction || isDeletePending) return;
 
-    if (pendingDeleteAction.kind === "financial_transaction") {
-      await deleteFinancialTransaction.mutateAsync(pendingDeleteAction.id);
+    if (pendingDeleteAction.kind === "tuition_payment") {
+      await deleteTuitionPayment.mutateAsync(pendingDeleteAction.id);
     }
-    if (pendingDeleteAction.kind === "inventory_item") {
-      await deleteInventoryItem.mutateAsync(pendingDeleteAction.id);
+    if (pendingDeleteAction.kind === "tuition_profile_reset") {
+      await deleteTuitionProfile.mutateAsync(pendingDeleteAction.studentId);
     }
 
     setPendingDeleteAction(null);
@@ -63,15 +64,15 @@ export default function Contabilidad() {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="gap-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                Espacio de trabajo contable
+                <GraduationCap className="h-3.5 w-3.5" />
+                Gestión de Pensiones
               </Badge>
               {isReadOnly && <Badge variant="outline">Modo lectura</Badge>}
             </div>
             <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground">Contabilidad General</h1>
+              <h1 className="font-heading text-2xl font-bold text-foreground">Pensiones</h1>
               <p className="text-sm text-muted-foreground">
-                Organiza ingresos, egresos e inventario de la institucion.
+                Controla los cobros, abonos y perfiles de pensión de los estudiantes.
               </p>
             </div>
           </div>
@@ -79,14 +80,16 @@ export default function Contabilidad() {
 
         <ContabilidadSummary selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} />
 
-        <Tabs defaultValue="movimientos" className="space-y-6">
+        <Tabs defaultValue="estado-mes" className="space-y-6">
           <TabsList className="bg-muted/50 w-full sm:w-auto overflow-x-auto flex-nowrap justify-start h-auto p-1.5 border border-border">
-            <TabsTrigger value="movimientos" className="px-4 py-2 text-sm">Movimientos (Libro Mayor)</TabsTrigger>
-            <TabsTrigger value="inventario" className="px-4 py-2 text-sm">Inventario</TabsTrigger>
+            <TabsTrigger value="estado-mes" className="px-4 py-2 text-sm">Estado del mes</TabsTrigger>
+            <TabsTrigger value="registrar-configurar" className="px-4 py-2 text-sm">Registrar y Configurar</TabsTrigger>
+            <TabsTrigger value="reportes" className="px-4 py-2 text-sm">Informes PDF</TabsTrigger>
           </TabsList>
           
-          <LedgerSection {...sectionProps} />
-          <InventorySection {...sectionProps} />
+          <TuitionStatusSection {...sectionProps} />
+          <TuitionConfigSection {...sectionProps} />
+          <ReportsSection {...sectionProps} />
         </Tabs>
 
         <ConfirmActionDialog
