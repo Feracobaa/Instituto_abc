@@ -1,26 +1,26 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-interface ExportColumn {
+interface ExportColumn<T> {
   header: string;
-  accessor: (row: any) => string | number;
+  accessor: (row: T) => string | number;
 }
 
-interface ExportOptions {
+interface ExportOptions<T> {
   /** Report title */
   title: string;
   /** Subtitle (e.g. period) */
   subtitle?: string;
   /** Column definitions */
-  columns: ExportColumn[];
+  columns: ExportColumn<T>[];
   /** Data rows */
-  data: any[];
+  data: T[];
   /** Filename without extension */
   filename: string;
 }
 
 /** Export data as a CSV file (Excel-compatible) */
-export function exportToCSV({ title, columns, data, filename }: ExportOptions) {
+export function exportToCSV<T>({ title, columns, data, filename }: ExportOptions<T>) {
   const BOM = "\uFEFF"; // UTF-8 BOM for Excel
   const separator = ";"; // semicolon works better with Excel in most locales
 
@@ -40,7 +40,7 @@ export function exportToCSV({ title, columns, data, filename }: ExportOptions) {
 }
 
 /** Export data as a PDF table */
-export function exportToPDF({ title, subtitle, columns, data, filename }: ExportOptions) {
+export function exportToPDF<T>({ title, subtitle, columns, data, filename }: ExportOptions<T>) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
 
   // Title

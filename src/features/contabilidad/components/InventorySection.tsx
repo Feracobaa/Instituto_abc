@@ -332,7 +332,7 @@ export function InventorySection({ isContable, openDeleteDialog }: ContabilidadS
                         header: "Accion",
                         headerClassName: "text-right",
                         cellClassName: "text-right",
-                        render: (item: any) => (
+                        render: (item: InventoryItem) => (
                           <Button
                             type="button"
                             size="sm"

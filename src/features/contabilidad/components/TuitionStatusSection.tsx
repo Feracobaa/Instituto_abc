@@ -68,6 +68,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
         <Badge variant="outline" className="bg-background">{(tuitionPayments ?? []).length} pagos</Badge>
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
+        <div className="xl:col-span-2 space-y-4">
           {/* Pagos del periodo */}
           <Card className="p-5 shadow-card">
             <div className="mb-3 flex items-center gap-2">
@@ -110,6 +111,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
                         header: "Accion",
                         headerClassName: "whitespace-nowrap text-right",
                         cellClassName: "text-right",
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         render: (p: any) => (
                           <Button
                             type="button"
@@ -261,6 +263,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
                           header: "Accion",
                           headerClassName: "text-right",
                           cellClassName: "text-right",
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           render: (row: any) => {
                             const paymentIds =
                               paymentsByStudent.byId.get(row.student_id) ??
@@ -320,7 +323,9 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
                 ]}
               />
           </Card>
+        </div>
 
+        <div className="space-y-4">
           {/* Cartera prioritaria */}
           <Card className="p-5 shadow-card">
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -403,6 +408,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
             </p>
           </Card>
         </div>
+      </div>
     </TabsContent>
   );
 }

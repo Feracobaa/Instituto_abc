@@ -15,9 +15,10 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { FileText, TrendingUp, TrendingDown, ClipboardList, Trash2, Plus, FileSpreadsheet, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAccountingLedger, useCreateFinancialTransaction, useAccountingTeachers, useInventoryItems } from "@/hooks/useSchoolData";
-import { normalizeLegacyAmount, monthLabel } from "@/features/contabilidad/utils";
+import { normalizeLegacyAmount, monthLabel, formatCurrency, todayIso, parseMoneyInput, formatMoneyInput } from "@/features/contabilidad/utils";
 import { exportToCSV, exportToPDF } from "@/features/contabilidad/exportUtils";
 import type { FinancialTransaction } from "@/hooks/school/types";
+import { incomeCategories, expenseCategories, categoryLabels } from "@/features/contabilidad/constants";
 import { ContabilidadSectionProps } from "../types";
 
 export function LedgerSection({ selectedMonth, isContable, openDeleteDialog }: ContabilidadSectionProps) {
@@ -382,6 +383,7 @@ export function LedgerSection({ selectedMonth, isContable, openDeleteDialog }: C
                           header: "Accion",
                           headerClassName: "text-right",
                           cellClassName: "text-right",
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           render: (entry: any) => (
                             <Button
                               type="button"
@@ -415,7 +417,9 @@ export function LedgerSection({ selectedMonth, isContable, openDeleteDialog }: C
                 ]}
               />
             </Card>
+          </div>
 
+          <div className="space-y-4">
             {/* Egresos del mes */}
             <Card className="p-5 shadow-card">
               <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -528,6 +532,7 @@ export function LedgerSection({ selectedMonth, isContable, openDeleteDialog }: C
                           header: "Accion",
                           headerClassName: "text-right",
                           cellClassName: "text-right",
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           render: (entry: any) => (
                             <Button
                               type="button"
