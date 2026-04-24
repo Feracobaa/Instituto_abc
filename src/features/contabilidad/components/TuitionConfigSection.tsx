@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { TabsContent } from "@/components/ui/tabs";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Wallet, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -400,24 +401,24 @@ export function TuitionConfigSection({ selectedMonth, selectedYear, isContable }
             <form onSubmit={handlePaymentSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Estudiante</Label>
-                <select
+                <SearchableSelect
                   value={paymentForm.studentId}
-                  onChange={(event) => {
-                    const studentId = event.target.value;
+                  onValueChange={(studentId) => {
                     setPaymentForm((current) => ({
                       ...current,
                       studentId,
                       periodMonth: studentId ? getSuggestedPeriodMonth(studentId) : current.periodMonth,
                     }));
                   }}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  options={studentsReadyForPayments.map((student) => ({
+                    value: student.id,
+                    label: student.full_name,
+                  }))}
+                  placeholder="Busca un estudiante..."
+                  searchPlaceholder="Escribe un nombre..."
+                  emptyMessage="Ningun estudiante coincide."
                   disabled={!isContable}
-                >
-                  <option value="">Selecciona estudiante</option>
-                  {studentsReadyForPayments.map((student) => (
-                    <option key={student.id} value={student.id}>{student.full_name}</option>
-                  ))}
-                </select>
+                />
                 {studentsReadyForPayments.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     Solo aparecen estudiantes con pension configurada para este periodo.
@@ -624,17 +625,18 @@ export function TuitionConfigSection({ selectedMonth, selectedYear, isContable }
                   <form onSubmit={handleProfileSubmit} className="space-y-4">
                     <div className="space-y-1.5">
                       <Label>Estudiante</Label>
-                      <select
+                      <SearchableSelect
                         value={profileForm.studentId}
-                        onChange={(event) => updateProfileFormForStudent(event.target.value)}
-                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        onValueChange={(studentId) => updateProfileFormForStudent(studentId)}
+                        options={(students ?? []).map((student) => ({
+                          value: student.id,
+                          label: student.full_name,
+                        }))}
+                        placeholder="Busca un estudiante..."
+                        searchPlaceholder="Escribe un nombre..."
+                        emptyMessage="Ningun estudiante coincide."
                         disabled={!isContable}
-                      >
-                        <option value="">Selecciona estudiante</option>
-                        {(students ?? []).map((student) => (
-                          <option key={student.id} value={student.id}>{student.full_name}</option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     {profileForm.studentId && profilesByStudent.has(profileForm.studentId) && (
                       <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">

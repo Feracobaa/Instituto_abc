@@ -5,6 +5,14 @@ import { Calculator, Wallet, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, monthLabel, clampSchoolMonth, toSchoolMonthDate } from "@/features/contabilidad/utils";
 import { useTuitionMonthStatus, useAccountingLedger, useTuitionSummary } from "@/hooks/useSchoolData";
+import { categoryLabels } from "@/features/contabilidad/constants";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface ContabilidadSummaryProps {
   selectedMonth: string;
@@ -35,6 +43,36 @@ export function ContabilidadSummary({ selectedMonth, setSelectedMonth }: Contabi
   const totalAnnualDebt = useMemo(() => {
     return (tuitionSummary ?? []).reduce((sum, row) => sum + row.total_pending, 0);
   }, [tuitionSummary]);
+
+  // Chart data: group ledger entries by category
+  const chartData = useMemo(() => {
+    const entries = ledger ?? [];
+    const categoryMap = new Map<string, { income: number; expense: number }>();
+
+    for (const entry of entries) {
+      const label = categoryLabels[entry.category_label] ?? entry.category_label;
+      const existing = categoryMap.get(label) ?? { income: 0, expense: 0 };
+      if (entry.movement_type === "income") {
+        existing.income += entry.amount;
+      } else {
+        existing.expense += entry.amount;
+      }
+      categoryMap.set(label, existing);
+    }
+
+    return Array.from(categoryMap.entries())
+      .map(([category, totals]) => ({
+        category,
+        ingresos: totals.income,
+        egresos: totals.expense,
+      }))
+      .sort((a, b) => (b.ingresos + b.egresos) - (a.ingresos + a.egresos));
+  }, [ledger]);
+
+  const chartConfig: ChartConfig = {
+    ingresos: { label: "Ingresos", color: "hsl(142, 76%, 36%)" },
+    egresos: { label: "Egresos", color: "hsl(0, 84%, 60%)" },
+  };
 
   const setMonthFromInput = (value: string) => {
     if (!value) return;
@@ -131,14 +169,60 @@ export function ContabilidadSummary({ selectedMonth, setSelectedMonth }: Contabi
           </CardContent>
         </Card>
       </div>
+
+      {/* Chart: desglose por categoria */}
+      {chartData.length > 0 && (
+        <Card className="shadow-card p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <h3 className="font-heading font-bold text-foreground">Desglose del mes</h3>
+          </div>
+          <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
+            <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+              <YAxis
+                dataKey="category"
+                type="category"
+                tickLine={false}
+                axisLine={false}
+                width={100}
+                tick={{ fontSize: 11 }}
+              />
+              <XAxis type="number" hide />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value) =>
+                      typeof value === "number" ? formatCurrency(value) : value
+                    }
+                  />
+                }
+              />
+              <Bar dataKey="ingresos" fill="var(--color-ingresos)" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="egresos" fill="var(--color-egresos)" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ChartContainer>
+          <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "hsl(142, 76%, 36%)" }} />
+              Ingresos
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "hsl(0, 84%, 60%)" }} />
+              Egresos
+            </div>
+          </div>
+        </Card>
+      )}
       
       {/* Banner contextual: el selector de mes afecta todas las secciones */}
-      <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
         <span className="font-medium text-primary">Periodo activo:</span>
         <span>{selectedMonthLabel}</span>
-        <span className="mx-1 text-border">·</span>
+        <span className="hidden sm:inline mx-1 text-border">·</span>
         <span>Las secciones de Pensiones, Movimientos e Inventario reflejan el mes seleccionado arriba.</span>
       </div>
     </>
   );
 }
+

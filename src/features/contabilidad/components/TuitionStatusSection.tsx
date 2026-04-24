@@ -5,10 +5,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Wallet, ClipboardList, Users, Trash2, RotateCcw } from "lucide-react";
+import { PaginatedTable } from "@/components/ui/PaginatedTable";
+import { Wallet, ClipboardList, Users, Trash2, RotateCcw, FileSpreadsheet, Download } from "lucide-react";
 import { useTuitionPayments, useTuitionMonthStatus, useTuitionSummary, useAccountingStudents, useTuitionProfiles } from "@/hooks/useSchoolData";
 import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant } from "@/features/contabilidad/utils";
+import { exportToCSV, exportToPDF } from "@/features/contabilidad/exportUtils";
 import { cn } from "@/lib/utils";
 import { ContabilidadSectionProps } from "../types";
 
@@ -73,53 +74,65 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
               <Wallet className="h-4 w-4 text-primary" />
               <h3 className="font-heading font-bold text-foreground">Pagos del periodo</h3>
             </div>
-            {(tuitionPayments ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay pagos registrados para este mes.</p>
-            ) : (
-              <div className="max-h-[300px] w-full overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">Estudiante</TableHead>
-                      <TableHead className="whitespace-nowrap">Fecha</TableHead>
-                      <TableHead className="whitespace-nowrap">Monto</TableHead>
-                      {isContable && <TableHead className="whitespace-nowrap text-right">Accion</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tuitionPayments?.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-medium">
-                          {payment.students?.full_name ?? "Sin nombre"}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">{payment.payment_date}</TableCell>
-                        <TableCell className="whitespace-nowrap">{formatCurrency(normalizeLegacyAmount(payment.amount))}</TableCell>
-                        {isContable && (
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() =>
-                                openDeleteDialog({
-                                  kind: "tuition_payment",
-                                  id: payment.id,
-                                  title: "Eliminar pago de pension",
-                                  description: `Se eliminara el pago de ${payment.students?.full_name ?? "estudiante"} por ${formatCurrency(normalizeLegacyAmount(payment.amount))}.`,
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <PaginatedTable
+              data={tuitionPayments ?? []}
+              getRowKey={(p) => p.id}
+              searchFn={(p) => p.students?.full_name ?? ""}
+              searchPlaceholder="Buscar estudiante..."
+              pageSize={8}
+              emptyMessage="No hay pagos registrados para este mes."
+              emptyIcon={Wallet}
+              columns={[
+                {
+                  key: "student",
+                  header: "Estudiante",
+                  cellClassName: "font-medium",
+                  render: (p) => p.students?.full_name ?? "Sin nombre",
+                },
+                {
+                  key: "date",
+                  header: "Fecha",
+                  headerClassName: "whitespace-nowrap",
+                  cellClassName: "whitespace-nowrap",
+                  render: (p) => p.payment_date,
+                },
+                {
+                  key: "amount",
+                  header: "Monto",
+                  headerClassName: "whitespace-nowrap",
+                  cellClassName: "whitespace-nowrap",
+                  render: (p) => formatCurrency(normalizeLegacyAmount(p.amount)),
+                },
+                ...(isContable
+                  ? [
+                      {
+                        key: "action",
+                        header: "Accion",
+                        headerClassName: "whitespace-nowrap text-right",
+                        cellClassName: "text-right",
+                        render: (p: any) => (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() =>
+                              openDeleteDialog({
+                                kind: "tuition_payment",
+                                id: p.id,
+                                title: "Eliminar pago de pension",
+                                description: `Se eliminara el pago de ${p.students?.full_name ?? "estudiante"} por ${formatCurrency(normalizeLegacyAmount(p.amount))}.`,
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           </Card>
 
           {/* Estado del mes */}
@@ -129,57 +142,132 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
                 <ClipboardList className="h-4 w-4 text-primary" />
                 <h3 className="font-heading font-bold text-foreground">Cobros del mes</h3>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant="outline">{pendingCount} pendientes</Badge>
-                <Badge variant="outline">{studentsWithoutProfile.length} sin perfil</Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline">{pendingCount} pendientes</Badge>
+                  <Badge variant="outline">{studentsWithoutProfile.length} sin perfil</Badge>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    className="h-7 text-[10px] gap-1"
+                    onClick={() => {
+                      exportToCSV({
+                        title: `Estado de Pensiones - ${monthLabel(selectedMonth)}`,
+                        filename: `Pensiones_${selectedMonth}`,
+                        columns: [
+                          { header: "Estudiante", accessor: (row) => row.student_name },
+                          { header: "Cuota", accessor: (row) => row.expected_amount },
+                          { header: "Pagado", accessor: (row) => row.paid_amount },
+                          { header: "Pendiente", accessor: (row) => row.pending_amount },
+                          { header: "Estado", accessor: (row) => row.status === "paid" ? "Al dia" : row.status === "partial" ? "Parcial" : "Pendiente" },
+                        ],
+                        data: monthStatus ?? [],
+                      });
+                    }}
+                  >
+                    <FileSpreadsheet className="h-3 w-3" />
+                    Excel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    className="h-7 text-[10px] gap-1"
+                    onClick={() => {
+                      exportToPDF({
+                        title: "Reporte de Estado de Pensiones",
+                        subtitle: `Periodo: ${monthLabel(selectedMonth)}`,
+                        filename: `Pensiones_${selectedMonth}`,
+                        columns: [
+                          { header: "Estudiante", accessor: (row) => row.student_name },
+                          { header: "Cuota", accessor: (row) => formatCurrency(row.expected_amount) },
+                          { header: "Pagado", accessor: (row) => formatCurrency(row.paid_amount) },
+                          { header: "Pendiente", accessor: (row) => formatCurrency(row.pending_amount) },
+                          { header: "Estado", accessor: (row) => row.status === "paid" ? "Al dia" : row.status === "partial" ? "Parcial" : "Pendiente" },
+                        ],
+                        data: monthStatus ?? [],
+                      });
+                    }}
+                  >
+                    <Download className="h-3 w-3" />
+                    PDF
+                  </Button>
+                </div>
               </div>
             </div>
-            {monthStatusLoading ? (
-              <p className="text-sm text-muted-foreground">Cargando...</p>
-            ) : (monthStatus ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay registros para este mes.</p>
-            ) : (
-              <div className="max-h-[360px] w-full overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
-                    <TableRow>
-                      <TableHead>Estudiante</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Cuota</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Pagado</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Pendiente</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Estado</TableHead>
-                      {isContable && <TableHead className="text-right">Accion</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthStatus?.map((row) => {
-                      const paymentIds =
-                        paymentsByStudent.byId.get(row.student_id) ??
-                        paymentsByStudent.byName.get(row.student_name) ??
-                        [];
-                      const hasPay = paymentIds.length > 0;
-                      return (
-                        <TableRow key={row.student_id}>
-                          <TableCell className="font-medium">{row.student_name}</TableCell>
-                          <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
-                            {formatCurrency(normalizeLegacyAmount(row.expected_amount))}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-right tabular-nums">
-                            {formatCurrency(normalizeLegacyAmount(row.paid_amount))}
-                          </TableCell>
-                          <TableCell className={cn(
-                            "whitespace-nowrap text-right tabular-nums font-semibold",
-                            row.pending_amount > 0 ? "text-destructive" : "text-success",
-                          )}>
-                            {formatCurrency(normalizeLegacyAmount(row.pending_amount))}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant={statusVariant(row.status)} className="text-xs">
-                              {row.status === "paid" ? "Al dia" : row.status === "partial" ? "Parcial" : "Pend."}
-                            </Badge>
-                          </TableCell>
-                          {isContable && (
-                            <TableCell className="text-right">
+            <PaginatedTable
+              data={monthStatus ?? []}
+              getRowKey={(row) => row.student_id}
+              searchFn={(row) => row.student_name}
+              searchPlaceholder="Buscar estudiante..."
+              pageSize={10}
+              isLoading={monthStatusLoading}
+              emptyMessage="No hay registros para este mes."
+              emptyIcon={ClipboardList}
+                filterOptions={[
+                  { value: "pending", label: "Pendientes" },
+                  { value: "partial", label: "Parciales" },
+                  { value: "paid", label: "Al día" },
+                ]}
+                filterFn={(row, filterValue) => row.status === filterValue}
+                columns={[
+                  {
+                    key: "student",
+                    header: "Estudiante",
+                    cellClassName: "font-medium",
+                    render: (row) => row.student_name,
+                  },
+                  {
+                    key: "expected",
+                    header: "Cuota",
+                    headerClassName: "whitespace-nowrap text-right",
+                    cellClassName: "whitespace-nowrap text-right tabular-nums text-muted-foreground",
+                    render: (row) => formatCurrency(normalizeLegacyAmount(row.expected_amount)),
+                  },
+                  {
+                    key: "paid",
+                    header: "Pagado",
+                    headerClassName: "whitespace-nowrap text-right",
+                    cellClassName: "whitespace-nowrap text-right tabular-nums",
+                    render: (row) => formatCurrency(normalizeLegacyAmount(row.paid_amount)),
+                  },
+                  {
+                    key: "pending",
+                    header: "Pendiente",
+                    headerClassName: "whitespace-nowrap text-right",
+                    cellClassName: "whitespace-nowrap text-right tabular-nums font-semibold",
+                    render: (row) => (
+                      <span className={row.pending_amount > 0 ? "text-destructive" : "text-success"}>
+                        {formatCurrency(normalizeLegacyAmount(row.pending_amount))}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    header: "Estado",
+                    headerClassName: "whitespace-nowrap text-right",
+                    cellClassName: "text-right",
+                    render: (row) => (
+                      <Badge variant={statusVariant(row.status)} className="text-xs">
+                        {row.status === "paid" ? "Al dia" : row.status === "partial" ? "Parcial" : "Pend."}
+                      </Badge>
+                    ),
+                  },
+                  ...(isContable
+                    ? [
+                        {
+                          key: "actions",
+                          header: "Accion",
+                          headerClassName: "text-right",
+                          cellClassName: "text-right",
+                          render: (row: any) => {
+                            const paymentIds =
+                              paymentsByStudent.byId.get(row.student_id) ??
+                              paymentsByStudent.byName.get(row.student_name) ??
+                              [];
+                            const hasPay = paymentIds.length > 0;
+                            return (
                               <div className="flex items-center justify-end gap-1">
                                 {hasPay && (
                                   <Button
@@ -224,15 +312,13 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
                                   <RotateCcw className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                            );
+                          },
+                        },
+                      ]
+                    : []),
+                ]}
+              />
           </Card>
 
           {/* Cartera prioritaria */}
