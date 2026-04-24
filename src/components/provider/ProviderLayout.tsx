@@ -6,6 +6,7 @@ import {
   LogOut,
   ScrollText,
   Shield,
+  Users,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +21,7 @@ interface ProviderLayoutProps {
 const providerNavItems = [
   { icon: Home, label: "Dashboard", path: "/etymon" },
   { icon: Building2, label: "Instituciones", path: "/etymon/instituciones" },
+  { icon: Users, label: "Usuarios", path: "/etymon/usuarios" },
   { icon: CreditCard, label: "Suscripciones", path: "/etymon/suscripciones" },
   { icon: LifeBuoy, label: "Soporte", path: "/etymon/soporte" },
   { icon: ScrollText, label: "Auditoria", path: "/etymon/auditoria" },

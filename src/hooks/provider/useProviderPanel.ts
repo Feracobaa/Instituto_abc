@@ -698,3 +698,185 @@ export function useProviderRepairIdentityDrift() {
     },
   });
 }
+
+// ============================================================================
+// ETYMON PHASE 1 — User Creation, Deletion, Institution Deletion
+// ============================================================================
+
+export interface EtymonCreateUserPayload {
+  email: string;
+  full_name: string;
+  institution_id: string;
+  role: "rector" | "profesor" | "contable";
+  temporary_password?: string;
+}
+
+export interface EtymonCreateUserResult {
+  user_id: string;
+  email: string;
+  full_name: string;
+  temporary_password: string;
+  role: string;
+  institution_id: string;
+}
+
+/** Creates a new platform user with a temporary password via Etymon Edge Function. */
+export function useEtymonCreateUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (payload: EtymonCreateUserPayload): Promise<EtymonCreateUserResult> => {
+      const { data, error } = await supabase.functions.invoke("etymon-create-user", {
+        body: payload,
+      });
+
+      if (error) {
+        // supabase.functions.invoke wraps HTTP errors — extract message
+        const message = (error as { context?: { json?: { error?: string } } }).context?.json?.error
+          ?? error.message
+          ?? "Unknown error invoking edge function.";
+        throw new Error(message);
+      }
+
+      return data as EtymonCreateUserResult;
+    },
+    onSuccess: (result) => {
+      invalidateProviderQueries(queryClient);
+      toast({
+        title: "Usuario creado",
+        description: `${result.full_name} (${result.email}) fue creado exitosamente.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al crear usuario",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export interface EtymonInstitutionUser {
+  email: string;
+  full_name: string;
+  institution_id: string;
+  is_default: boolean;
+  membership_id: string;
+  role: string;
+  user_id: string;
+}
+
+/** Lists all users (memberships + profiles) for a given institution. */
+export function useEtymonInstitutionUsers(institutionId?: string | null) {
+  return useQuery({
+    queryKey: ["etymon", "institution-users", institutionId ?? "none"],
+    enabled: Boolean(institutionId),
+    queryFn: async (): Promise<EtymonInstitutionUser[]> => {
+      const { data, error } = await supabase
+        .from("institution_memberships")
+        .select("id, user_id, role, institution_id, is_default")
+        .eq("institution_id", institutionId as string)
+        .order("role", { ascending: true });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) return [];
+
+      const userIds = data.map((row) => row.user_id);
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profiles ?? []).map((p) => [p.user_id, p]));
+
+      return data.map((membership) => {
+        const profile = profileMap.get(membership.user_id);
+        return {
+          email: profile?.email ?? "—",
+          full_name: profile?.full_name ?? "Sin nombre",
+          institution_id: membership.institution_id,
+          is_default: membership.is_default,
+          membership_id: membership.id,
+          role: membership.role,
+          user_id: membership.user_id,
+        };
+      });
+    },
+  });
+}
+
+/** Removes a user's membership from an institution (does NOT delete the auth account). */
+export function useEtymonRemoveUserMembership() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      membershipId,
+      institutionId,
+    }: {
+      membershipId: string;
+      institutionId: string;
+    }) => {
+      const { error } = await supabase
+        .from("institution_memberships")
+        .delete()
+        .eq("id", membershipId)
+        .eq("institution_id", institutionId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["etymon", "institution-users", variables.institutionId] });
+      invalidateProviderQueries(queryClient);
+      toast({ title: "Acceso revocado", description: "El usuario fue desvinculado de esta institución." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al revocar acceso",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+/** Hard-deletes an institution and all its data. Use with extreme caution. */
+export function useEtymonDeleteInstitution() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ institutionId }: { institutionId: string }) => {
+      // Cascade is handled by the DB foreign keys.
+      // We delete the root record; Supabase RLS for this table only allows provider_owner.
+      const { error } = await supabase
+        .from("institutions")
+        .delete()
+        .eq("id", institutionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateProviderQueries(queryClient);
+      toast({
+        title: "Institución eliminada",
+        description: "La institución y todos sus datos fueron eliminados permanentemente.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al eliminar institución",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+

@@ -1,4 +1,8 @@
 export {
+  useEtymonCreateUser,
+  useEtymonDeleteInstitution,
+  useEtymonInstitutionUsers,
+  useEtymonRemoveUserMembership,
   useProviderAuditLogs,
   useProviderAssignUserRoleByEmail,
   useProviderClearInstitutionModuleOverride,
@@ -23,6 +27,9 @@ export {
 } from "@/hooks/provider/useProviderPanel";
 
 export type {
+  EtymonCreateUserPayload,
+  EtymonCreateUserResult,
+  EtymonInstitutionUser,
   InstitutionSubscriptionWithPlan,
   ProviderAssignUserRolePayload,
   ProviderCreateInstitutionPayload,
