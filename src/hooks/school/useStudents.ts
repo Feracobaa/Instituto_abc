@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { schoolQueryKeys } from "@/hooks/school/queryKeys";
 import type { Student } from "@/hooks/school/types";
+import { asStudentArray } from "@/hooks/school/typeGuards";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 export function useStudents(gradeId?: string) {
@@ -24,7 +25,8 @@ export function useStudents(gradeId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as Student[];
+      // Use type guard instead of unsafe cast
+      return asStudentArray(data ?? [], "useStudents");
     },
   });
 }

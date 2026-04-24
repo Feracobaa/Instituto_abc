@@ -30,6 +30,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 const dayNames = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
@@ -119,8 +122,23 @@ function StaffDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6 animate-pulse">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Skeleton className="h-80 w-full rounded-xl" />
+          <Skeleton className="h-80 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -172,27 +190,33 @@ function StaffDashboard() {
           <AcademicPeriodsManager periods={periods} />
 
           {gradeAverages.length > 0 && (
-            <div className="rounded-xl border bg-card p-6 shadow-card">
+            <div className="rounded-xl border bg-card p-6 shadow-card hover-lift">
               <div className="mb-5 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <h3 className="font-heading font-bold text-foreground">Rendimiento por grado</h3>
               </div>
-              <div className="space-y-3">
-                {gradeAverages.map((grade) => (
-                  <div key={grade.name} className="flex items-center gap-3">
-                    <span className="w-20 truncate text-sm font-semibold text-foreground">{grade.name}</span>
-                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className={cn("h-full rounded-full transition-all duration-700", getBarColor(grade.average))}
-                        style={{ width: grade.average !== null ? `${(grade.average / 5) * 100}%` : "0%" }}
-                      />
-                    </div>
-                    <span className="w-8 text-right text-sm font-bold text-foreground">
-                      {grade.average !== null ? grade.average.toFixed(1) : "—"}
-                    </span>
-                    <span className="w-16 text-xs text-muted-foreground">{grade.count} alum.</span>
-                  </div>
-                ))}
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={gradeAverages.filter(g => g.average !== null)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} domain={[0, 5]} />
+                    <Tooltip
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}
+                      itemStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value: number) => [value.toFixed(1), 'Promedio']}
+                    />
+                    <Bar dataKey="average" radius={[4, 4, 0, 0]}>
+                      {gradeAverages.filter(g => g.average !== null).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={
+                          entry.average! >= 4 ? 'hsl(var(--success))' :
+                          entry.average! >= 3 ? 'hsl(var(--warning))' :
+                          'hsl(var(--destructive))'
+                        } />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           )}
@@ -257,10 +281,11 @@ function StaffDashboard() {
                     </div>
                   </div>
                 )) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <Award className="mb-2 h-8 w-8 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">Aun no hay calificaciones para el cuadro de honor.</p>
-                  </div>
+                  <EmptyState 
+                    title="Sin estudiantes" 
+                    description="Aún no hay calificaciones para el cuadro de honor." 
+                    icon={Award}
+                  />
                 )}
               </div>
             </>
@@ -284,14 +309,15 @@ function StaffDashboard() {
                       <p className="truncate text-xs text-muted-foreground">{entry.grades?.name}</p>
                     </div>
                     <span className="flex-shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
-                      {entry.start_time.slice(0, 5)}
+                      {entry.start_time?.slice(0, 5) ?? '—'}
                     </span>
                   </div>
                 )) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <LayoutGrid className="mb-2 h-8 w-8 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">No hay clases programadas para hoy.</p>
-                  </div>
+                  <EmptyState 
+                    title="Día libre" 
+                    description="No tienes clases programadas para hoy." 
+                    icon={LayoutGrid}
+                  />
                 )}
               </div>
             </>
@@ -315,10 +341,11 @@ function StaffDashboard() {
                 </div>
               </div>
             )) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <ClipboardList className="mb-2 h-8 w-8 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">No hay calificaciones registradas.</p>
-              </div>
+              <EmptyState 
+                title="Sin registros" 
+                description="No hay calificaciones registradas recientemente." 
+                icon={ClipboardList}
+              />
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { schoolQueryKeys } from "@/hooks/school/queryKeys";
 import type { GradeRecord, GradeRecordFilters } from "@/hooks/school/types";
+import { asGradeRecordArray } from "@/hooks/school/typeGuards";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 export function useGradeRecords(filters?: GradeRecordFilters) {
@@ -29,7 +30,8 @@ export function useGradeRecords(filters?: GradeRecordFilters) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as GradeRecord[];
+      // Use type guard instead of unsafe cast
+      return asGradeRecordArray(data ?? [], "useGradeRecords");
     },
   });
 }

@@ -10,13 +10,13 @@ import { useCreateStudent, useGrades, useUpdateStudent } from "@/hooks/useSchool
 import { getFieldErrors, studentFormSchema } from "@/lib/schoolSchemas";
 
 interface Student {
-  address: string | null;
-  birth_date: string | null;
+  address?: string | null;
+  birth_date?: string | null;
   id: string;
   full_name: string;
-  grade_id: string | null;
-  guardian_name: string | null;
-  guardian_phone: string | null;
+  grade_id?: string | null;
+  guardian_name?: string | null;
+  guardian_phone?: string | null;
 }
 
 interface StudentFormDialogProps {

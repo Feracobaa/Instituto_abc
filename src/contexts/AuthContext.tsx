@@ -1,30 +1,37 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/types';
 import { buildGuardianAuthEmail, isLikelyEmailLogin } from '@/lib/guardianAuth';
 
 type SupportedUserRole = 'rector' | 'profesor' | 'parent' | 'contable';
 type UserRole = SupportedUserRole | null;
 type LoginMode = 'staff' | 'family';
+type ProviderSupportContext = Database['public']['Functions']['provider_get_support_context']['Returns'][number];
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  userRole: UserRole;
-  teacherId: string | null;
+  effectiveInstitutionId: string | null;
+  isProviderOwner: boolean;
   loading: boolean;
+  refreshSupportContext: () => Promise<void>;
+  session: Session | null;
   signIn: (
     identifier: string,
     password: string,
     options?: { loginMode?: LoginMode }
   ) => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
   signUp: (
     email: string,
     password: string,
     fullName: string,
-    role: 'rector' | 'profesor' | 'contable'
+    role: 'rector' | 'profesor' | 'contable',
+    options?: { institutionId?: string | null },
   ) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  supportContext: ProviderSupportContext | null;
+  teacherId: string | null;
+  user: User | null;
+  userRole: UserRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,6 +43,8 @@ const isSupportedUserRole = (role: string): role is SupportedUserRole =>
 
 interface CachedAuthContext {
   cachedAt: number;
+  effectiveInstitutionId: string | null;
+  isProviderOwner: boolean;
   teacherId: string | null;
   userId: string;
   userRole: UserRole;
@@ -79,11 +88,25 @@ const clearCachedAuthContext = () => {
   }
 };
 
+const isMissingProviderObjectError = (error: unknown) => {
+  const casted = error as { code?: string; message?: string } | null;
+  const message = casted?.message?.toLowerCase() ?? '';
+  return (
+    casted?.code === '42P01'
+    || casted?.code === '42883'
+    || message.includes('provider_')
+    || message.includes('is_provider_owner')
+  );
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [isProviderOwner, setIsProviderOwner] = useState(false);
+  const [supportContext, setSupportContext] = useState<ProviderSupportContext | null>(null);
+  const [effectiveInstitutionId, setEffectiveInstitutionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const hydratedUserIdRef = useRef<string | null>(null);
   const hydratingUserIdRef = useRef<string | null>(null);
@@ -99,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       throw error;
     }
-    
+
     return data && isSupportedUserRole(data.role) ? data.role : null;
   }, []);
 
@@ -113,9 +136,110 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       throw error;
     }
-    
+
     return data ? data.id : null;
   }, []);
+
+  const fetchEffectiveInstitutionId = useCallback(async () => {
+    const { data, error } = await supabase.rpc('current_institution_id');
+    if (error) {
+      throw error;
+    }
+    return data ?? null;
+  }, []);
+
+  const fetchProviderState = useCallback(async (userId: string) => {
+    const { data: providerUser, error: providerError } = await supabase
+      .from('provider_users')
+      .select('role, is_active')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (providerError) {
+      if (isMissingProviderObjectError(providerError)) {
+        return {
+          effectiveInstitutionId: await fetchEffectiveInstitutionId(),
+          isProviderOwner: false,
+          supportContext: null as ProviderSupportContext | null,
+        };
+      }
+
+      throw providerError;
+    }
+
+    const isOwner = providerUser?.role === 'owner' && providerUser?.is_active === true;
+
+    if (!isOwner) {
+      return {
+        effectiveInstitutionId: await fetchEffectiveInstitutionId(),
+        isProviderOwner: false,
+        supportContext: null as ProviderSupportContext | null,
+      };
+    }
+
+    const [supportContextResult, effectiveInstitutionResult] = await Promise.all([
+      supabase.rpc('provider_get_support_context'),
+      supabase.rpc('current_institution_id'),
+    ]);
+
+    if (supportContextResult.error && !isMissingProviderObjectError(supportContextResult.error)) {
+      throw supportContextResult.error;
+    }
+
+    if (effectiveInstitutionResult.error) {
+      throw effectiveInstitutionResult.error;
+    }
+
+    const resolvedSupportContext = supportContextResult.data?.[0] ?? null;
+
+    return {
+      effectiveInstitutionId: effectiveInstitutionResult.data ?? resolvedSupportContext?.institution_id ?? null,
+      isProviderOwner: true,
+      supportContext: resolvedSupportContext,
+    };
+  }, [fetchEffectiveInstitutionId]);
+
+  const refreshSupportContext = useCallback(async () => {
+    if (!user) {
+      setIsProviderOwner(false);
+      setSupportContext(null);
+      setEffectiveInstitutionId(null);
+      setUserRole(null);
+      setTeacherId(null);
+      return;
+    }
+
+    try {
+      const [role, providerState] = await Promise.all([
+        fetchUserRole(user.id),
+        fetchProviderState(user.id),
+      ]);
+      const resolvedRole: UserRole =
+        role
+        ?? (providerState.isProviderOwner && providerState.supportContext ? 'rector' : null);
+      const resolvedTeacherId =
+        role === 'profesor'
+          ? await fetchTeacherId(user.id)
+          : null;
+
+      setIsProviderOwner(providerState.isProviderOwner);
+      setSupportContext(providerState.supportContext);
+      setEffectiveInstitutionId(providerState.effectiveInstitutionId);
+      setUserRole(resolvedRole);
+      setTeacherId(resolvedTeacherId);
+      writeCachedAuthContext({
+        cachedAt: Date.now(),
+        effectiveInstitutionId: providerState.effectiveInstitutionId,
+        isProviderOwner: providerState.isProviderOwner,
+        teacherId: resolvedTeacherId,
+        userId: user.id,
+        userRole: resolvedRole,
+      });
+    } catch (error) {
+      console.error('Failed to refresh provider support context', error);
+    }
+  }, [fetchProviderState, fetchTeacherId, fetchUserRole, user]);
 
   const hydrateAuthState = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
@@ -127,6 +251,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hydratingUserIdRef.current = null;
       userContextReadyRef.current = false;
       clearCachedAuthContext();
+      setIsProviderOwner(false);
+      setSupportContext(null);
+      setEffectiveInstitutionId(null);
       setUserRole(null);
       setTeacherId(null);
       setLoading(false);
@@ -148,9 +275,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (cachedContext) {
       hydratedUserIdRef.current = nextUserId;
       userContextReadyRef.current = true;
+      setIsProviderOwner(cachedContext.isProviderOwner);
+      setSupportContext(null);
+      setEffectiveInstitutionId(cachedContext.effectiveInstitutionId);
       setUserRole(cachedContext.userRole);
       setTeacherId(cachedContext.teacherId);
       setLoading(false);
+
+      if (cachedContext.isProviderOwner) {
+        void refreshSupportContext();
+      }
+
       return;
     }
 
@@ -158,44 +293,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hydratingUserIdRef.current = nextUserId;
 
     try {
-      const role = await fetchUserRole(nextUserId);
-      const resolvedTeacherId =
-        role === 'profesor'
-          ? await fetchTeacherId(nextUserId)
-          : null;
+      const [role, providerState] = await Promise.all([
+        fetchUserRole(nextUserId),
+        fetchProviderState(nextUserId),
+      ]);
+      const resolvedRole: UserRole =
+        role
+        ?? (providerState.isProviderOwner && providerState.supportContext ? 'rector' : null);
+      const resolvedTeacherId = role === 'profesor' ? await fetchTeacherId(nextUserId) : null;
 
       hydratedUserIdRef.current = nextUserId;
       userContextReadyRef.current = true;
-      setUserRole(role);
+      setIsProviderOwner(providerState.isProviderOwner);
+      setSupportContext(providerState.supportContext);
+      setEffectiveInstitutionId(providerState.effectiveInstitutionId);
+      setUserRole(resolvedRole);
       setTeacherId(resolvedTeacherId);
       writeCachedAuthContext({
         cachedAt: Date.now(),
+        effectiveInstitutionId: providerState.effectiveInstitutionId,
+        isProviderOwner: providerState.isProviderOwner,
         teacherId: resolvedTeacherId,
         userId: nextUserId,
-        userRole: role,
+        userRole: resolvedRole,
       });
     } catch (error) {
       console.error('Failed to hydrate auth state', error);
       hydratedUserIdRef.current = nextUserId;
       userContextReadyRef.current = true;
       clearCachedAuthContext();
+      setIsProviderOwner(false);
+      setSupportContext(null);
+      setEffectiveInstitutionId(null);
       setUserRole(null);
       setTeacherId(null);
     } finally {
       hydratingUserIdRef.current = null;
       setLoading(false);
     }
-  }, [fetchTeacherId, fetchUserRole]);
+  }, [fetchProviderState, fetchTeacherId, fetchUserRole, refreshSupportContext]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        void hydrateAuthState(session);
+      (_event, nextSession) => {
+        void hydrateAuthState(nextSession);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      void hydrateAuthState(session);
+    supabase.auth.getSession().then(({ data: { session: nextSession } }) => {
+      void hydrateAuthState(nextSession);
     });
 
     return () => subscription.unsubscribe();
@@ -223,28 +369,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     fullName: string,
-    role: 'rector' | 'profesor' | 'contable'
+    role: 'rector' | 'profesor' | 'contable',
+    options?: { institutionId?: string | null },
   ) => {
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { data, error } = await supabase.auth.signUp({
+    const targetInstitutionId = options?.institutionId ?? effectiveInstitutionId;
+
+    if (!targetInstitutionId) {
+      return {
+        error: new Error('No hay una institucion activa para crear esta cuenta.'),
+      };
+    }
+
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-          role: role
-        }
-      }
+          institution_id: targetInstitutionId,
+          role,
+        },
+      },
     });
 
     if (error) return { error };
-
-    // Eliminamos la inserción manual desde el frontend a 'profiles', 'user_roles' y 'teachers'.
-    // Ahora todo eso se maneja 100% de forma segura a través del Database Trigger en Supabase 
-    // (creado con el archivo fix_teacher_registration.sql).
-    // Esto previene los errores de RLS (Row Level Security) cuando la sesión aún no está lista.
 
     return { error: null };
   };
@@ -256,20 +406,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hydratingUserIdRef.current = null;
     userContextReadyRef.current = false;
     clearCachedAuthContext();
+    setIsProviderOwner(false);
+    setSupportContext(null);
+    setEffectiveInstitutionId(null);
     setUserRole(null);
     setTeacherId(null);
   };
 
   return (
     <AuthContext.Provider value={{
-      user,
-      session,
-      userRole,
-      teacherId,
+      effectiveInstitutionId,
+      isProviderOwner,
       loading,
+      refreshSupportContext,
+      session,
       signIn,
+      signOut,
       signUp,
-      signOut
+      supportContext,
+      teacherId,
+      user,
+      userRole,
     }}>
       {children}
     </AuthContext.Provider>

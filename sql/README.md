@@ -31,3 +31,21 @@ Si se necesita volver a reproducir el endurecimiento reciente de la plataforma, 
 - Antes de tocar RLS, correr la auditoria.
 - No ejecutar scripts de `legacy/` sobre una base con datos reales.
 - No usar `manual/` como si fueran migraciones oficiales.
+
+## Bloque Profesionalizacion 2026-04-21
+
+Migraciones nuevas para saneamiento, multitenancy y cierre de drift:
+
+1. `migrations/20260421_22_grade_record_partials_module.sql`
+2. `migrations/20260421_23_accounting_alignment_and_reset_profile_rpc.sql`
+3. `migrations/20260421_24_legacy_cleanup_and_audit_logs_hardening.sql`
+4. `migrations/20260421_25_multitenant_foundation.sql`
+5. `migrations/20260421_26_multitenant_rls_restrictive_policies.sql`
+
+Script operativo recomendado antes de aplicar ese bloque:
+
+- `manual/20260421_00_preflight_audit_report.sql`
+
+Script operativo recomendado despues de aplicar ese bloque:
+
+- `manual/20260421_01_post_migration_validation.sql`

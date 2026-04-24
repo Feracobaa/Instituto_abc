@@ -3,12 +3,18 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+import { useInstitutionModuleAccess } from "@/hooks/useSchoolData";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("@/hooks/useSchoolData", () => ({
+  useInstitutionModuleAccess: vi.fn(),
+}));
+
 const mockedUseAuth = vi.mocked(useAuth);
+const mockedUseInstitutionModuleAccess = vi.mocked(useInstitutionModuleAccess);
 
 const defaultAuthState = {
   loading: false,
@@ -16,6 +22,10 @@ const defaultAuthState = {
   signIn: vi.fn(),
   signOut: vi.fn(),
   signUp: vi.fn(),
+  effectiveInstitutionId: "institution-1",
+  isProviderOwner: false,
+  refreshSupportContext: vi.fn(),
+  supportContext: null,
   teacherId: null,
   user: { id: "user-1" },
   userRole: "rector" as const,
@@ -43,6 +53,10 @@ function renderProtectedRoute(allowedRoles?: Array<"rector" | "profesor" | "pare
 describe("ProtectedRoute", () => {
   beforeEach(() => {
     mockedUseAuth.mockReturnValue(defaultAuthState as never);
+    mockedUseInstitutionModuleAccess.mockReturnValue({
+      data: {},
+      isLoading: false,
+    } as never);
   });
 
   it("redirige a auth cuando no hay usuario autenticado", () => {

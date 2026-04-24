@@ -9,6 +9,8 @@ export type {
   GuardianAccount,
   GuardianGradeRecord,
   GuardianSchedule,
+  Institution,
+  InstitutionSettings,
   GradeRecord,
   GradeRecordFilters,
   GradeRecordPartial,
@@ -105,3 +107,7 @@ export {
   useUpdateInventoryItem,
   useAccountingTeachers,
 } from "@/hooks/school/useAccounting";
+export {
+  useInstitutionModuleAccess,
+  useInstitutionSettings,
+} from "@/hooks/school/useInstitution";

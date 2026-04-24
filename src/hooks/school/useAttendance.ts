@@ -11,6 +11,7 @@ import type {
   StudentAttendance,
   StudentAttendanceFilters,
 } from "@/hooks/school/types";
+import { asStudentAttendanceArray, asStudentArray } from "@/hooks/school/typeGuards";
 import { supabase } from "@/integrations/supabase/client";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
@@ -89,7 +90,8 @@ export function useStudentAttendance(filters?: StudentAttendanceFilters) {
         throw error;
       }
 
-      return (data ?? []) as StudentAttendance[];
+      // Use type guard instead of unsafe cast
+      return asStudentAttendanceArray(data ?? [], "useStudentAttendance");
     },
   });
 }

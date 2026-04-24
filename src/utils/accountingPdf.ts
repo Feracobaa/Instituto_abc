@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatCurrency } from "@/features/accounting/utils";
 
 export interface TuitionMonthlyReportRow {
   studentName: string;
@@ -17,6 +18,7 @@ export interface MonthlyFinancialSummary {
 }
 
 interface DownloadTuitionMonthlyReportPDFParams {
+  institutionName?: string;
   periodMonth: string;
   monthLabel: string;
   rows: TuitionMonthlyReportRow[];
@@ -24,6 +26,7 @@ interface DownloadTuitionMonthlyReportPDFParams {
 }
 
 interface DownloadPendingTuitionMonthlyReportPDFParams {
+  institutionName?: string;
   periodMonth: string;
   monthLabel: string;
   rows: TuitionMonthlyReportRow[];
@@ -35,13 +38,6 @@ type AutoTableCapableDoc = jsPDF & {
     finalY: number;
   };
 };
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value);
 
 const normalizeFileName = (value: string) => {
   return value
@@ -57,6 +53,7 @@ const statusLabel = (status: string) => {
 };
 
 export function downloadTuitionMonthlyReportPDF({
+  institutionName = "Instituto Pedagogico ABC",
   periodMonth,
   monthLabel,
   rows,
@@ -78,7 +75,7 @@ export function downloadTuitionMonthlyReportPDF({
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("Instituto Pedagogico ABC", pageWidth / 2, 10, { align: "center" });
+  doc.text(institutionName, pageWidth / 2, 10, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -162,7 +159,7 @@ export function downloadTuitionMonthlyReportPDF({
     // Income
     doc.setTextColor(22, 163, 74);
     doc.text(
-      `Ingresos: ${financialSummary.incomeCount} registros — ${formatCurrency(financialSummary.incomeTotal)}`,
+      `Ingresos: ${financialSummary.incomeCount} registros - ${formatCurrency(financialSummary.incomeTotal)}`,
       14,
       summaryStartY + 7,
     );
@@ -170,7 +167,7 @@ export function downloadTuitionMonthlyReportPDF({
     // Expenses
     doc.setTextColor(220, 38, 38);
     doc.text(
-      `Egresos: ${financialSummary.expenseCount} registros — ${formatCurrency(financialSummary.expenseTotal)}`,
+      `Egresos: ${financialSummary.expenseCount} registros - ${formatCurrency(financialSummary.expenseTotal)}`,
       14,
       summaryStartY + 13,
     );
@@ -192,6 +189,7 @@ export function downloadTuitionMonthlyReportPDF({
 }
 
 export function downloadPendingTuitionMonthlyReportPDF({
+  institutionName = "Instituto Pedagogico ABC",
   periodMonth,
   monthLabel,
   rows,
@@ -212,7 +210,7 @@ export function downloadPendingTuitionMonthlyReportPDF({
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("Instituto Pedagogico ABC", pageWidth / 2, 10, { align: "center" });
+  doc.text(institutionName, pageWidth / 2, 10, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);

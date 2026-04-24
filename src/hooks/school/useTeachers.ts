@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { schoolQueryKeys } from "@/hooks/school/queryKeys";
 import type { Teacher } from "@/hooks/school/types";
+import { asTeacherArray } from "@/hooks/school/typeGuards";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 interface TeacherPayload {
@@ -39,7 +40,8 @@ export function useTeachers() {
         .or("is_active.is.null,is_active.eq.true")
         .order("full_name");
       if (error) throw error;
-      return (data ?? []) as Teacher[];
+      // Use type guard instead of unsafe cast
+      return asTeacherArray(data ?? [], "useTeachers");
     },
   });
 }

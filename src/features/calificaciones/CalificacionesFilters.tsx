@@ -1,4 +1,4 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Search } from "lucide-react";
 import type { AcademicPeriod, Grade } from "@/hooks/useSchoolData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -9,9 +9,11 @@ interface CalificacionesFiltersProps {
   periods?: AcademicPeriod[] | null;
   selectedGrade: string;
   selectedPeriod: string;
+  searchTerm: string;
   setDeliveryDate: (value: string) => void;
   setSelectedGrade: (value: string) => void;
   setSelectedPeriod: (value: string) => void;
+  setSearchTerm: (value: string) => void;
 }
 
 export function CalificacionesFilters({
@@ -21,9 +23,11 @@ export function CalificacionesFilters({
   periods,
   selectedGrade,
   selectedPeriod,
+  searchTerm,
   setDeliveryDate,
   setSelectedGrade,
   setSelectedPeriod,
+  setSearchTerm,
 }: CalificacionesFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -52,6 +56,17 @@ export function CalificacionesFilters({
           ))}
         </SelectContent>
       </Select>
+
+      <div className="flex h-10 flex-1 min-w-[200px] max-w-sm items-center gap-2 rounded-lg border bg-background px-3 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Buscar estudiante..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="h-full w-full border-none bg-transparent p-0 text-sm focus:outline-none"
+        />
+      </div>
 
       <div className="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 py-1.5">
         <CalendarDays className="h-4 w-4 text-muted-foreground" />

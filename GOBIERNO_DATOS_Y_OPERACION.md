@@ -154,3 +154,39 @@ Si este runbook se sigue, cualquier cambio futuro sobre docentes, horarios, nota
 - sin abrir permisos por accidente
 - sin depender de memoria personal
 - y con criterio claro para auditar antes y despues
+
+## 12. Rollback Operativo
+
+Si una migracion falla en staging o produccion:
+
+1. Detener nuevas ejecuciones de migracion.
+2. Revisar el reporte de `safety_snapshots` y validar conteos.
+3. Restaurar tablas afectadas desde snapshots internos o backup externo.
+4. Revertir cambios de aplicacion que dependan del schema nuevo.
+5. Documentar incidente, causa y correccion antes de reintentar.
+
+## 13. Multi-Institucion (Base Tecnica)
+
+El proyecto ahora asume soporte multi-tenant con:
+
+- `institutions`
+- `institution_memberships`
+- `institution_settings`
+- `subscription_plans`
+- `institution_subscriptions`
+- `usage_events`
+
+Regla obligatoria:
+- toda tabla de negocio activa debe tener `institution_id` y quedar aislada por RLS tenant-aware.
+
+## 14. Checklist De Release Seguro
+
+Antes de merge a `main`:
+
+1. CI en verde (`lint`, `test`, `build`).
+2. Migraciones aplicadas en staging desde snapshot real.
+3. Validacion post-migracion ejecutada con [20260421_01_post_migration_validation.sql](/e:/iabc/sql/manual/20260421_01_post_migration_validation.sql).
+4. Preflight y postflight sin issues abiertos (`legacy` eliminado, tenant y RLS en estado `OK`).
+5. Smoke funcional por rol (`rector`, `profesor`, `parent`, `contable`).
+6. Validacion de aislamiento entre instituciones.
+7. Verificacion de limpieza legacy y endurecimiento de `audit_logs`.

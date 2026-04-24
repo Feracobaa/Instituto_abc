@@ -89,4 +89,26 @@ export const schoolQueryKeys = {
     inventory: ["accounting", "inventory"] as const,
     students: ["accounting", "students"] as const,
   },
+  institution: {
+    all: ["institution"] as const,
+    modules: ["institution", "modules"] as const,
+    settings: ["institution", "settings"] as const,
+  },
+  provider: {
+    moduleCatalog: ["provider", "module_catalog"] as const,
+    dashboard: ["provider", "dashboard"] as const,
+    institutions: ["provider", "institutions"] as const,
+    institutionModulesRoot: ["provider", "institution_modules"] as const,
+    institutionModules: (institutionId?: string) =>
+      ["provider", "institution_modules", institutionId ?? "none"] as const,
+    drift: ["provider", "identity_drift"] as const,
+    plans: ["provider", "plans"] as const,
+    planModulesRoot: ["provider", "plan_modules"] as const,
+    planModules: (planId?: string) =>
+      ["provider", "plan_modules", planId ?? "none"] as const,
+    supportContext: ["provider", "support_context"] as const,
+    subscriptions: ["provider", "subscriptions"] as const,
+    auditLogs: (institutionId?: string) =>
+      ["provider", "audit_logs", institutionId ?? "all"] as const,
+  },
 };

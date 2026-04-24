@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ProviderRoute } from "@/components/auth/ProviderRoute";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -24,6 +25,11 @@ const Asistencias = lazy(() => import("./pages/Asistencias"));
 const MisNotas = lazy(() => import("./pages/MisNotas"));
 const MiHorario = lazy(() => import("./pages/MiHorario"));
 const MiPerfil = lazy(() => import("./pages/MiPerfil"));
+const EtymonDashboard = lazy(() => import("./pages/etymon/EtymonDashboard"));
+const EtymonInstituciones = lazy(() => import("./pages/etymon/EtymonInstituciones"));
+const EtymonSuscripciones = lazy(() => import("./pages/etymon/EtymonSuscripciones"));
+const EtymonSoporte = lazy(() => import("./pages/etymon/EtymonSoporte"));
+const EtymonAuditoria = lazy(() => import("./pages/etymon/EtymonAuditoria"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -58,10 +64,11 @@ const App = () => (
           <Suspense fallback={<AppFallback />}>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/login/:slug" element={<Auth />} />
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor", "parent", "contable"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor", "parent", "contable"]} requiredModule="dashboard">
                     <Index />
                   </ProtectedRoute>
                 }
@@ -69,7 +76,7 @@ const App = () => (
               <Route
                 path="/contabilidad"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "contable"]}>
+                  <ProtectedRoute allowedRoles={["rector", "contable"]} requiredModule="contabilidad">
                     <Contabilidad />
                   </ProtectedRoute>
                 }
@@ -77,7 +84,7 @@ const App = () => (
               <Route
                 path="/usuarios"
                 element={
-                  <ProtectedRoute allowedRoles={["rector"]}>
+                  <ProtectedRoute allowedRoles={["rector"]} requiredModule="usuarios">
                     <Usuarios />
                   </ProtectedRoute>
                 }
@@ -85,7 +92,7 @@ const App = () => (
               <Route
                 path="/profesores"
                 element={
-                  <ProtectedRoute allowedRoles={["rector"]}>
+                  <ProtectedRoute allowedRoles={["rector"]} requiredModule="profesores">
                     <Profesores />
                   </ProtectedRoute>
                 }
@@ -93,7 +100,7 @@ const App = () => (
               <Route
                 path="/estudiantes"
                 element={
-                  <ProtectedRoute allowedRoles={["rector"]}>
+                  <ProtectedRoute allowedRoles={["rector"]} requiredModule="estudiantes">
                     <Estudiantes />
                   </ProtectedRoute>
                 }
@@ -101,7 +108,7 @@ const App = () => (
               <Route
                 path="/familias"
                 element={
-                  <ProtectedRoute allowedRoles={["rector"]}>
+                  <ProtectedRoute allowedRoles={["rector"]} requiredModule="familias">
                     <Familias />
                   </ProtectedRoute>
                 }
@@ -109,7 +116,7 @@ const App = () => (
               <Route
                 path="/horarios"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor"]} requiredModule="horarios">
                     <Horarios />
                   </ProtectedRoute>
                 }
@@ -117,7 +124,7 @@ const App = () => (
               <Route
                 path="/grados"
                 element={
-                  <ProtectedRoute allowedRoles={["rector"]}>
+                  <ProtectedRoute allowedRoles={["rector"]} requiredModule="grados">
                     <Grados />
                   </ProtectedRoute>
                 }
@@ -125,7 +132,7 @@ const App = () => (
               <Route
                 path="/materias"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor"]} requiredModule="materias">
                     <Materias />
                   </ProtectedRoute>
                 }
@@ -133,7 +140,7 @@ const App = () => (
               <Route
                 path="/calificaciones"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor"]} requiredModule="calificaciones">
                     <Calificaciones />
                   </ProtectedRoute>
                 }
@@ -141,7 +148,7 @@ const App = () => (
               <Route
                 path="/asistencias"
                 element={
-                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                  <ProtectedRoute allowedRoles={["rector", "profesor"]} requiredModule="asistencias">
                     <Asistencias />
                   </ProtectedRoute>
                 }
@@ -149,7 +156,7 @@ const App = () => (
               <Route
                 path="/mis-notas"
                 element={
-                  <ProtectedRoute allowedRoles={["parent"]}>
+                  <ProtectedRoute allowedRoles={["parent"]} requiredModule="mis_notas">
                     <MisNotas />
                   </ProtectedRoute>
                 }
@@ -157,7 +164,7 @@ const App = () => (
               <Route
                 path="/mi-horario"
                 element={
-                  <ProtectedRoute allowedRoles={["parent"]}>
+                  <ProtectedRoute allowedRoles={["parent"]} requiredModule="mi_horario">
                     <MiHorario />
                   </ProtectedRoute>
                 }
@@ -165,9 +172,49 @@ const App = () => (
               <Route
                 path="/mi-perfil"
                 element={
-                  <ProtectedRoute allowedRoles={["parent"]}>
+                  <ProtectedRoute allowedRoles={["parent"]} requiredModule="mi_perfil">
                     <MiPerfil />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/etymon"
+                element={
+                  <ProviderRoute>
+                    <EtymonDashboard />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/instituciones"
+                element={
+                  <ProviderRoute>
+                    <EtymonInstituciones />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/suscripciones"
+                element={
+                  <ProviderRoute>
+                    <EtymonSuscripciones />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/soporte"
+                element={
+                  <ProviderRoute>
+                    <EtymonSoporte />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/auditoria"
+                element={
+                  <ProviderRoute>
+                    <EtymonAuditoria />
+                  </ProviderRoute>
                 }
               />
               <Route path="*" element={<NotFound />} />

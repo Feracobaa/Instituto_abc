@@ -78,6 +78,7 @@ const Calificaciones = () => {
 
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split("T")[0]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<EditableGradeRecord | null>(null);
@@ -192,9 +193,17 @@ const Calificaciones = () => {
     editingRecord?.subject_id,
   );
 
-  const filteredStudents = students?.filter(
-    (student) => !selectedGrade || student.grade_id === selectedGrade,
-  ) ?? [];
+  const filteredStudents = useMemo(() => {
+    let result = students?.filter(
+      (student) => !selectedGrade || student.grade_id === selectedGrade,
+    ) ?? [];
+    
+    if (searchTerm.trim()) {
+      const lowerTerm = searchTerm.toLowerCase();
+      result = result.filter((student) => student.full_name.toLowerCase().includes(lowerTerm));
+    }
+    return result;
+  }, [students, selectedGrade, searchTerm]);
   const isLoading =
     gradeRecordsQuery.isLoading || gradeRecordPartialsQuery.isLoading || preescolarQuery.isLoading;
 
@@ -512,9 +521,11 @@ const Calificaciones = () => {
           periods={periods}
           selectedGrade={selectedGrade}
           selectedPeriod={selectedPeriod}
+          searchTerm={searchTerm}
           setDeliveryDate={setDeliveryDate}
           setSelectedGrade={setSelectedGrade}
           setSelectedPeriod={setSelectedPeriod}
+          setSearchTerm={setSearchTerm}
         />
 
         {pageError && (

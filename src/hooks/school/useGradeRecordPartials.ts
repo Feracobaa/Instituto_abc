@@ -7,6 +7,7 @@ import type {
   GradeRecordPartial,
   GradeRecordPartialFilters,
 } from "@/hooks/school/types";
+import type { TablesInsert } from "@/integrations/types";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
 export interface GradeRecordPartialDraft {
@@ -78,7 +79,7 @@ export function useGradeRecordPartials(filters?: GradeRecordPartialFilters) {
   return useQuery({
     queryKey: schoolQueryKeys.gradeRecordPartials.list(filters),
     queryFn: async (): Promise<GradeRecordPartial[]> => {
-      let query = (supabase as any)
+      let query = supabase
         .from("grade_record_partials")
         .select(`
           id,
@@ -149,7 +150,7 @@ export function useUpsertGradeRecordPartials() {
       const recordComments = firstNotEmpty(payload.comments) ?? deriveRecordComments(partials);
       const initialFinalGrade = calculateWeightedFinal(validPartials) ?? 3;
 
-      const { data: gradeRecord, error: gradeRecordError } = await (supabase as any)
+      const { data: gradeRecord, error: gradeRecordError } = await supabase
         .from("grade_records")
         .upsert(
           {
@@ -173,9 +174,9 @@ export function useUpsertGradeRecordPartials() {
         throw gradeRecordError;
       }
 
-      const gradeRecordId = (gradeRecord as { id: string }).id;
+      const gradeRecordId = gradeRecord.id;
 
-      const partialRows = validPartials
+      const partialRows: TablesInsert<"grade_record_partials">[] = validPartials
         .sort((first, second) => first.partial_index - second.partial_index)
         .map((partial, index) => ({
         activity_name: partial.activity_name ?? `Actividad ${index + 1}`,
@@ -186,7 +187,7 @@ export function useUpsertGradeRecordPartials() {
         partial_index: index + 1,
       }));
 
-      const { error: partialError } = await (supabase as any)
+      const { error: partialError } = await supabase
         .from("grade_record_partials")
         .upsert(partialRows, {
           onConflict: "grade_record_id,partial_index",
@@ -196,7 +197,7 @@ export function useUpsertGradeRecordPartials() {
         throw partialError;
       }
 
-      const { error: trimExtraError } = await (supabase as any)
+      const { error: trimExtraError } = await supabase
         .from("grade_record_partials")
         .delete()
         .eq("grade_record_id", gradeRecordId)

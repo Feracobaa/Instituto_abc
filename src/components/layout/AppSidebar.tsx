@@ -28,37 +28,41 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGuardianAccount } from "@/hooks/useSchoolData";
+import { useGuardianAccount, useInstitutionModuleAccess, useInstitutionSettings } from "@/hooks/useSchoolData";
+import type { SchoolModuleCode } from "@/features/access/modules";
 import { cn } from "@/lib/utils";
 
 type MenuRole = "rector" | "profesor" | "parent" | "contable";
 
 const menuItems: Array<{
   icon: React.ElementType;
+  moduleCode: SchoolModuleCode;
   roles: MenuRole[];
   title: string;
   url: string;
 }> = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["rector", "profesor", "parent", "contable"] },
-  { title: "Contabilidad", url: "/contabilidad", icon: Calculator, roles: ["rector", "contable"] },
-  { title: "Usuarios", url: "/usuarios", icon: Users, roles: ["rector"] },
-  { title: "Profesores", url: "/profesores", icon: Users, roles: ["rector"] },
-  { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, roles: ["rector"] },
-  { title: "Portal Estudiantil", url: "/familias", icon: Users, roles: ["rector"] },
-  { title: "Horarios", url: "/horarios", icon: Calendar, roles: ["rector", "profesor"] },
-  { title: "Grados", url: "/grados", icon: GraduationCap, roles: ["rector"] },
-  { title: "Materias", url: "/materias", icon: BookOpen, roles: ["rector", "profesor"] },
-  { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, roles: ["rector", "profesor"] },
-  { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, roles: ["rector", "profesor"] },
-  { title: "Mis Notas", url: "/mis-notas", icon: ClipboardList, roles: ["parent"] },
-  { title: "Mi Horario", url: "/mi-horario", icon: Calendar, roles: ["parent"] },
-  { title: "Mi Perfil", url: "/mi-perfil", icon: BookOpen, roles: ["parent"] },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleCode: "dashboard", roles: ["rector", "profesor", "parent", "contable"] },
+  { title: "Contabilidad", url: "/contabilidad", icon: Calculator, moduleCode: "contabilidad", roles: ["rector", "contable"] },
+  { title: "Usuarios", url: "/usuarios", icon: Users, moduleCode: "usuarios", roles: ["rector"] },
+  { title: "Profesores", url: "/profesores", icon: Users, moduleCode: "profesores", roles: ["rector"] },
+  { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, moduleCode: "estudiantes", roles: ["rector"] },
+  { title: "Portal Estudiantil", url: "/familias", icon: Users, moduleCode: "familias", roles: ["rector"] },
+  { title: "Horarios", url: "/horarios", icon: Calendar, moduleCode: "horarios", roles: ["rector", "profesor"] },
+  { title: "Grados", url: "/grados", icon: GraduationCap, moduleCode: "grados", roles: ["rector"] },
+  { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias", roles: ["rector", "profesor"] },
+  { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones", roles: ["rector", "profesor"] },
+  { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias", roles: ["rector", "profesor"] },
+  { title: "Mis Notas", url: "/mis-notas", icon: ClipboardList, moduleCode: "mis_notas", roles: ["parent"] },
+  { title: "Mi Horario", url: "/mi-horario", icon: Calendar, moduleCode: "mi_horario", roles: ["parent"] },
+  { title: "Mi Perfil", url: "/mi-perfil", icon: BookOpen, moduleCode: "mi_perfil", roles: ["parent"] },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user, userRole, signOut } = useAuth();
+  const { user, userRole, signOut, isProviderOwner } = useAuth();
   const { data: guardianAccount } = useGuardianAccount(userRole === "parent");
+  const { data: institutionSettings } = useInstitutionSettings();
+  const { data: moduleAccess } = useInstitutionModuleAccess({ enabled: Boolean(user) });
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -90,8 +94,18 @@ export function AppSidebar() {
       || user?.user_metadata?.full_name
       || "Acudiente"
     : user?.user_metadata?.full_name || user?.email || "Usuario";
+  const institutionName = institutionSettings?.display_name?.trim() || "Instituto Pedagogico ABC";
+  const institutionLogo = institutionSettings?.logo_url?.trim() || "/logo-iabc.jpg";
 
-  const filteredMenuItems = menuItems.filter((item) => item.roles.includes((userRole ?? "profesor") as MenuRole));
+  const filteredMenuItems = menuItems.filter((item) => {
+    const roleAllowed = item.roles.includes((userRole ?? "profesor") as MenuRole);
+    if (!roleAllowed) return false;
+
+    if (isProviderOwner) return true;
+
+    const isEnabled = moduleAccess?.[item.moduleCode];
+    return isEnabled ?? true;
+  });
 
   const roleConfig = {
     rector: {
@@ -131,12 +145,12 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white p-1 shadow-sm">
-            <img src="/logo-iabc.jpg" alt="Logo ABC" className="h-full w-full object-contain" />
+            <img src={institutionLogo} alt={`Logo ${institutionName}`} className="h-full w-full object-contain" />
           </div>
           <div>
             <h1 className="font-heading leading-tight tracking-tight text-foreground">
               <span className="block font-bold">PLATAFORMA</span>
-              <span className="block text-sm font-semibold text-muted-foreground">Instituto Pedagogico ABC</span>
+              <span className="block text-sm font-semibold text-muted-foreground">{institutionName}</span>
             </h1>
           </div>
         </div>

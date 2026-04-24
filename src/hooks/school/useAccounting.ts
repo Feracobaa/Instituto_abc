@@ -33,7 +33,7 @@ export function useCreateTuitionProfile() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (payload: Omit<TuitionProfile, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (payload: Omit<TuitionProfile, "id" | "created_at" | "updated_at" | "institution_id">) => {
       const { data, error } = await supabase
         .from("student_tuition_profiles")
         .insert(payload)
@@ -290,19 +290,10 @@ export function useDeleteTuitionProfile() {
 
   return useMutation({
     mutationFn: async (studentId: string) => {
-      // First delete all payments for this student
-      const { error: paymentsError } = await supabase
-        .from("student_tuition_payments")
-        .delete()
-        .eq("student_id", studentId);
-      if (paymentsError) throw paymentsError;
-
-      // Then delete the tuition profile
-      const { error: profileError } = await supabase
-        .from("student_tuition_profiles")
-        .delete()
-        .eq("student_id", studentId);
-      if (profileError) throw profileError;
+      const { error } = await supabase.rpc("reset_student_tuition_profile", {
+        p_student_id: studentId,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: schoolQueryKeys.accounting.tuitionProfiles });
@@ -359,7 +350,7 @@ export function useFinancialTransactions(filters?: {
         query = query.eq("movement_type", filters.movementType);
       }
       if (filters?.category) {
-        query = query.eq("category", filters.category as any);
+        query = query.eq("category", filters.category);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -373,10 +364,10 @@ export function useCreateFinancialTransaction() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (payload: Omit<FinancialTransaction, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (payload: Omit<FinancialTransaction, "id" | "created_at" | "updated_at" | "institution_id">) => {
       const { data, error } = await supabase
         .from("financial_transactions")
-        .insert(payload as any)
+        .insert(payload)
         .select()
         .single();
       if (error) throw error;
@@ -443,7 +434,7 @@ export function useCreateInventoryItem() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (payload: Omit<InventoryItem, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (payload: Omit<InventoryItem, "id" | "created_at" | "updated_at" | "institution_id">) => {
       const { data, error } = await supabase
         .from("inventory_items")
         .insert(payload)

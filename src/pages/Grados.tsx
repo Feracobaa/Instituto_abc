@@ -3,7 +3,7 @@ import { useGrades, useStudents, useGradeRecords } from "@/hooks/useSchoolData";
 import type { Student } from "@/hooks/useSchoolData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
-import { GraduationCap, Users, Loader2, ExternalLink, Trophy, Medal } from "lucide-react";
+import { GraduationCap, Users, Loader2, ExternalLink, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 

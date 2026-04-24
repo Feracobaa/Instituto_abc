@@ -5,6 +5,15 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAcademicPeriods, useGuardianAccount } from "@/hooks/useSchoolData";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Link } from "react-router-dom";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -72,10 +81,30 @@ export function MainLayout({ children }: MainLayoutProps) {
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <main className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-sm">
-            <SidebarTrigger className="flex-shrink-0" />
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-sm transition-all duration-300">
+            <SidebarTrigger className="flex-shrink-0 hover-lift" />
             <div className="h-4 w-px bg-border" />
-            <h2 className="text-sm font-semibold text-foreground">{pageTitle}</h2>
+            
+            <Breadcrumb className="hidden sm:flex">
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to="/">Inicio</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                {location.pathname !== "/" && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
+              </BreadcrumbList>
+            </Breadcrumb>
+
+            <h2 className="text-sm font-semibold text-foreground sm:hidden">{pageTitle}</h2>
+
             <div className="flex-1" />
             {needsGuardianOnboarding ? (
               <span className="hidden items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 sm:inline-flex">
