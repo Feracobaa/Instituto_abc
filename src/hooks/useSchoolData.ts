@@ -106,6 +106,7 @@ export {
   useUpdateTuitionProfile,
   useUpdateInventoryItem,
   useAccountingTeachers,
+  useSendPaymentNotification,
 } from "@/hooks/school/useAccounting";
 export {
   useInstitutionModuleAccess,

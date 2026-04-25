@@ -26,12 +26,14 @@ const Asistencias = lazy(() => import("./pages/Asistencias"));
 const MisNotas = lazy(() => import("./pages/MisNotas"));
 const MiHorario = lazy(() => import("./pages/MiHorario"));
 const MiPerfil = lazy(() => import("./pages/MiPerfil"));
+const PortalEstudiantil = lazy(() => import("./pages/PortalEstudiantil"));
 const EtymonDashboard = lazy(() => import("./pages/etymon/EtymonDashboard"));
 const EtymonInstituciones = lazy(() => import("./pages/etymon/EtymonInstituciones"));
 const EtymonSuscripciones = lazy(() => import("./pages/etymon/EtymonSuscripciones"));
 const EtymonSoporte = lazy(() => import("./pages/etymon/EtymonSoporte"));
 const EtymonAuditoria = lazy(() => import("./pages/etymon/EtymonAuditoria"));
 const EtymonUsuarios = lazy(() => import("./pages/etymon/EtymonUsuarios"));
+const EtymonPlanes = lazy(() => import("./pages/etymon/EtymonPlanes"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -59,7 +61,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Analytics />
         <SpeedInsights />
         <AuthProvider>
@@ -164,29 +166,17 @@ const App = () => (
                 }
               />
               <Route
-                path="/mis-notas"
+                path="/portal"
                 element={
                   <ProtectedRoute allowedRoles={["parent"]} requiredModule="mis_notas">
-                    <MisNotas />
+                    <PortalEstudiantil />
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/mi-horario"
-                element={
-                  <ProtectedRoute allowedRoles={["parent"]} requiredModule="mi_horario">
-                    <MiHorario />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mi-perfil"
-                element={
-                  <ProtectedRoute allowedRoles={["parent"]} requiredModule="mi_perfil">
-                    <MiPerfil />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Legacy redirects - keep for bookmarks */}
+              <Route path="/mis-notas" element={<ProtectedRoute allowedRoles={["parent"]}><MisNotas /></ProtectedRoute>} />
+              <Route path="/mi-horario" element={<ProtectedRoute allowedRoles={["parent"]}><MiHorario /></ProtectedRoute>} />
+              <Route path="/mi-perfil" element={<ProtectedRoute allowedRoles={["parent"]}><MiPerfil /></ProtectedRoute>} />
               <Route
                 path="/etymon"
                 element={
@@ -208,6 +198,14 @@ const App = () => (
                 element={
                   <ProviderRoute>
                     <EtymonSuscripciones />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/planes"
+                element={
+                  <ProviderRoute>
+                    <EtymonPlanes />
                   </ProviderRoute>
                 }
               />

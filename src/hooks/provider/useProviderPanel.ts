@@ -196,6 +196,53 @@ export function useProviderSubscriptionPlans() {
   });
 }
 
+export function useProviderUpsertPlan() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (payload: { id?: string; name: string; monthly_price_cents: number; is_active: boolean }) => {
+      if (payload.id) {
+        const { data, error } = await supabase
+          .from("subscription_plans")
+          .update({
+            name: payload.name,
+            monthly_price_cents: payload.monthly_price_cents,
+            is_active: payload.is_active,
+          })
+          .eq("id", payload.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from("subscription_plans")
+          .insert({
+            name: payload.name,
+            monthly_price_cents: payload.monthly_price_cents,
+            is_active: payload.is_active,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.plans });
+      toast({ title: "Plan guardado", description: "El plan de suscripción ha sido actualizado." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al guardar el plan",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useProviderModuleCatalog() {
   return useQuery({
     queryKey: schoolQueryKeys.provider.moduleCatalog,

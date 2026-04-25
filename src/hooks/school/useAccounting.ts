@@ -214,6 +214,56 @@ export function useTuitionMonthStatus(periodMonth?: string) {
   });
 }
 
+export function useSendPaymentNotification() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      student_id: string;
+      student_name: string;
+      period_month: string;
+      amount: number;
+    }) => {
+      // Find guardian accounts for this student
+      const { data: accounts, error: accountsError } = await supabase
+        .from("student_guardian_accounts")
+        .select("user_id, institution_id")
+        .eq("student_id", payload.student_id);
+
+      if (accountsError) throw accountsError;
+      if (!accounts || accounts.length === 0) {
+        throw new Error("El estudiante no tiene una cuenta de acudiente vinculada.");
+      }
+
+      const notifications = accounts.map(acc => ({
+        user_id: acc.user_id,
+        institution_id: acc.institution_id,
+        title: "Recordatorio de Pensión",
+        message: `Se le recuerda el pago de la pensión de ${payload.student_name} correspondiente a ${payload.period_month} por un valor de $${(payload.amount > 0 && payload.amount < 1000 ? payload.amount * 1000 : payload.amount).toLocaleString('es-CO')}.`,
+        type: "warning",
+        link_url: "/portal",
+      }));
+
+      const { error: insertError } = await supabase
+        .from("notifications")
+        .insert(notifications);
+
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      toast({ title: "Notificación enviada exitosamente" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al enviar notificación",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useRegisterStudentPayment() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

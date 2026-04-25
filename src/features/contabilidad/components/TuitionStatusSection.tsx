@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
 import { PaginatedTable } from "@/components/ui/PaginatedTable";
 import { Wallet, ClipboardList, Users, Trash2, RotateCcw, FileSpreadsheet, Download } from "lucide-react";
-import { useTuitionPayments, useTuitionMonthStatus, useTuitionSummary, useAccountingStudents, useTuitionProfiles } from "@/hooks/useSchoolData";
+import { useTuitionPayments, useTuitionMonthStatus, useTuitionSummary, useAccountingStudents, useTuitionProfiles, useSendPaymentNotification } from "@/hooks/useSchoolData";
 import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant } from "@/features/contabilidad/utils";
 import { exportToCSV, exportToPDF } from "@/features/contabilidad/exportUtils";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
   const { data: tuitionSummary } = useTuitionSummary();
   const { data: students } = useAccountingStudents();
   const { data: tuitionProfiles } = useTuitionProfiles();
+  const notify = useSendPaymentNotification();
 
   const [ignoredDebtors, setIgnoredDebtors] = useState<Set<string>>(new Set());
 
@@ -270,8 +271,27 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
                               paymentsByStudent.byName.get(row.student_name) ??
                               [];
                             const hasPay = paymentIds.length > 0;
+                            
                             return (
                               <div className="flex items-center justify-end gap-1">
+                                {row.pending_amount > 0 && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 text-blue-500 hover:text-blue-600"
+                                    title={"Notificar cobro pendiente a acudiente"}
+                                    onClick={() => notify.mutate({
+                                      student_id: row.student_id,
+                                      student_name: row.student_name,
+                                      period_month: row.period_month,
+                                      amount: row.pending_amount,
+                                    })}
+                                    disabled={notify.isPending}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                  </Button>
+                                )}
                                 {hasPay && (
                                   <Button
                                     type="button"

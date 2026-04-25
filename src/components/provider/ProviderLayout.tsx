@@ -6,6 +6,7 @@ import {
   LogOut,
   ScrollText,
   Shield,
+  Tags,
   Users,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -23,6 +24,7 @@ const providerNavItems = [
   { icon: Building2, label: "Instituciones", path: "/etymon/instituciones" },
   { icon: Users, label: "Usuarios", path: "/etymon/usuarios" },
   { icon: CreditCard, label: "Suscripciones", path: "/etymon/suscripciones" },
+  { icon: Tags, label: "Planes", path: "/etymon/planes" },
   { icon: LifeBuoy, label: "Soporte", path: "/etymon/soporte" },
   { icon: ScrollText, label: "Auditoria", path: "/etymon/auditoria" },
 ];

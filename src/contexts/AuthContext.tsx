@@ -200,8 +200,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchEffectiveInstitutionId]);
 
-  const refreshSupportContext = useCallback(async () => {
-    if (!user) {
+  const refreshSupportContext = useCallback(async (overrideUserId?: string) => {
+    const targetUserId = overrideUserId || user?.id;
+
+    if (!targetUserId) {
       setIsProviderOwner(false);
       setSupportContext(null);
       setEffectiveInstitutionId(null);
@@ -212,15 +214,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const [role, providerState] = await Promise.all([
-        fetchUserRole(user.id),
-        fetchProviderState(user.id),
+        fetchUserRole(targetUserId),
+        fetchProviderState(targetUserId),
       ]);
       const resolvedRole: UserRole =
         role
         ?? (providerState.isProviderOwner && providerState.supportContext ? 'rector' : null);
       const resolvedTeacherId =
         role === 'profesor'
-          ? await fetchTeacherId(user.id)
+          ? await fetchTeacherId(targetUserId)
           : null;
 
       setIsProviderOwner(providerState.isProviderOwner);
@@ -233,13 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         effectiveInstitutionId: providerState.effectiveInstitutionId,
         isProviderOwner: providerState.isProviderOwner,
         teacherId: resolvedTeacherId,
-        userId: user.id,
+        userId: targetUserId,
         userRole: resolvedRole,
       });
     } catch (error) {
       console.error('Failed to refresh provider support context', error);
     }
-  }, [fetchProviderState, fetchTeacherId, fetchUserRole, user]);
+  }, [fetchProviderState, fetchTeacherId, fetchUserRole, user?.id]);
 
   const hydrateAuthState = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
@@ -283,7 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (cachedContext.isProviderOwner) {
-        void refreshSupportContext();
+        void refreshSupportContext(nextUserId);
       }
 
       return;

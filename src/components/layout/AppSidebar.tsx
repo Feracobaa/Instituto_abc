@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   Calculator,
+  Lock,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -53,9 +54,7 @@ const menuItems: Array<{
   { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias", roles: ["rector", "profesor"] },
   { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones", roles: ["rector", "profesor"] },
   { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias", roles: ["rector", "profesor"] },
-  { title: "Mis Notas", url: "/mis-notas", icon: ClipboardList, moduleCode: "mis_notas", roles: ["parent"] },
-  { title: "Mi Horario", url: "/mi-horario", icon: Calendar, moduleCode: "mi_horario", roles: ["parent"] },
-  { title: "Mi Perfil", url: "/mi-perfil", icon: BookOpen, moduleCode: "mi_perfil", roles: ["parent"] },
+  { title: "Mi Portal", url: "/portal", icon: BookOpen, moduleCode: "mis_notas", roles: ["parent"] },
 ];
 
 export function AppSidebar() {
@@ -98,15 +97,15 @@ export function AppSidebar() {
   const institutionName = institutionSettings?.display_name?.trim() || "Instituto Pedagogico ABC";
   const institutionLogo = institutionSettings?.logo_url?.trim() || "/logo-iabc.jpg";
 
-  const filteredMenuItems = menuItems.filter((item) => {
-    const roleAllowed = item.roles.includes((userRole ?? "profesor") as MenuRole);
-    if (!roleAllowed) return false;
-
-    if (isProviderOwner) return true;
-
-    const isEnabled = moduleAccess?.[item.moduleCode];
-    return isEnabled ?? true;
-  });
+  const availableMenuItems = menuItems
+    .filter((item) => item.roles.includes((userRole ?? "profesor") as MenuRole))
+    .map((item) => {
+      let isLocked = false;
+      if (!isProviderOwner && moduleAccess && item.moduleCode !== "dashboard") {
+        isLocked = moduleAccess[item.moduleCode] === false;
+      }
+      return { ...item, isLocked };
+    });
 
   const roleConfig = {
     rector: {
@@ -164,7 +163,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMenuItems.map((item) => {
+              {availableMenuItems.map((item) => {
                 const isActive = location.pathname === item.url;
 
                 return (
@@ -176,7 +175,9 @@ export function AppSidebar() {
                           "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200",
                           isActive
                             ? cn("font-semibold text-white shadow-sm", role.gradientClass)
-                            : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                            : item.isLocked
+                              ? "text-muted-foreground/50 hover:bg-secondary/50 cursor-pointer"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                         )}
                       >
                         {!isActive && (
@@ -185,8 +186,11 @@ export function AppSidebar() {
                             style={{ background: role.activeColor }}
                           />
                         )}
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
-                        <span className="font-medium">{item.title}</span>
+                        <item.icon className={cn("h-5 w-5 flex-shrink-0", item.isLocked && "opacity-50")} />
+                        <span className={cn("font-medium flex-1", item.isLocked && "opacity-60")}>{item.title}</span>
+                        {item.isLocked && (
+                          <Lock className="h-3.5 w-3.5 opacity-40 flex-shrink-0" />
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

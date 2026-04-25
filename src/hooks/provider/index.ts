@@ -19,6 +19,7 @@ export {
   useProviderSetPlanModuleAccess,
   useProviderSetSupportContext,
   useProviderSubscriptionPlans,
+  useProviderUpsertPlan,
   useProviderSupportContext,
   useProviderUpdateInstitution,
   useProviderUpsertCustomerAccount,

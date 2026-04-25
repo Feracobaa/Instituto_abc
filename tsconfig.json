@@ -14,5 +14,5 @@
     "strictNullChecks": false,
     "types": ["vite/client", "node"]
   },
-  "exclude": ["**/*.css", "node_modules", "dist"]
+  "exclude": ["**/*.css", "node_modules", "dist", "supabase/functions"]
 }
