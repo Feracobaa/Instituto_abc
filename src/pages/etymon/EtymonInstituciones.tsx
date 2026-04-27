@@ -14,6 +14,7 @@ import {
   useProviderUpsertCustomerAccount,
   useProviderUpsertInstitutionSettings,
   useProviderUpsertInstitutionSubscription,
+  useEtymonCreateUser,
 } from "@/hooks/provider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -45,6 +46,7 @@ export default function EtymonInstituciones() {
   const upsertSubscriptionMutation = useProviderUpsertInstitutionSubscription();
   const upsertCustomerAccountMutation = useProviderUpsertCustomerAccount();
   const assignUserRoleMutation = useProviderAssignUserRoleByEmail();
+  const createUserMutation = useEtymonCreateUser();
 
   const [createForm, setCreateForm] = useState(defaultCreateForm());
   const [selectedInstitutionId, setSelectedInstitutionId] = useState<string>("");
@@ -65,6 +67,7 @@ export default function EtymonInstituciones() {
     email: "",
     fullName: "",
     role: "rector" as (typeof institutionRoles)[number],
+    temporaryPassword: "",
   });
 
   useEffect(() => {
@@ -177,26 +180,46 @@ export default function EtymonInstituciones() {
     });
   };
 
-  const handleAssignUserRole = async () => {
-    if (!selectedSummary || !accessForm.email.trim()) {
-      toast({
-        title: "Email requerido",
-        description: "Ingresa el correo del usuario para asignar su rol.",
-        variant: "destructive",
-      });
+  const handleProcessUserAccess = async () => {
+    if (!selectedSummary) return;
+    if (!accessForm.email.trim()) {
+      toast({ title: "Email requerido", description: "Ingresa el correo del usuario.", variant: "destructive" });
       return;
     }
 
-    await assignUserRoleMutation.mutateAsync({
-      email: accessForm.email.trim().toLowerCase(),
-      fullName: accessForm.fullName.trim() || undefined,
-      institutionId: selectedSummary.institution.id,
-      makeDefault: true,
-      role: accessForm.role,
-    });
-
-    setAccessForm((current) => ({ ...current, email: "", fullName: "" }));
+    try {
+      await createUserMutation.mutateAsync({
+        email: accessForm.email.trim().toLowerCase(),
+        full_name: accessForm.fullName.trim() || "Usuario " + accessForm.role,
+        institution_id: selectedSummary.institution.id,
+        role: accessForm.role as "rector" | "profesor" | "contable",
+        temporary_password: accessForm.temporaryPassword.trim() || undefined,
+      });
+      setAccessForm((current) => ({ ...current, email: "", fullName: "", temporaryPassword: "" }));
+    } catch (err) {
+      const msg = (err as Error).message?.toLowerCase() ?? "";
+      // Si el usuario ya existe, lo vinculamos automáticamente a la institución
+      if (msg.includes("already exists") || msg.includes("already registered")) {
+        try {
+          await assignUserRoleMutation.mutateAsync({
+            email: accessForm.email.trim().toLowerCase(),
+            fullName: accessForm.fullName.trim() || undefined,
+            institutionId: selectedSummary.institution.id,
+            makeDefault: true,
+            role: accessForm.role,
+          });
+          toast({
+            title: "Usuario vinculado",
+            description: "El usuario ya existia y fue asignado exitosamente a la institucion.",
+          });
+          setAccessForm((current) => ({ ...current, email: "", fullName: "", temporaryPassword: "" }));
+        } catch (assignErr) {
+          // onError de la mutación ya muestra el toast
+        }
+      }
+    }
   };
+
 
   return (
     <ProviderLayout title="Instituciones" subtitle="Onboarding, branding y operacion comercial por tenant">
@@ -494,10 +517,11 @@ export default function EtymonInstituciones() {
 
                   <div className="etymon-surface-soft p-4">
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Acceso Usuarios</h4>
-                    <p className="mb-3 text-xs text-slate-500">
-                      Crea el usuario en Authentication y luego asigna su rol institucional desde aqui.
-                    </p>
+
                     <div className="space-y-3">
+                      <p className="mb-2 text-xs text-slate-500">
+                        Ingresa el email. Si no existe, se creara automaticamente. Si ya existe, se le asignara el rol en esta institucion de inmediato.
+                      </p>
                       <ProviderFloatingInput
                         type="email"
                         label="Email usuario"
@@ -509,6 +533,14 @@ export default function EtymonInstituciones() {
                         value={accessForm.fullName}
                         onChange={(event) => setAccessForm((current) => ({ ...current, fullName: event.target.value }))}
                       />
+
+                      <ProviderFloatingInput
+                        label="Contraseña temporal (opcional)"
+                        type="password"
+                        value={accessForm.temporaryPassword}
+                        onChange={(event) => setAccessForm((current) => ({ ...current, temporaryPassword: event.target.value }))}
+                      />
+
                       <div>
                         <p className="mb-1 text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Rol institucional</p>
                         <Select
@@ -519,14 +551,19 @@ export default function EtymonInstituciones() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="border-[#2d2d2d] bg-[#161616] text-slate-100">
-                            {institutionRoles.map((role) => (
+                            {institutionRoles.filter((r) => r !== "parent").map((role) => (
                               <SelectItem key={role} value={role}>{role}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="etymon-btn-primary w-full" onClick={handleAssignUserRole} disabled={assignUserRoleMutation.isPending}>
-                        Asignar usuario a institucion
+
+                      <Button
+                        className="etymon-btn-primary w-full"
+                        onClick={handleProcessUserAccess}
+                        disabled={createUserMutation.isPending || assignUserRoleMutation.isPending}
+                      >
+                        {createUserMutation.isPending || assignUserRoleMutation.isPending ? "Procesando..." : "Otorgar acceso a institucion"}
                       </Button>
                     </div>
                   </div>

@@ -209,7 +209,7 @@ export function TuitionStatusSection({ selectedMonth, isContable, openDeleteDial
               emptyMessage="No hay registros para este mes."
               emptyIcon={ClipboardList}
                 filterOptions={[
-                  { value: "pending", label: "Pendientes" },
+                  { value: "unpaid", label: "Pendientes" },
                   { value: "partial", label: "Parciales" },
                   { value: "paid", label: "Al día" },
                 ]}

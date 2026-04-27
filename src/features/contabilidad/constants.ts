@@ -1,6 +1,6 @@
 import type { FinancialTransaction, TuitionProfile } from "@/hooks/school/types";
 
-export const DEFAULT_TUITION_VALUE = 120000;
+export const DEFAULT_TUITION_VALUE = 0;
 export const SCHOOL_MONTH_START = 2;
 export const SCHOOL_MONTH_END = 11;
 

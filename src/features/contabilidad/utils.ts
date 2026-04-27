@@ -47,7 +47,7 @@ export const parseMoneyInput = (value: string) => {
 };
 
 export const normalizeLegacyAmount = (value: number) =>
-  value > 0 && value < 1000 ? value * 1000 : value;
+  value > 0 && value < 200 ? value * 1000 : value;
 
 export const isSchoolMonthInput = (value: string) => {
   const month = Number(value.split("-")[1]);

@@ -778,12 +778,15 @@ export function useEtymonCreateUser() {
         body: payload,
       });
 
+      // When the Edge Function returns a 4xx/5xx, supabase-js puts the
+      // parsed JSON body in `data` and a generic message in `error`.
+      // We must check data.error first to get the real server message.
+      if (data?.error) {
+        throw new Error(data.error as string);
+      }
+
       if (error) {
-        // supabase.functions.invoke wraps HTTP errors — extract message
-        const message = (error as { context?: { json?: { error?: string } } }).context?.json?.error
-          ?? error.message
-          ?? "Unknown error invoking edge function.";
-        throw new Error(message);
+        throw new Error(error.message ?? "Error desconocido al invocar la funcion.");
       }
 
       return data as EtymonCreateUserResult;
