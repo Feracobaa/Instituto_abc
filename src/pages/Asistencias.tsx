@@ -3,6 +3,7 @@ import {
   AlertCircle,
   BookOpen,
   CalendarDays,
+  CheckCheck,
   CheckCircle2,
   ClipboardCheck,
   GraduationCap,
@@ -334,6 +335,19 @@ const Asistencias = () => {
     return STATUS_META[status].badgeClass;
   };
 
+  const markAllPresent = () => {
+    setDraftMap((previous) => {
+      const next = { ...previous };
+      students.forEach((student) => {
+        next[student.id] = {
+          justification_note: "",
+          status: "present",
+        };
+      });
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     if (!selectedContext) {
       toast({
@@ -564,22 +578,34 @@ const Asistencias = () => {
                   </Badge>
                 </div>
               </div>
-              <Button
-                onClick={handleSave}
-                disabled={
-                  saveAttendance.isPending
-                  || !canEditDate
-                  || !selectedContext.is_scheduled_for_selected_date
-                }
-                className={cn("gap-2", isMobile && "w-full")}
-              >
-                {saveAttendance.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Guardar asistencia
-              </Button>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={markAllPresent}
+                  disabled={!canEditDate || saveAttendance.isPending}
+                  className="gap-2"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Todos presentes
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={
+                    saveAttendance.isPending
+                    || !canEditDate
+                    || !selectedContext.is_scheduled_for_selected_date
+                  }
+                  className="gap-2"
+                >
+                  {saveAttendance.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Guardar asistencia
+                </Button>
+              </div>
             </div>
 
             {isMobile ? (
@@ -654,8 +680,6 @@ const Asistencias = () => {
                         status: "" as AttendanceStatus | "",
                       };
 
-                      const statusSelectValue = draft.status || EMPTY_STATUS_VALUE;
-
                       return (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">
@@ -667,30 +691,27 @@ const Asistencias = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={statusSelectValue}
-                              onValueChange={(nextValue) => {
-                                if (nextValue === EMPTY_STATUS_VALUE) {
-                                  setDraftStatus(student.id, "");
-                                  return;
-                                }
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {STATUS_OPTIONS.map((option) => {
+                                const isActive = draft.status === option.value;
+                                const Icon = STATUS_META[option.value].icon;
 
-                                setDraftStatus(student.id, nextValue as AttendanceStatus);
-                              }}
-                              disabled={!canEditDate || saveAttendance.isPending}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar estado" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={EMPTY_STATUS_VALUE}>Seleccionar estado</SelectItem>
-                                {STATUS_OPTIONS.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
+                                return (
+                                  <Button
+                                    key={`${student.id}-${option.value}`}
+                                    type="button"
+                                    size="sm"
+                                    variant={isActive ? "default" : "outline"}
+                                    className={cn("h-8 px-2 text-xs", isActive && STATUS_META[option.value].buttonClass)}
+                                    onClick={() => setDraftStatus(student.id, option.value)}
+                                    disabled={!canEditDate || saveAttendance.isPending}
+                                  >
+                                    <Icon className="mr-1 h-3.5 w-3.5" />
                                     {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                  </Button>
+                                );
+                              })}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Input
