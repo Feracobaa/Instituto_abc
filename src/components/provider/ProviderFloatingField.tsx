@@ -23,15 +23,15 @@ export function ProviderFloatingInput({ className, hint, id, label, ...props }: 
           id={inputId}
           placeholder=" "
           className={cn(
-            "peer etymon-input h-12 rounded-lg border-[#2d2d2d] bg-[#151515] px-3 pb-2 pt-5 text-slate-100",
-            "placeholder:text-transparent focus:border-[#00e7a7] focus-visible:ring-2 focus-visible:ring-[#00e7a7]/40 focus-visible:ring-offset-0",
+            "peer etymon-input etymon-floating-input h-12 rounded-lg px-3 pb-2 pt-5",
+            "placeholder:text-transparent focus:border-[var(--et-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--et-accent-soft)] focus-visible:ring-offset-0",
             className,
           )}
           {...props}
         />
         <label
           htmlFor={inputId}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 bg-[#151515] px-1 text-sm text-slate-500 transition-all duration-200 peer-focus:top-0 peer-focus:text-xs peer-focus:text-[#8af7d6] peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-slate-400"
+          className="etymon-floating-label pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 px-1 text-sm transition-all duration-200 peer-focus:top-0 peer-focus:text-xs peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs"
         >
           {label}
         </label>
@@ -51,15 +51,15 @@ export function ProviderFloatingTextarea({ className, hint, id, label, ...props 
           id={textareaId}
           placeholder=" "
           className={cn(
-            "peer etymon-input min-h-[110px] rounded-lg border-[#2d2d2d] bg-[#151515] px-3 pb-2 pt-6 text-slate-100",
-            "placeholder:text-transparent focus:border-[#00e7a7] focus-visible:ring-2 focus-visible:ring-[#00e7a7]/40 focus-visible:ring-offset-0",
+            "peer etymon-input etymon-floating-input min-h-[110px] rounded-lg px-3 pb-2 pt-6",
+            "placeholder:text-transparent focus:border-[var(--et-accent)] focus-visible:ring-2 focus-visible:ring-[color:var(--et-accent-soft)] focus-visible:ring-offset-0",
             className,
           )}
           {...props}
         />
         <label
           htmlFor={textareaId}
-          className="pointer-events-none absolute left-3 top-5 -translate-y-1/2 bg-[#151515] px-1 text-sm text-slate-500 transition-all duration-200 peer-focus:top-0 peer-focus:text-xs peer-focus:text-[#8af7d6] peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-slate-400"
+          className="etymon-floating-label pointer-events-none absolute left-3 top-5 -translate-y-1/2 px-1 text-sm transition-all duration-200 peer-focus:top-0 peer-focus:text-xs peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs"
         >
           {label}
         </label>

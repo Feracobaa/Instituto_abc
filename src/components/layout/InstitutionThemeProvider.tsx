@@ -15,6 +15,10 @@ export function InstitutionThemeProvider({ children }: { children: React.ReactNo
 
   useEffect(() => {
     const color = settings?.primary_color;
+    const accent = settings?.accent_color;
+    const secondary = settings?.secondary_color;
+    const fontFamily = settings?.font_family;
+
     if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) {
       return;
     }
@@ -31,6 +35,28 @@ export function InstitutionThemeProvider({ children }: { children: React.ReactNo
     root.style.setProperty("--sidebar-primary-foreground", fg);
     root.style.setProperty("--sidebar-ring", hsl);
 
+    if (accent && /^#[0-9a-fA-F]{6}$/.test(accent)) {
+      root.style.setProperty("--accent", hexToHSL(accent));
+      root.style.setProperty("--success", hexToHSL(accent));
+    }
+
+    if (secondary && /^#[0-9a-fA-F]{6}$/.test(secondary)) {
+      root.style.setProperty("--secondary", hexToHSL(secondary));
+    }
+
+    if (fontFamily) {
+      const fontMap: Record<string, string> = {
+        "academic-sans": "'Inter', 'Nunito', sans-serif",
+        "classic-serif": "'Lora', 'Merriweather', serif",
+        "friendly-rounded": "'Nunito', 'Inter', sans-serif",
+        "modern-sans": "'Inter', 'Nunito', sans-serif",
+      };
+      const resolvedFont = fontMap[fontFamily];
+      if (resolvedFont) {
+        root.style.setProperty("--institution-font-family", resolvedFont);
+      }
+    }
+
     return () => {
       // Clean up when unmounted (e.g. logout) so that the CSS file defaults
       // are restored on the next page load.
@@ -40,8 +66,12 @@ export function InstitutionThemeProvider({ children }: { children: React.ReactNo
       root.style.removeProperty("--sidebar-primary");
       root.style.removeProperty("--sidebar-primary-foreground");
       root.style.removeProperty("--sidebar-ring");
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--success");
+      root.style.removeProperty("--secondary");
+      root.style.removeProperty("--institution-font-family");
     };
-  }, [settings?.primary_color]);
+  }, [settings?.accent_color, settings?.font_family, settings?.primary_color, settings?.secondary_color]);
 
   return <>{children}</>;
 }

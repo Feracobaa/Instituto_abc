@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap');
 
 /* stylelint-disable at-rule-no-unknown */
 @tailwind base;
@@ -153,7 +153,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', 'Nunito', sans-serif;
+    font-family: var(--institution-font-family, 'Inter', 'Nunito', sans-serif);
   }
 
   h1,
@@ -162,7 +162,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Nunito', 'Inter', sans-serif;
+    font-family: var(--institution-font-family, 'Nunito', 'Inter', sans-serif);
     font-weight: 700;
   }
 }
@@ -255,66 +255,122 @@
   }
 
   .etymon-shell {
-    background:
-      radial-gradient(circle at 16% 8%, rgb(34 211 238 / 0.08), transparent 34%),
-      radial-gradient(circle at 84% 10%, rgb(0 231 167 / 0.08), transparent 30%),
-      #121212;
-    color: #e5e7eb;
-    font-family: 'Inter', 'Geist', 'Segoe UI', sans-serif;
-  }
-
-  .etymon-surface {
-    border: 1px solid #2d2d2d;
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgb(33 33 33 / 0.94), rgb(26 26 26 / 0.94));
-    box-shadow:
+    --et-accent: #00e7a7;
+    --et-accent-soft: rgb(0 231 167 / 0.35);
+    --et-bg: #121212;
+    --et-text: #e5e7eb;
+    --et-text-muted: #64748b;
+    --et-text-subtle: #94a3b8;
+    --et-border: #2d2d2d;
+    --et-surface: linear-gradient(180deg, rgb(33 33 33 / 0.94), rgb(26 26 26 / 0.94));
+    --et-surface-soft: rgb(30 30 30 / 0.75);
+    --et-input-bg: #151515;
+    --et-chip-bg: #1a1a1a;
+    --et-header-bg: rgb(18 18 18 / 0.95);
+    --et-panel-bg: #141414;
+    --et-shadow-elevated:
       inset 0 1px 0 rgb(255 255 255 / 0.03),
       inset 0 -10px 40px rgb(0 0 0 / 0.25),
       0 8px 26px rgb(0 0 0 / 0.35);
+    --et-primary-gradient: linear-gradient(135deg, #00e7a7, #14d4c7);
+    --et-primary-text: #042019;
+    --et-nav-active-bg: rgb(255 255 255 / 0.04);
+    --et-nav-idle-text: rgb(255 255 255 / 0.7);
+    --et-nav-idle-hover: rgb(255 255 255 / 0.03);
+    --et-nav-title: rgb(255 255 255 / 0.45);
+    --et-shell-bg:
+      radial-gradient(circle at 16% 8%, rgb(34 211 238 / 0.08), transparent 34%),
+      radial-gradient(circle at 84% 10%, rgb(0 231 167 / 0.08), transparent 30%),
+      var(--et-bg);
+
+    background: var(--et-shell-bg);
+    color: var(--et-text);
+    font-family: 'Inter', 'Geist', 'Segoe UI', sans-serif;
+  }
+
+  .etymon-shell.etymon-theme-light {
+    --et-accent: #0ea5e9;
+    --et-accent-soft: rgb(14 165 233 / 0.22);
+    --et-bg: #f4f7fb;
+    --et-text: #0f172a;
+    --et-text-muted: #475569;
+    --et-text-subtle: #64748b;
+    --et-border: #dbe3ef;
+    --et-surface: linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(248 251 255 / 0.98));
+    --et-surface-soft: rgb(246 249 255 / 0.94);
+    --et-input-bg: #ffffff;
+    --et-chip-bg: #eef4ff;
+    --et-header-bg: rgb(244 247 251 / 0.92);
+    --et-panel-bg: #f0f4fb;
+    --et-shadow-elevated:
+      inset 0 1px 0 rgb(255 255 255 / 0.85),
+      0 12px 34px rgb(15 23 42 / 0.08);
+    --et-primary-gradient: linear-gradient(135deg, #0ea5e9, #14b8a6);
+    --et-primary-text: #f8fafc;
+    --et-nav-active-bg: rgb(14 165 233 / 0.12);
+    --et-nav-idle-text: #334155;
+    --et-nav-idle-hover: rgb(148 163 184 / 0.12);
+    --et-nav-title: #64748b;
+    --et-shell-bg:
+      radial-gradient(circle at 16% 8%, rgb(14 165 233 / 0.12), transparent 34%),
+      radial-gradient(circle at 84% 10%, rgb(20 184 166 / 0.12), transparent 30%),
+      var(--et-bg);
+    color-scheme: light;
+  }
+
+  .etymon-shell.etymon-theme-dark {
+    color-scheme: dark;
+  }
+
+  .etymon-surface {
+    border: 1px solid var(--et-border);
+    border-radius: 12px;
+    background: var(--et-surface);
+    box-shadow: var(--et-shadow-elevated);
   }
 
   .etymon-surface-soft {
-    border: 1px solid #2d2d2d;
+    border: 1px solid var(--et-border);
     border-radius: 12px;
-    background: rgb(30 30 30 / 0.75);
+    background: var(--et-surface-soft);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
   }
 
   .etymon-btn-primary {
-    border-radius: 8px;
-    border: 1px solid rgb(0 231 167 / 0.48);
-    background: linear-gradient(135deg, #00e7a7, #14d4c7);
-    color: #042019;
-    font-weight: 600;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--et-accent) 55%, transparent);
+    background: var(--et-primary-gradient);
+    color: var(--et-primary-text);
+    font-weight: 650;
     transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   }
 
   .etymon-btn-primary:hover {
-    filter: brightness(1.03);
+    filter: brightness(1.04);
     transform: translateY(-1px);
-    box-shadow: 0 12px 20px rgb(0 231 167 / 0.22);
+    box-shadow: 0 12px 20px color-mix(in srgb, var(--et-accent) 28%, transparent);
   }
 
   .etymon-btn-outline {
-    border-radius: 8px;
-    border: 1px solid #2d2d2d;
-    background: #171717;
-    color: #cbd5e1;
+    border-radius: 10px;
+    border: 1px solid var(--et-border);
+    background: var(--et-chip-bg);
+    color: var(--et-text-subtle);
     transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
   }
 
   .etymon-btn-outline:hover {
-    border-color: rgb(34 211 238 / 0.42);
-    background: #1d1d1d;
-    color: #e2e8f0;
+    border-color: color-mix(in srgb, var(--et-accent) 38%, var(--et-border));
+    background: color-mix(in srgb, var(--et-chip-bg) 78%, var(--et-accent) 22%);
+    color: var(--et-text);
   }
 
   .etymon-btn-ghost {
-    border-radius: 8px;
-    border: 1px solid #2d2d2d;
+    border-radius: 10px;
+    border: 1px solid var(--et-border);
     background: transparent;
-    color: #cbd5e1;
+    color: var(--et-text-subtle);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -325,21 +381,54 @@
   }
 
   .etymon-btn-ghost:hover {
-    border-color: #3a3a3a;
-    background: #1a1a1a;
-    color: #f1f5f9;
+    border-color: color-mix(in srgb, var(--et-border) 62%, var(--et-accent) 38%);
+    background: color-mix(in srgb, var(--et-chip-bg) 80%, transparent);
+    color: var(--et-text);
   }
 
   .etymon-input {
-    border-radius: 8px;
-    border-color: #2d2d2d;
-    background: #151515;
+    border-radius: 10px;
+    border-color: var(--et-border) !important;
+    background: var(--et-input-bg) !important;
+    color: var(--et-text) !important;
+  }
+
+  .etymon-floating-input {
+    color: var(--et-text) !important;
+  }
+
+  .etymon-floating-label {
+    background: var(--et-input-bg);
+    color: var(--et-text-muted);
+  }
+
+  .etymon-floating-input:focus + .etymon-floating-label,
+  .etymon-floating-input:not(:placeholder-shown) + .etymon-floating-label {
+    color: var(--et-text-subtle);
+  }
+
+  .etymon-floating-input:focus + .etymon-floating-label {
+    color: var(--et-accent);
   }
 
   .etymon-empty-state {
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.03),
       inset 0 -18px 40px rgb(0 0 0 / 0.28);
+  }
+
+  .etymon-theme-light .text-slate-100,
+  .etymon-theme-light .text-slate-200 {
+    color: #0f172a !important;
+  }
+
+  .etymon-theme-light .text-slate-300,
+  .etymon-theme-light .text-slate-400 {
+    color: #334155 !important;
+  }
+
+  .etymon-theme-light .text-slate-500 {
+    color: #64748b !important;
   }
 }
 

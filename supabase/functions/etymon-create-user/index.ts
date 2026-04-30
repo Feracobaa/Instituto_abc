@@ -1,17 +1,17 @@
-// etymon-create-user — Supabase Edge Function
-// Paste this entire file in the Supabase Dashboard → Edge Functions → Create function
+// etymon-create-user - Supabase Edge Function
+// Paste this entire file in the Supabase Dashboard -> Edge Functions -> Create function
 // No external files needed. Everything is self-contained.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// ── CORS ─────────────────────────────────────────────────────────────────────
+// CORS
 const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Origin": "*",
 };
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// Types
 interface CreateUserPayload {
   email: string;
   full_name: string;
@@ -29,7 +29,7 @@ interface CreateUserResponse {
   institution_id: string;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 function generatePassword(): string {
   const adj = ["Coral","Amber","Storm","Swift","Lunar","Solar","Cedar","Delta"];
   const noun = ["Eagle","River","Flame","Stone","Atlas","Titan","Blaze","Arrow"];
@@ -66,7 +66,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
+// Handler
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -157,3 +157,4 @@ Deno.serve(async (req: Request) => {
 
   return json(response, 201);
 });
+

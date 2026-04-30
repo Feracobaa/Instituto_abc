@@ -29,10 +29,15 @@ export default function Auth() {
   const [loginData, setLoginData] = useState({ identifier: "", password: "" });
   
   const [branding, setBranding] = useState<{
+    accent_color?: string;
+    cover_image_url?: string;
     name?: string;
     display_name?: string;
+    font_family?: string;
     logo_url?: string;
     primary_color?: string;
+    secondary_color?: string;
+    visual_style?: string;
     isLoaded: boolean;
   }>({ isLoaded: false });
 
@@ -46,7 +51,20 @@ export default function Auth() {
       // Se obtiene el branding de manera tipada 
       const { data, error } = await supabase.rpc("get_public_institution_branding", { p_slug: slug });
       if (!error && data && typeof data === 'object' && Object.keys(data).length > 0) {
-        setBranding({ ...(data as { name?: string; display_name?: string; logo_url?: string; primary_color?: string }), isLoaded: true });
+        setBranding({
+          ...(data as {
+            accent_color?: string;
+            cover_image_url?: string;
+            name?: string;
+            display_name?: string;
+            font_family?: string;
+            logo_url?: string;
+            primary_color?: string;
+            secondary_color?: string;
+            visual_style?: string;
+          }),
+          isLoaded: true,
+        });
       } else {
         setBranding({ isLoaded: true });
       }
@@ -102,6 +120,7 @@ export default function Auth() {
   const isEtymon = !slug || (!branding.display_name && !branding.name);
   const displayName = branding.display_name || branding.name || "Etymon SaaS";
   const primaryColor = branding.primary_color || "#00e7a7";
+  const accentColor = branding.accent_color || "#14d4c7";
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505]">
@@ -199,7 +218,11 @@ export default function Auth() {
               <Button
                 type="submit"
                 className="mt-2 h-12 w-full font-bold text-black transition-transform active:scale-[0.98]"
-                style={{ backgroundColor: isEtymon ? "#00e7a7" : primaryColor }}
+                style={{
+                  background: isEtymon
+                    ? "linear-gradient(135deg, #00e7a7, #14d4c7)"
+                    : `linear-gradient(135deg, ${primaryColor}, ${accentColor})`,
+                }}
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Iniciar Sesión"}

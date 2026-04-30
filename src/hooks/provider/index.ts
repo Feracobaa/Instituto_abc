@@ -1,6 +1,6 @@
 export {
   useEtymonCreateUser,
-  useEtymonDeleteInstitution,
+  useEtymonSetInstitutionActive,
   useEtymonInstitutionUsers,
   useEtymonRemoveUserMembership,
   useProviderAuditLogs,

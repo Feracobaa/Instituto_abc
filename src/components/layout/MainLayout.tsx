@@ -46,7 +46,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const guardianAccountQuery = useGuardianAccount(userRole === "parent");
 
   const activePeriod = periods?.find((period) => period.is_active);
-  const pageTitle = pageTitles[location.pathname] ?? "Instituto ABC";
+  const pageTitle = pageTitles[location.pathname] ?? "ETYMON";
   const needsGuardianOnboarding = Boolean(
     userRole === "parent"
     && guardianAccountQuery.data
@@ -55,6 +55,10 @@ export function MainLayout({ children }: MainLayoutProps) {
       || !guardianAccountQuery.data.onboarding_completed_at
     ),
   );
+
+  useEffect(() => {
+    document.title = location.pathname === "/" ? "ETYMON" : `${pageTitle} | ETYMON`;
+  }, [location.pathname, pageTitle]);
 
   useEffect(() => {
     if (!loading && !user) {

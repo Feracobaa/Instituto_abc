@@ -387,31 +387,46 @@ export type Database = {
       }
       institution_settings: {
         Row: {
+          accent_color: string | null
+          cover_image_url: string | null
           created_at: string
           display_name: string | null
+          font_family: string | null
           id: string
           institution_id: string
           logo_url: string | null
           primary_color: string | null
+          secondary_color: string | null
           updated_at: string
+          visual_style: string | null
         }
         Insert: {
+          accent_color?: string | null
+          cover_image_url?: string | null
           created_at?: string
           display_name?: string | null
+          font_family?: string | null
           id?: string
           institution_id: string
           logo_url?: string | null
           primary_color?: string | null
+          secondary_color?: string | null
           updated_at?: string
+          visual_style?: string | null
         }
         Update: {
+          accent_color?: string | null
+          cover_image_url?: string | null
           created_at?: string
           display_name?: string | null
+          font_family?: string | null
           id?: string
           institution_id?: string
           logo_url?: string | null
           primary_color?: string | null
+          secondary_color?: string | null
           updated_at?: string
+          visual_style?: string | null
         }
         Relationships: [
           {
@@ -2002,6 +2017,16 @@ export type Database = {
           plan_name: string | null
         }[]
       }
+      provider_get_role_permissions_matrix: {
+        Args: never
+        Returns: {
+          access_level: string
+          module_code: string
+          module_id: string
+          module_name: string
+          role: string
+        }[]
+      }
       provider_set_plan_module_access: {
         Args: {
           p_is_enabled: boolean
@@ -2027,6 +2052,22 @@ export type Database = {
           p_reason?: string
         }
         Returns: boolean
+      }
+      provider_set_role_permission: {
+        Args: {
+          p_access_level: string
+          p_module_code: string
+          p_role: string
+        }
+        Returns: boolean
+      }
+      provider_set_institution_active: {
+        Args: {
+          p_institution_id: string
+          p_is_active: boolean
+          p_reason: string
+        }
+        Returns: Database["public"]["Tables"]["institutions"]["Row"]
       }
       provider_link_rector_by_email: {
         Args: {

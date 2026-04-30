@@ -34,16 +34,22 @@ export interface ProviderInstitutionSummary {
 }
 
 export interface ProviderCreateInstitutionPayload {
+  accentColor?: string;
   billingStatus?: string;
+  coverImageUrl?: string;
   contractStartDate?: string;
   displayName?: string;
+  fontFamily?: "modern-sans" | "academic-sans" | "friendly-rounded" | "classic-serif";
   name: string;
   notes?: string;
   periodEnd?: string;
   periodStart?: string;
   planId?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
   slug: string;
   subscriptionStatus?: string;
+  visualStyle?: "clean" | "bold" | "minimal";
 }
 
 export interface ProviderSubscriptionPayload {
@@ -351,6 +357,38 @@ export function useProviderCreateInstitution() {
         p_subscription_status: payload.subscriptionStatus ?? "trialing",
       });
       if (error) throw error;
+
+      const institutionId = data as string;
+      const hasExtendedBranding =
+        Boolean(payload.primaryColor)
+        || Boolean(payload.secondaryColor)
+        || Boolean(payload.accentColor)
+        || Boolean(payload.coverImageUrl)
+        || Boolean(payload.fontFamily)
+        || Boolean(payload.visualStyle);
+
+      if (institutionId && hasExtendedBranding) {
+        const { error: brandingError } = await supabase
+          .from("institution_settings")
+          .upsert(
+            {
+              accent_color: payload.accentColor ?? null,
+              cover_image_url: payload.coverImageUrl ?? null,
+              display_name: payload.displayName ?? payload.name,
+              font_family: payload.fontFamily ?? null,
+              institution_id: institutionId,
+              primary_color: payload.primaryColor ?? null,
+              secondary_color: payload.secondaryColor ?? null,
+              visual_style: payload.visualStyle ?? null,
+            },
+            { onConflict: "institution_id" },
+          );
+
+        if (brandingError) {
+          throw brandingError;
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -402,7 +440,21 @@ export function useProviderUpsertInstitutionSettings() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (payload: Pick<InstitutionSettings, "institution_id"> & Partial<Pick<InstitutionSettings, "display_name" | "logo_url" | "primary_color">>) => {
+    mutationFn: async (
+      payload: Pick<InstitutionSettings, "institution_id"> & Partial<
+        Pick<
+          InstitutionSettings,
+          | "accent_color"
+          | "cover_image_url"
+          | "display_name"
+          | "font_family"
+          | "logo_url"
+          | "primary_color"
+          | "secondary_color"
+          | "visual_style"
+        >
+      >,
+    ) => {
       const { data, error } = await supabase
         .from("institution_settings")
         .upsert(payload, { onConflict: "institution_id" })
@@ -913,32 +965,41 @@ export function useEtymonRemoveUserMembership() {
   });
 }
 
-/** Hard-deletes an institution and all its data. Use with extreme caution. */
-export function useEtymonDeleteInstitution() {
+/** Soft-deletes (archives) or reactivates an institution with mandatory reason. */
+export function useEtymonSetInstitutionActive() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ institutionId }: { institutionId: string }) => {
-      // Cascade is handled by the DB foreign keys.
-      // We delete the root record; Supabase RLS for this table only allows provider_owner.
-      const { error } = await supabase
-        .from("institutions")
-        .delete()
-        .eq("id", institutionId);
+    mutationFn: async ({
+      institutionId,
+      isActive,
+      reason,
+    }: {
+      institutionId: string;
+      isActive: boolean;
+      reason: string;
+    }) => {
+      const { error } = await supabase.rpc("provider_set_institution_active", {
+        p_institution_id: institutionId,
+        p_is_active: isActive,
+        p_reason: reason,
+      });
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       invalidateProviderQueries(queryClient);
       toast({
-        title: "Institución eliminada",
-        description: "La institución y todos sus datos fueron eliminados permanentemente.",
+        title: variables.isActive ? "Institucion reactivada" : "Institucion archivada",
+        description: variables.isActive
+          ? "La institucion vuelve a estar operativa."
+          : "La institucion quedo archivada sin eliminar su historial.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Error al eliminar institución",
+        title: "Error al actualizar estado de institucion",
         description: getFriendlyErrorMessage(error),
         variant: "destructive",
       });
@@ -962,9 +1023,9 @@ export function useProviderRolePermissions() {
   return useQuery({
     queryKey: schoolQueryKeys.provider.rolePermissions,
     queryFn: async (): Promise<ProviderRolePermission[]> => {
-      const { data, error } = await (supabase as any).rpc("provider_get_role_permissions_matrix");
+      const { data, error } = await supabase.rpc("provider_get_role_permissions_matrix");
       if (error) throw error;
-      return (data ?? []) as unknown as ProviderRolePermission[];
+      return (data ?? []) as ProviderRolePermission[];
     },
   });
 }
@@ -983,7 +1044,7 @@ export function useProviderSetRolePermission() {
       moduleCode: string;
       accessLevel: "full" | "readonly" | "none";
     }) => {
-      const { error } = await (supabase as any).rpc("provider_set_role_permission", {
+      const { error } = await supabase.rpc("provider_set_role_permission", {
         p_role: role,
         p_module_code: moduleCode,
         p_access_level: accessLevel,
@@ -1004,4 +1065,5 @@ export function useProviderSetRolePermission() {
     },
   });
 }
+
 
