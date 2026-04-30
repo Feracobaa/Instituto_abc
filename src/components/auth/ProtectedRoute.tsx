@@ -46,10 +46,10 @@ export function ProtectedRoute({ children, allowedRoles, requiredModule }: Prote
     return <Navigate to="/auth" replace />;
   }
 
-  // Role not allowed for this route
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
-  }
+  // Role not allowed for this route (deprecated: handled by dynamic moduleAccess now)
+  // if (allowedRoles && !allowedRoles.includes(userRole)) {
+  //   return <Navigate to="/" replace />;
+  // }
 
   // Module disabled for this institution
   if (requiredModule) {

@@ -134,9 +134,9 @@ export function TeacherFormDialog({
 
     try {
       if (teacher) {
-        await updateTeacher.mutateAsync({ id: teacher.id, ...validation.data });
+        await updateTeacher.mutateAsync({ id: teacher.id, ...(validation.data as any) });
       } else {
-        await createTeacher.mutateAsync(validation.data);
+        await createTeacher.mutateAsync(validation.data as any);
       }
 
       setErrors({});

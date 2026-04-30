@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { CalendarRange, Loader2, Lock, ShieldAlert } from "lucide-react";
+import { CalendarRange, Loader2, Lock, Plus, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AcademicPeriod } from "@/hooks/useSchoolData";
-import { useSetAcademicPeriodState } from "@/hooks/useSchoolData";
+import { useSetAcademicPeriodState, useCreateAcademicPeriods } from "@/hooks/useSchoolData";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 interface AcademicPeriodsManagerProps {
@@ -19,6 +20,8 @@ function formatDate(date: string) {
 
 export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps) {
   const setAcademicPeriodState = useSetAcademicPeriodState();
+  const createAcademicPeriods = useCreateAcademicPeriods();
+  const { userRole } = useAuth();
   const [workingPeriodId, setWorkingPeriodId] = useState<string | null>(null);
 
   const sortedPeriods = useMemo(
@@ -29,6 +32,7 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
   const activePeriods = sortedPeriods.filter((period) => period.is_active);
   const hasNoActivePeriod = activePeriods.length === 0;
   const hasMultipleActivePeriods = activePeriods.length > 1;
+  const isRector = userRole === "rector";
 
   const handleToggle = async (period: AcademicPeriod, shouldActivate: boolean) => {
     setWorkingPeriodId(period.id);
@@ -59,7 +63,7 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
         </span>
       </div>
 
-      {hasNoActivePeriod && (
+      {hasNoActivePeriod && sortedPeriods.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           No hay ningun bimestre activo. La plataforma quedara en solo lectura para notas y
           evaluaciones hasta que actives uno.
@@ -77,9 +81,25 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-center">
           <Lock className="mb-2 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm font-medium text-foreground">No hay bimestres configurados</p>
-          <p className="text-xs text-muted-foreground">
-            Crea los periodos academicos en la base antes de operar calificaciones por bimestre.
+          <p className="mb-4 text-xs text-muted-foreground">
+            {isRector
+              ? "Genera los 4 bimestres estándar del año actual con un solo clic."
+              : "Crea los periodos academicos en la base antes de operar calificaciones por bimestre."}
           </p>
+          {isRector && (
+            <Button
+              onClick={() => createAcademicPeriods.mutate(undefined)}
+              disabled={createAcademicPeriods.isPending}
+              className="gap-2"
+            >
+              {createAcademicPeriods.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Generar 4 Bimestres Estándar
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -147,3 +167,4 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
     </div>
   );
 }
+

@@ -778,15 +778,31 @@ export function useEtymonCreateUser() {
         body: payload,
       });
 
-      // When the Edge Function returns a 4xx/5xx, supabase-js puts the
-      // parsed JSON body in `data` and a generic message in `error`.
-      // We must check data.error first to get the real server message.
       if (data?.error) {
         throw new Error(data.error as string);
       }
 
       if (error) {
-        throw new Error(error.message ?? "Error desconocido al invocar la funcion.");
+        // En Supabase JS v2, un error 4xx/5xx de Edge Function arroja un error genérico
+        // "Edge Function returned a non-2xx status code", pero el cuerpo real puede estar en `error.context`.
+        let serverMessage = error.message;
+        
+        try {
+          // Intentar extraer el mensaje real si es un FunctionsHttpError con context
+          if (error && typeof error === 'object' && 'context' in error) {
+            const contextError = error as any;
+            if (contextError.context && typeof contextError.context.json === 'function') {
+              const errBody = await contextError.context.json();
+              if (errBody && errBody.error) {
+                serverMessage = errBody.error;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignorar si falla al parsear
+        }
+        
+        throw new Error(serverMessage ?? "Error desconocido al invocar la funcion.");
       }
 
       return data as EtymonCreateUserResult;
@@ -923,6 +939,65 @@ export function useEtymonDeleteInstitution() {
     onError: (error) => {
       toast({
         title: "Error al eliminar institución",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// ============================================================
+// Phase 2: Dynamic Role Permissions Hooks
+// ============================================================
+
+export interface ProviderRolePermission {
+  role: string;
+  module_id: string;
+  module_code: string;
+  module_name: string;
+  access_level: "full" | "readonly" | "none";
+}
+
+export function useProviderRolePermissions() {
+  return useQuery({
+    queryKey: schoolQueryKeys.provider.rolePermissions,
+    queryFn: async (): Promise<ProviderRolePermission[]> => {
+      const { data, error } = await (supabase as any).rpc("provider_get_role_permissions_matrix");
+      if (error) throw error;
+      return (data ?? []) as unknown as ProviderRolePermission[];
+    },
+  });
+}
+
+export function useProviderSetRolePermission() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      role,
+      moduleCode,
+      accessLevel,
+    }: {
+      role: string;
+      moduleCode: string;
+      accessLevel: "full" | "readonly" | "none";
+    }) => {
+      const { error } = await (supabase as any).rpc("provider_set_role_permission", {
+        p_role: role,
+        p_module_code: moduleCode,
+        p_access_level: accessLevel,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.rolePermissions });
+      invalidateProviderQueries(queryClient);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al actualizar permiso",
         description: getFriendlyErrorMessage(error),
         variant: "destructive",
       });

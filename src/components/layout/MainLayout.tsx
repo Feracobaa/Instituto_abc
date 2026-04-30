@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { InstitutionThemeProvider } from "@/components/layout/InstitutionThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAcademicPeriods, useGuardianAccount } from "@/hooks/useSchoolData";
 import {
@@ -80,6 +81,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <SidebarProvider>
+      <InstitutionThemeProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <main className="flex min-w-0 flex-1 flex-col">
@@ -134,6 +136,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
         </main>
       </div>
+      </InstitutionThemeProvider>
     </SidebarProvider>
   );
 }

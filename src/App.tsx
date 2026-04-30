@@ -34,6 +34,7 @@ const EtymonSoporte = lazy(() => import("./pages/etymon/EtymonSoporte"));
 const EtymonAuditoria = lazy(() => import("./pages/etymon/EtymonAuditoria"));
 const EtymonUsuarios = lazy(() => import("./pages/etymon/EtymonUsuarios"));
 const EtymonPlanes = lazy(() => import("./pages/etymon/EtymonPlanes"));
+const EtymonPermisos = lazy(() => import("./pages/etymon/EtymonPermisos"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -230,6 +231,14 @@ const App = () => (
                 element={
                   <ProviderRoute>
                     <EtymonUsuarios />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/permisos"
+                element={
+                  <ProviderRoute>
+                    <EtymonPermisos />
                   </ProviderRoute>
                 }
               />

@@ -25,6 +25,8 @@ export {
   useProviderUpsertCustomerAccount,
   useProviderUpsertInstitutionSettings,
   useProviderUpsertInstitutionSubscription,
+  useProviderRolePermissions,
+  useProviderSetRolePermission,
 } from "@/hooks/provider/useProviderPanel";
 
 export type {
@@ -38,4 +40,5 @@ export type {
   ProviderInstitutionSummary,
   ProviderPlanModuleAccessPayload,
   ProviderSubscriptionPayload,
+  ProviderRolePermission,
 } from "@/hooks/provider/useProviderPanel";

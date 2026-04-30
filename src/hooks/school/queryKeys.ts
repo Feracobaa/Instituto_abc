@@ -108,6 +108,7 @@ export const schoolQueryKeys = {
       ["provider", "plan_modules", planId ?? "none"] as const,
     supportContext: ["provider", "support_context"] as const,
     subscriptions: ["provider", "subscriptions"] as const,
+    rolePermissions: ["provider", "role_permissions"] as const,
     auditLogs: (institutionId?: string) =>
       ["provider", "audit_logs", institutionId ?? "all"] as const,
   },

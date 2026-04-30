@@ -157,3 +157,47 @@ export function useUpdateSubject() {
     },
   });
 }
+
+/**
+ * Bulk-creates the 4 standard bimestres for the given year.
+ * Uses fixed Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec divisions.
+ */
+export function useCreateAcademicPeriods() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (year?: number) => {
+      const y = year ?? new Date().getFullYear();
+      const periods = [
+        { name: `Bimestre 1 (${y})`, start_date: `${y}-01-01`, end_date: `${y}-03-31` },
+        { name: `Bimestre 2 (${y})`, start_date: `${y}-04-01`, end_date: `${y}-06-30` },
+        { name: `Bimestre 3 (${y})`, start_date: `${y}-07-01`, end_date: `${y}-09-30` },
+        { name: `Bimestre 4 (${y})`, start_date: `${y}-10-01`, end_date: `${y}-12-31` },
+      ];
+
+      const { data, error } = await supabase
+        .from("academic_periods")
+        .insert(periods)
+        .select();
+
+      if (error) throw error;
+      return (data ?? []) as AcademicPeriod[];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.academicPeriods.all });
+      toast({
+        title: "Bimestres creados",
+        description: "Se generaron 4 bimestres estándar. Activa el que corresponda al periodo actual.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al crear bimestres",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+

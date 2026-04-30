@@ -45,7 +45,7 @@ const Estudiantes = () => {
   const { data: gradeRecords } = useGradeRecords();
   const deleteStudent = useDeleteStudent();
   const { userRole } = useAuth();
-  const isRector = userRole === 'rector';
+  const canManage = userRole === 'rector' || userRole === 'contable';
 
   const [formOpen, setFormOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<typeof students extends (infer T)[] ? T : never | null>(null);
@@ -109,7 +109,7 @@ const Estudiantes = () => {
               {students?.length || 0} estudiante{(students?.length || 0) !== 1 ? 's' : ''} matriculado{(students?.length || 0) !== 1 ? 's' : ''}
             </p>
           </div>
-          {isRector && (
+          {canManage && (
             <Button onClick={() => { setSelectedStudent(null); setFormOpen(true); }} className="gap-2">
               <Plus className="w-4 h-4" />
               Nuevo Estudiante
@@ -169,7 +169,7 @@ const Estudiantes = () => {
             icon={Users}
             title="No hay estudiantes registrados"
             description="Agrega el primer estudiante para comenzar a gestionar las matriculas."
-            action={isRector ? { label: 'Agregar Primer Estudiante', onClick: () => setFormOpen(true) } : undefined}
+            action={canManage ? { label: 'Agregar Primer Estudiante', onClick: () => setFormOpen(true) } : undefined}
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -195,7 +195,7 @@ const Estudiantes = () => {
                         </Badge>
                       </div>
                     </div>
-                    {isRector && (
+                    {canManage && (
                       <div className="flex gap-0.5 flex-shrink-0">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(student)}>
                           <Pencil className="w-3.5 h-3.5" />

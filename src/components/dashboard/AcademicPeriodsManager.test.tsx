@@ -7,6 +7,16 @@ vi.mock("@/hooks/useSchoolData", () => ({
     isPending: false,
     mutateAsync: vi.fn(),
   }),
+  useCreateAcademicPeriods: () => ({
+    isPending: false,
+    mutate: vi.fn(),
+  }),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    userRole: "rector",
+  }),
 }));
 
 describe("AcademicPeriodsManager", () => {
@@ -21,6 +31,7 @@ describe("AcademicPeriodsManager", () => {
             end_date: "2026-03-15",
             is_active: true,
             created_at: "2026-01-01",
+            institution_id: "test-institution-id",
           },
           {
             id: "period-2",
@@ -29,6 +40,7 @@ describe("AcademicPeriodsManager", () => {
             end_date: "2026-05-15",
             is_active: false,
             created_at: "2026-01-01",
+            institution_id: "test-institution-id",
           },
         ]}
       />,
@@ -51,6 +63,7 @@ describe("AcademicPeriodsManager", () => {
             end_date: "2026-03-15",
             is_active: false,
             created_at: "2026-01-01",
+            institution_id: "test-institution-id",
           },
         ]}
       />,

@@ -38,23 +38,22 @@ type MenuRole = "rector" | "profesor" | "parent" | "contable";
 const menuItems: Array<{
   icon: React.ElementType;
   moduleCode: SchoolModuleCode;
-  roles: MenuRole[];
   title: string;
   url: string;
 }> = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleCode: "dashboard", roles: ["rector", "profesor", "parent", "contable"] },
-  { title: "Contabilidad", url: "/contabilidad", icon: Calculator, moduleCode: "contabilidad", roles: ["rector", "contable"] },
-  { title: "Pensiones", url: "/pensiones", icon: GraduationCap, moduleCode: "contabilidad", roles: ["rector", "contable"] },
-  { title: "Usuarios", url: "/usuarios", icon: Users, moduleCode: "usuarios", roles: ["rector"] },
-  { title: "Profesores", url: "/profesores", icon: Users, moduleCode: "profesores", roles: ["rector"] },
-  { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, moduleCode: "estudiantes", roles: ["rector"] },
-  { title: "Portal Estudiantil", url: "/familias", icon: Users, moduleCode: "familias", roles: ["rector"] },
-  { title: "Horarios", url: "/horarios", icon: Calendar, moduleCode: "horarios", roles: ["rector", "profesor"] },
-  { title: "Grados", url: "/grados", icon: GraduationCap, moduleCode: "grados", roles: ["rector"] },
-  { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias", roles: ["rector", "profesor"] },
-  { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones", roles: ["rector", "profesor"] },
-  { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias", roles: ["rector", "profesor"] },
-  { title: "Mi Portal", url: "/portal", icon: BookOpen, moduleCode: "mis_notas", roles: ["parent"] },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleCode: "dashboard" },
+  { title: "Contabilidad", url: "/contabilidad", icon: Calculator, moduleCode: "contabilidad" },
+  { title: "Pensiones", url: "/pensiones", icon: GraduationCap, moduleCode: "contabilidad" },
+  { title: "Usuarios", url: "/usuarios", icon: Users, moduleCode: "usuarios" },
+  { title: "Profesores", url: "/profesores", icon: Users, moduleCode: "profesores" },
+  { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, moduleCode: "estudiantes" },
+  { title: "Portal Estudiantil", url: "/familias", icon: Users, moduleCode: "familias" },
+  { title: "Horarios", url: "/horarios", icon: Calendar, moduleCode: "horarios" },
+  { title: "Grados", url: "/grados", icon: GraduationCap, moduleCode: "grados" },
+  { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias" },
+  { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones" },
+  { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias" },
+  { title: "Mi Portal", url: "/portal", icon: BookOpen, moduleCode: "mis_notas" },
 ];
 
 export function AppSidebar() {
@@ -98,13 +97,15 @@ export function AppSidebar() {
   const institutionLogo = institutionSettings?.logo_url?.trim() || "/logo-iabc.jpg";
 
   const availableMenuItems = menuItems
-    .filter((item) => item.roles.includes((userRole ?? "profesor") as MenuRole))
+    .filter((item) => {
+      // If provider owner, see everything
+      if (isProviderOwner) return true;
+      // If moduleAccess is loaded, hide items completely if they have no access (is_enabled = false)
+      if (moduleAccess && moduleAccess[item.moduleCode] === false) return false;
+      return true;
+    })
     .map((item) => {
-      let isLocked = false;
-      if (!isProviderOwner && moduleAccess && item.moduleCode !== "dashboard") {
-        isLocked = moduleAccess[item.moduleCode] === false;
-      }
-      return { ...item, isLocked };
+      return { ...item, isLocked: false }; // We just hide them instead of showing locked, or we could show locked. Let's hide them entirely for better UX.
     });
 
   const roleConfig = {

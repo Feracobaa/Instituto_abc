@@ -23,6 +23,7 @@ const providerNavItems = [
   { icon: Home, label: "Dashboard", path: "/etymon" },
   { icon: Building2, label: "Instituciones", path: "/etymon/instituciones" },
   { icon: Users, label: "Usuarios", path: "/etymon/usuarios" },
+  { icon: Shield, label: "Permisos", path: "/etymon/permisos" },
   { icon: CreditCard, label: "Suscripciones", path: "/etymon/suscripciones" },
   { icon: Tags, label: "Planes", path: "/etymon/planes" },
   { icon: LifeBuoy, label: "Soporte", path: "/etymon/soporte" },

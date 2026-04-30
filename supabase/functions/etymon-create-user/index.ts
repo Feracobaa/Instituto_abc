@@ -110,12 +110,16 @@ Deno.serve(async (req: Request) => {
   const tempPassword = payload.temporary_password ?? generatePassword();
 
   // 3. Create auth user
+  // The PostgreSQL trigger "handle_new_user" will automatically create the 
+  // profile, user_roles, and institution_memberships when these metadata fields are present.
   const { data: newAuthUser, error: createAuthError } = await adminClient.auth.admin.createUser({
     email: payload.email,
     password: tempPassword,
     email_confirm: true,
     user_metadata: {
       full_name: payload.full_name,
+      institution_id: payload.institution_id,
+      role: payload.role,
       must_change_password: true,
     },
   });
@@ -130,33 +134,6 @@ Deno.serve(async (req: Request) => {
   }
 
   const uid = newAuthUser.user.id;
-
-  // 4. Create profile
-  const { error: profileError } = await adminClient.from("profiles").insert({
-    email: payload.email,
-    full_name: payload.full_name,
-    institution_id: payload.institution_id,
-    user_id: uid,
-  });
-
-  if (profileError) {
-    await adminClient.auth.admin.deleteUser(uid);
-    return json({ error: `Profile error: ${profileError.message}` }, 500);
-  }
-
-  // 5. Create institution membership
-  const { error: membershipError } = await adminClient.from("institution_memberships").insert({
-    institution_id: payload.institution_id,
-    is_default: true,
-    role: payload.role,
-    user_id: uid,
-  });
-
-  if (membershipError) {
-    await adminClient.from("profiles").delete().eq("user_id", uid);
-    await adminClient.auth.admin.deleteUser(uid);
-    return json({ error: `Membership error: ${membershipError.message}` }, 500);
-  }
 
   // 6. Audit log (non-blocking)
   await adminClient.from("provider_audit_logs").insert({

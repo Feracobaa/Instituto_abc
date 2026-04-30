@@ -46,6 +46,7 @@ export {
 } from "@/hooks/school/useGuardianPortal";
 export {
   useAcademicPeriods,
+  useCreateAcademicPeriods,
   useCreateSubject,
   useGrades,
   useSetAcademicPeriodState,

@@ -75,7 +75,7 @@ export function GradeRecordDialog({
           activity_name: `Actividad ${nextIndex}`,
           achievements: "",
           comments: "",
-          grade: "",
+          grade: "" as const,
           partial_index: nextIndex,
         },
       ];
