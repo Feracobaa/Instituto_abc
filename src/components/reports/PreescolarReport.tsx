@@ -272,16 +272,6 @@ export const PreescolarReport = forwardRef<PreescolarReportHandle, PreescolarRep
               <span className="info-value">{student.director}</span>
             </div>
           </div>
-          <div className="info-row" style={{ marginBottom: 0 }}>
-            <div className="info-item">
-              <span className="info-label">PROMEDIO:</span>
-              <span className="info-value">{student.average}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">PUESTO:</span>
-              <span className="info-value">{student.rank}</span>
-            </div>
-          </div>
         </div>
 
         {/* DIMENSIONS: OBLIGATORY FIXED ORDER */}

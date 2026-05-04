@@ -53,7 +53,7 @@ export function ProtectedRoute({ children, allowedRoles, requiredModule }: Prote
 
   // Module disabled for this institution
   if (requiredModule) {
-    const isModuleEnabled = moduleAccess?.[requiredModule];
+    const isModuleEnabled = moduleAccess?.[requiredModule]?.is_enabled;
     if (isModuleEnabled === false) {
       return (
         <div className="flex-1 overflow-auto bg-background/95">

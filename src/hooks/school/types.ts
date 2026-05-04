@@ -258,6 +258,8 @@ export type ProviderSupportContext =
 export type IdentityDriftRow =
   Database["public"]["Functions"]["provider_detect_identity_drift"]["Returns"][number];
 export type CurrentInstitutionModuleAccessRow =
-  Database["public"]["Functions"]["get_current_institution_module_access"]["Returns"][number];
+  Database["public"]["Functions"]["get_current_institution_module_access"]["Returns"][number] & {
+    access_level?: string;
+  };
 export type ProviderInstitutionModuleRow =
   Database["public"]["Functions"]["provider_get_institution_modules"]["Returns"][number];

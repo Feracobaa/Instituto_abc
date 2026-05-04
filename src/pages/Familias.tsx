@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Copy, KeyRound, Loader2, Search, Users } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,23 @@ export default function Familias() {
     () => new Map((guardianAccountsQuery.data ?? []).map((account) => [account.student_id, account])),
     [guardianAccountsQuery.data],
   );
+
+  // Auto-fix students with is_active = null so the edge function doesn't skip them
+  useEffect(() => {
+    if (studentsQuery.data) {
+      const fixNullActive = async () => {
+        const studentsToFix = studentsQuery.data.filter(s => s.is_active === null);
+        if (studentsToFix.length > 0) {
+          for (const s of studentsToFix) {
+            const { error } = await supabase.from("students").update({ is_active: true }).eq("id", s.id);
+            if (error) console.error("Failed to fix is_active for", s.id, error);
+          }
+          studentsQuery.refetch();
+        }
+      };
+      fixNullActive();
+    }
+  }, [studentsQuery.data]);
 
   const filteredStudents = useMemo(
     () => (studentsQuery.data ?? []).filter((student) => {
@@ -76,8 +94,8 @@ export default function Familias() {
             </p>
           </div>
           <Button
-            onClick={() => handleProvision(missingAccountStudents.map((student) => student.id))}
-            disabled={missingAccountStudents.length === 0 || provisionGuardianAccounts.isPending}
+            onClick={() => handleProvision(missingAccountStudents.filter(s => s.grade_id).map((student) => student.id))}
+            disabled={missingAccountStudents.filter(s => s.grade_id).length === 0 || provisionGuardianAccounts.isPending}
             className="gap-2"
           >
             {provisionGuardianAccounts.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
@@ -195,7 +213,8 @@ export default function Familias() {
                         variant="outline"
                         className="gap-2"
                         onClick={() => handleProvision([student.id])}
-                        disabled={provisionGuardianAccounts.isPending}
+                        disabled={provisionGuardianAccounts.isPending || !student.grade_id}
+                        title={!student.grade_id ? "Asigna un grado al estudiante primero" : undefined}
                       >
                         {provisionGuardianAccounts.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                         Crear acceso

@@ -101,7 +101,11 @@ export function AppSidebar() {
       // If provider owner, see everything
       if (isProviderOwner) return true;
       // If moduleAccess is loaded, hide items completely if they have no access (is_enabled = false)
-      if (moduleAccess && moduleAccess[item.moduleCode] === false) return false;
+      if (moduleAccess && moduleAccess[item.moduleCode]?.is_enabled === false) return false;
+      
+      // Hide student portal from non-parent users
+      if (userRole !== "parent" && item.url === "/portal") return false;
+
       return true;
     })
     .map((item) => {

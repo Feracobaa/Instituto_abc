@@ -183,6 +183,8 @@ export function useProvisionGuardianAccounts() {
 
       const createdCount = results.filter((item) => item.status === "created").length;
       const existingCount = results.filter((item) => item.status === "already_exists").length;
+      const errorCount = results.filter((item) => item.status === "error").length;
+      const firstError = results.find((item) => item.status === "error")?.message;
 
       toast({
         title: "Provision de accesos completada",
@@ -191,7 +193,9 @@ export function useProvisionGuardianAccounts() {
             ? `Se crearon ${createdCount} acceso(s) nuevos y ${existingCount} ya existian.`
             : existingCount > 0
               ? `Todos los accesos seleccionados ya existian.`
-              : "No fue posible crear accesos con los datos seleccionados.",
+              : errorCount > 0
+                ? `Error del servidor: ${firstError}`
+                : "No fue posible crear accesos con los datos seleccionados.",
       });
     },
     onError: (error) => {

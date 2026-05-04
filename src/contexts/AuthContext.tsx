@@ -35,58 +35,11 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const AUTH_CONTEXT_CACHE_KEY = 'iabc.auth-context';
-const AUTH_CONTEXT_CACHE_MAX_AGE = 15 * 60 * 1000;
 
 const isSupportedUserRole = (role: string): role is SupportedUserRole =>
   role === 'rector' || role === 'profesor' || role === 'parent' || role === 'contable';
 
-interface CachedAuthContext {
-  cachedAt: number;
-  effectiveInstitutionId: string | null;
-  isProviderOwner: boolean;
-  teacherId: string | null;
-  userId: string;
-  userRole: UserRole;
-}
 
-const readCachedAuthContext = (userId: string): CachedAuthContext | null => {
-  try {
-    const raw = sessionStorage.getItem(AUTH_CONTEXT_CACHE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as CachedAuthContext;
-    const isExpired = Date.now() - parsed.cachedAt > AUTH_CONTEXT_CACHE_MAX_AGE;
-
-    if (parsed.userId !== userId || isExpired) {
-      sessionStorage.removeItem(AUTH_CONTEXT_CACHE_KEY);
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    sessionStorage.removeItem(AUTH_CONTEXT_CACHE_KEY);
-    return null;
-  }
-};
-
-const writeCachedAuthContext = (payload: CachedAuthContext) => {
-  try {
-    sessionStorage.setItem(AUTH_CONTEXT_CACHE_KEY, JSON.stringify(payload));
-  } catch {
-    // Ignore storage quota or private-mode errors; auth still works without cache.
-  }
-};
-
-const clearCachedAuthContext = () => {
-  try {
-    sessionStorage.removeItem(AUTH_CONTEXT_CACHE_KEY);
-  } catch {
-    // Ignore storage access errors.
-  }
-};
 
 const isMissingProviderObjectError = (error: unknown) => {
   const casted = error as { code?: string; message?: string } | null;
@@ -230,14 +183,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setEffectiveInstitutionId(providerState.effectiveInstitutionId);
       setUserRole(resolvedRole);
       setTeacherId(resolvedTeacherId);
-      writeCachedAuthContext({
-        cachedAt: Date.now(),
-        effectiveInstitutionId: providerState.effectiveInstitutionId,
-        isProviderOwner: providerState.isProviderOwner,
-        teacherId: resolvedTeacherId,
-        userId: targetUserId,
-        userRole: resolvedRole,
-      });
     } catch (error) {
       console.error('Failed to refresh provider support context', error);
     }
@@ -252,7 +197,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hydratedUserIdRef.current = null;
       hydratingUserIdRef.current = null;
       userContextReadyRef.current = false;
-      clearCachedAuthContext();
       setIsProviderOwner(false);
       setSupportContext(null);
       setEffectiveInstitutionId(null);
@@ -270,24 +214,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (hydratingUserIdRef.current === nextUserId) {
-      return;
-    }
-
-    const cachedContext = readCachedAuthContext(nextUserId);
-    if (cachedContext) {
-      hydratedUserIdRef.current = nextUserId;
-      userContextReadyRef.current = true;
-      setIsProviderOwner(cachedContext.isProviderOwner);
-      setSupportContext(null);
-      setEffectiveInstitutionId(cachedContext.effectiveInstitutionId);
-      setUserRole(cachedContext.userRole);
-      setTeacherId(cachedContext.teacherId);
-      setLoading(false);
-
-      if (cachedContext.isProviderOwner) {
-        void refreshSupportContext(nextUserId);
-      }
-
       return;
     }
 
@@ -311,19 +237,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setEffectiveInstitutionId(providerState.effectiveInstitutionId);
       setUserRole(resolvedRole);
       setTeacherId(resolvedTeacherId);
-      writeCachedAuthContext({
-        cachedAt: Date.now(),
-        effectiveInstitutionId: providerState.effectiveInstitutionId,
-        isProviderOwner: providerState.isProviderOwner,
-        teacherId: resolvedTeacherId,
-        userId: nextUserId,
-        userRole: resolvedRole,
-      });
     } catch (error) {
       console.error('Failed to hydrate auth state', error);
       hydratedUserIdRef.current = nextUserId;
       userContextReadyRef.current = true;
-      clearCachedAuthContext();
       setIsProviderOwner(false);
       setSupportContext(null);
       setEffectiveInstitutionId(null);
@@ -407,7 +324,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hydratedUserIdRef.current = null;
     hydratingUserIdRef.current = null;
     userContextReadyRef.current = false;
-    clearCachedAuthContext();
     setIsProviderOwner(false);
     setSupportContext(null);
     setEffectiveInstitutionId(null);

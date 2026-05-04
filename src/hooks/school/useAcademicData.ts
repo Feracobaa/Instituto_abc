@@ -201,3 +201,57 @@ export function useCreateAcademicPeriods() {
   });
 }
 
+export function useCreateGrade() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { name: string; level: number }) => {
+      const { data: grade, error } = await supabase.from("grades").insert(data).select().single();
+      if (error) throw error;
+      return grade;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.grades.all });
+      toast({ title: "Grado creado exitosamente" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al crear grado",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useUpdateAcademicPeriod() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { id: string; name: string; start_date: string; end_date: string }) => {
+      const { id, ...updateData } = data;
+      const { data: period, error } = await supabase
+        .from("academic_periods")
+        .update(updateData)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return period;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.academicPeriods.all });
+      toast({ title: "Periodo academico actualizado exitosamente" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error al actualizar periodo",
+        description: getFriendlyErrorMessage(error),
+        variant: "destructive",
+      });
+    },
+  });
+}
+

@@ -21,11 +21,16 @@ export function useInstitutionSettings() {
   });
 }
 
+export interface ModuleAccessData {
+  is_enabled: boolean;
+  access_level: 'full' | 'readonly' | 'none';
+}
+
 export function useInstitutionModuleAccess(options?: { enabled?: boolean }) {
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: schoolQueryKeys.institution.modules,
-    queryFn: async (): Promise<Record<string, boolean>> => {
+    queryFn: async (): Promise<Record<string, ModuleAccessData>> => {
       const { data, error } = await supabase.rpc("get_current_institution_module_access");
 
       if (error) {
@@ -33,8 +38,11 @@ export function useInstitutionModuleAccess(options?: { enabled?: boolean }) {
       }
 
       const rows = (data ?? []) as CurrentInstitutionModuleAccessRow[];
-      return rows.reduce<Record<string, boolean>>((accumulator, row) => {
-        accumulator[row.module_code] = row.is_enabled;
+      return rows.reduce<Record<string, ModuleAccessData>>((accumulator, row) => {
+        accumulator[row.module_code] = {
+          is_enabled: row.is_enabled,
+          access_level: (row.access_level as 'full' | 'readonly' | 'none') || 'none',
+        };
         return accumulator;
       }, {});
     },

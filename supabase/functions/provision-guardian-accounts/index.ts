@@ -1,6 +1,12 @@
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+// @ts-ignore
 import { buildGuardianAuthEmail, buildGuardianUsernameBase, buildInitialGuardianPassword } from "../_shared/guardianAccounts.ts";
+// @ts-ignore
 import { corsHeaders } from "../_shared/cors.ts";
+
+// Workaround for IDE using Node.js/Browser tsconfig instead of Deno
+declare const Deno: any;
 
 interface ProvisionRequest {
   studentIds?: string[];
@@ -11,6 +17,7 @@ interface StudentRow {
   full_name: string;
   guardian_name: string | null;
   grade_id: string | null;
+  institution_id: string | null;
   grades: {
     name: string;
   } | null;
@@ -22,7 +29,7 @@ interface GuardianAccountRow {
   username: string;
 }
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -91,9 +98,10 @@ Deno.serve(async (request) => {
         full_name,
         guardian_name,
         grade_id,
+        institution_id,
         grades(name)
       `)
-      .eq("is_active", true)
+      .or("is_active.is.null,is_active.eq.true")
       .not("grade_id", "is", null)
       .order("full_name");
 
@@ -187,6 +195,7 @@ Deno.serve(async (request) => {
       const { error: insertAccountError } = await adminClient
         .from("student_guardian_accounts")
         .insert({
+          institution_id: student.institution_id,
           student_id: student.id,
           user_id: createdUser.user.id,
           username: usernameCandidate,

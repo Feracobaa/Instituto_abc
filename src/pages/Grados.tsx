@@ -6,6 +6,9 @@ import { useState } from "react";
 import { GraduationCap, Users, Loader2, ExternalLink, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { CreateGradeDialog } from "@/components/dashboard/CreateGradeDialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 type FilterType = 'todos' | 'preescolar' | 'primaria';
 
@@ -55,6 +58,7 @@ const Grados = () => {
   const { userRole } = useAuth();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterType>('todos');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const isRector = userRole === 'rector';
 
@@ -128,22 +132,31 @@ const Grados = () => {
             </p>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex items-center bg-secondary/50 rounded-xl p-1 border border-border/50">
-            {filterButtons.map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setFilter(btn.key)}
-                className={cn(
-                  "px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200",
-                  filter === btn.key
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
-                )}
-              >
-                {btn.label}
-              </button>
-            ))}
+          {/* Filter Tabs and Actions */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-secondary/50 rounded-xl p-1 border border-border/50">
+              {filterButtons.map(btn => (
+                <button
+                  key={btn.key}
+                  onClick={() => setFilter(btn.key)}
+                  className={cn(
+                    "px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200",
+                    filter === btn.key
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            {isRector && (
+              <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2 rounded-xl">
+                <Plus className="h-4 w-4" />
+                Crear Grado
+              </Button>
+            )}
           </div>
         </div>
 
@@ -285,9 +298,24 @@ const Grados = () => {
             <p className="text-muted-foreground font-medium">
               No hay grados de {filter === 'preescolar' ? 'Preescolar' : 'Primaria'} configurados
             </p>
+            {isRector && (
+              <Button 
+                variant="outline" 
+                className="mt-4 gap-2"
+                onClick={() => setIsCreateDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Crear Primer Grado
+              </Button>
+            )}
           </div>
         )}
       </div>
+
+      <CreateGradeDialog 
+        open={isCreateDialogOpen} 
+        onOpenChange={setIsCreateDialogOpen} 
+      />
     </MainLayout>
   );
 };

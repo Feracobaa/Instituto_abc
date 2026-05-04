@@ -7,7 +7,8 @@ import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useDeleteTuitionPayment,
-  useDeleteTuitionProfile
+  useDeleteTuitionProfile,
+  useInstitutionModuleAccess,
 } from "@/hooks/useSchoolData";
 import { clampSchoolMonth, toSchoolMonthDate } from "@/features/contabilidad/utils";
 import type { PendingDeleteAction } from "@/features/contabilidad/types";
@@ -19,8 +20,10 @@ import { ReportsSection } from "@/features/contabilidad/components/ReportsSectio
 
 export default function Pensiones() {
   const { userRole } = useAuth();
+  const { data: moduleAccess } = useInstitutionModuleAccess();
+  
   const isContable = userRole === "contable";
-  const isReadOnly = userRole === "rector";
+  const isReadOnly = moduleAccess?.["contabilidad"]?.access_level === "readonly";
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();

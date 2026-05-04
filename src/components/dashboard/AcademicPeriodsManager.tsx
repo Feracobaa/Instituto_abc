@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { CalendarRange, Loader2, Lock, Plus, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AcademicPeriod } from "@/hooks/useSchoolData";
-import { useSetAcademicPeriodState, useCreateAcademicPeriods } from "@/hooks/useSchoolData";
+import { useSetAcademicPeriodState, useCreateAcademicPeriods } from "@/hooks/school/useAcademicData";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { EditAcademicPeriodDialog } from "@/components/dashboard/EditAcademicPeriodDialog";
+import { Pencil } from "lucide-react";
 
 interface AcademicPeriodsManagerProps {
   periods?: AcademicPeriod[] | null;
@@ -23,6 +25,7 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
   const createAcademicPeriods = useCreateAcademicPeriods();
   const { userRole } = useAuth();
   const [workingPeriodId, setWorkingPeriodId] = useState<string | null>(null);
+  const [editingPeriod, setEditingPeriod] = useState<AcademicPeriod | null>(null);
 
   const sortedPeriods = useMemo(
     () => [...(periods ?? [])].sort((left, right) => left.start_date.localeCompare(right.start_date)),
@@ -52,10 +55,10 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
         <div>
           <div className="mb-1 flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-primary" />
-            <h3 className="font-heading font-bold text-foreground">Control de Bimestres</h3>
+            <h3 className="font-heading font-bold text-foreground">Control de Periodos</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            El rector decide que bimestre queda activo para registrar o editar calificaciones.
+            El rector configura las fechas y decide qué periodo queda activo para registrar calificaciones.
           </p>
         </div>
         <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
@@ -65,26 +68,26 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
 
       {hasNoActivePeriod && sortedPeriods.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
-          No hay ningun bimestre activo. La plataforma quedara en solo lectura para notas y
+          No hay ningún periodo activo. La plataforma quedará en solo lectura para notas y
           evaluaciones hasta que actives uno.
         </div>
       )}
 
       {hasMultipleActivePeriods && (
         <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Se detectaron varios bimestres activos. Al activar uno desde aqui, los demas quedaran
-          desactivados automaticamente.
+          Se detectaron varios periodos activos. Al activar uno desde aquí, los demás quedarán
+          desactivados automáticamente.
         </div>
       )}
 
       {sortedPeriods.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-center">
           <Lock className="mb-2 h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium text-foreground">No hay bimestres configurados</p>
+          <p className="text-sm font-medium text-foreground">No hay periodos configurados</p>
           <p className="mb-4 text-xs text-muted-foreground">
             {isRector
-              ? "Genera los 4 bimestres estándar del año actual con un solo clic."
-              : "Crea los periodos academicos en la base antes de operar calificaciones por bimestre."}
+              ? "Genera los 4 periodos estándar del año actual con un solo clic y luego ajusta las fechas."
+              : "Crea los periodos académicos en la base antes de operar calificaciones."}
           </p>
           {isRector && (
             <Button
@@ -97,7 +100,7 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              Generar 4 Bimestres Estándar
+              Generar 4 Periodos Estándar
             </Button>
           )}
         </div>
@@ -135,6 +138,18 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
                 </div>
 
                 <div className="flex gap-2">
+                  {isRector && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Editar fechas y nombre"
+                      onClick={() => setEditingPeriod(period)}
+                      disabled={setAcademicPeriodState.isPending}
+                      className="h-9 w-9"
+                    >
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
                   {period.is_active ? (
                     <Button
                       variant="outline"
@@ -164,6 +179,14 @@ export function AcademicPeriodsManager({ periods }: AcademicPeriodsManagerProps)
           })}
         </div>
       )}
+      
+      <EditAcademicPeriodDialog
+        open={Boolean(editingPeriod)}
+        onOpenChange={(open) => {
+          if (!open) setEditingPeriod(null);
+        }}
+        period={editingPeriod}
+      />
     </div>
   );
 }

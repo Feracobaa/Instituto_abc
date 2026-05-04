@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   useDeleteFinancialTransaction,
   useDeleteInventoryItem,
+  useInstitutionModuleAccess,
 } from "@/hooks/useSchoolData";
 import { clampSchoolMonth, toSchoolMonthDate } from "@/features/contabilidad/utils";
 import type { PendingDeleteAction } from "@/features/contabilidad/types";
@@ -18,8 +19,10 @@ import { InventorySection } from "@/features/contabilidad/components/InventorySe
 
 export default function Contabilidad() {
   const { userRole } = useAuth();
+  const { data: moduleAccess } = useInstitutionModuleAccess();
+  
   const isContable = userRole === "contable";
-  const isReadOnly = userRole === "rector";
+  const isReadOnly = moduleAccess?.["contabilidad"]?.access_level === "readonly";
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();

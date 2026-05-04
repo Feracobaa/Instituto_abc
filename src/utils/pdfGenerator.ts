@@ -207,7 +207,8 @@ function drawStudentInfo(
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
   const w = pageWidth - margin * 2;
-  const bh = 31;
+  const isPre = isPreescolar(student.grades?.name);
+  const bh = isPre ? 24 : 31;
 
   // Outer box
   doc.setDrawColor(0);
@@ -245,14 +246,16 @@ function drawStudentInfo(
   doc.setFont('helvetica', 'normal');
   doc.text(` ${reportSummary?.groupDirectorName || '_______________________'}`, margin + w * 0.55 + 42, r3y);
 
-  // Row 4
-  const r4y = y + 28;
-  doc.setFont('helvetica', 'bold'); doc.text('PROMEDIO BIMESTRAL:', margin + labelGap, r4y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(` ${formatAverageForReport(reportSummary?.periodAverage)}`, margin + 36, r4y);
-  doc.setFont('helvetica', 'bold'); doc.text('PUESTO:', margin + w * 0.55 + labelGap, r4y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(` ${formatRankForReport(reportSummary?.rank, reportSummary?.totalStudents)}`, margin + w * 0.55 + 18, r4y);
+  if (!isPre) {
+    // Row 4
+    const r4y = y + 28;
+    doc.setFont('helvetica', 'bold'); doc.text('PROMEDIO BIMESTRAL:', margin + labelGap, r4y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(` ${formatAverageForReport(reportSummary?.periodAverage)}`, margin + 36, r4y);
+    doc.setFont('helvetica', 'bold'); doc.text('PUESTO:', margin + w * 0.55 + labelGap, r4y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(` ${formatRankForReport(reportSummary?.rank, reportSummary?.totalStudents)}`, margin + w * 0.55 + 18, r4y);
+  }
 
   return y + bh + 3;
 }
