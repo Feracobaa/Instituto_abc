@@ -51,6 +51,7 @@ import {
   useUpdatePreescolarEvaluation,
   useUpsertGradeRecordPartials,
 } from "@/hooks/useSchoolData";
+import { useInstitutionSettings } from "@/hooks/school/useInstitution";
 import type { GradeRecord, PreescolarEvaluation, Student } from "@/hooks/useSchoolData";
 import { getStudentReportSnapshot } from "@/lib/reportCards";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
@@ -70,11 +71,13 @@ const Calificaciones = () => {
   const periodsQuery = useAcademicPeriods();
   const subjectsQuery = useSubjects();
   const teachersQuery = useTeachers();
+  const settingsQuery = useInstitutionSettings();
 
   const grades = gradesQuery.data;
   const periods = periodsQuery.data;
   const subjects = subjectsQuery.data;
   const teachers = teachersQuery.data;
+  const settings = settingsQuery.data;
 
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("");
@@ -477,6 +480,15 @@ const Calificaciones = () => {
 
       if (snapshot.studentGradeRecords.length) {
         const { downloadReportCard } = await import("@/utils/pdfGenerator");
+        const instData = settings ? {
+          name: settings.legal_name || settings.display_name || "",
+          nit: settings.nit || undefined,
+          address: settings.address || undefined,
+          phone: settings.phone || undefined,
+          rectorName: settings.rector_name || undefined,
+          logoUrl: settings.logo_url || undefined,
+        } : undefined;
+
         await downloadReportCard(
           { full_name: student.full_name, grades: student.grades },
           { id: period.id, name: period.name },
@@ -490,6 +502,7 @@ const Calificaciones = () => {
             totalStudents: snapshot.totalStudents,
           },
           deliveryDate,
+          instData
         );
       }
     } catch (error) {
@@ -629,6 +642,7 @@ const Calificaciones = () => {
         periodName={selectedPeriodData?.name}
         preescolarRef={preescolarRef}
         records={preescolarPdfRecords}
+        institutionSettings={settings || undefined}
         reportSummary={
           downloadingSnapshot
             ? {

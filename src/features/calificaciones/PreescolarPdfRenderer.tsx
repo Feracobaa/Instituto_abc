@@ -12,7 +12,8 @@ export function PreescolarPdfRenderer({
   preescolarRef,
   records,
   reportSummary,
-}: PreescolarRendererProps) {
+  institutionSettings,
+}: PreescolarRendererProps & { institutionSettings?: any }) {
   if (!downloadingStudent || !isPreescolar) {
     return null;
   }
@@ -24,6 +25,7 @@ export function PreescolarPdfRenderer({
     periodName,
     reportSummary,
     student: downloadingStudent,
+    institutionSettings,
   });
 
   return (

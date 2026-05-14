@@ -445,11 +445,16 @@ export function useProviderUpsertInstitutionSettings() {
         Pick<
           InstitutionSettings,
           | "accent_color"
+          | "address"
           | "cover_image_url"
           | "display_name"
           | "font_family"
+          | "legal_name"
           | "logo_url"
+          | "nit"
+          | "phone"
           | "primary_color"
+          | "rector_name"
           | "secondary_color"
           | "visual_style"
         >
@@ -465,6 +470,7 @@ export function useProviderUpsertInstitutionSettings() {
     },
     onSuccess: () => {
       invalidateProviderQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: schoolQueryKeys.institution.settings });
       toast({ title: "Branding actualizado" });
     },
     onError: (error) => {

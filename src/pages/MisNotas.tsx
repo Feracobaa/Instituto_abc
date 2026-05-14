@@ -14,12 +14,14 @@ import {
   useGuardianGradeRecords,
   usePreescolarEvaluations,
 } from "@/hooks/useSchoolData";
+import { useInstitutionSettings } from "@/hooks/school/useInstitution";
 import type { Student } from "@/hooks/useSchoolData";
 import { getStudentReportSnapshot } from "@/lib/reportCards";
 
 export default function MisNotas() {
   const guardianAccountQuery = useGuardianAccount();
   const periodsQuery = useAcademicPeriods();
+  const { data: settings } = useInstitutionSettings();
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [downloadingStudent, setDownloadingStudent] = useState<Student | null>(null);
   const [downloadingSnapshot, setDownloadingSnapshot] = useState<Awaited<
@@ -127,6 +129,15 @@ export default function MisNotas() {
       }
 
       const { downloadReportCard } = await import("@/utils/pdfGenerator");
+      const instData = settings ? {
+        name: settings.legal_name || settings.display_name || "",
+        nit: settings.nit || undefined,
+        address: settings.address || undefined,
+        phone: settings.phone || undefined,
+        rectorName: settings.rector_name || undefined,
+        logoUrl: settings.logo_url || undefined,
+      } : undefined;
+
       await downloadReportCard(
         { full_name: student.full_name, grades: student.grades },
         { id: selectedPeriodData.id, name: selectedPeriodData.name },
@@ -140,6 +151,7 @@ export default function MisNotas() {
           totalStudents: snapshot.totalStudents,
         },
         deliveryDate,
+        instData
       );
     } catch (error) {
       console.error(error);
@@ -281,6 +293,7 @@ export default function MisNotas() {
         periodName={selectedPeriodData?.name}
         preescolarRef={preescolarRef}
         records={downloadingSnapshot?.preescolarEvaluations ?? preescolarRecords}
+        institutionSettings={settings || undefined}
         reportSummary={
           downloadingSnapshot
             ? {

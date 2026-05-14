@@ -388,42 +388,57 @@ export type Database = {
       institution_settings: {
         Row: {
           accent_color: string | null
+          address: string | null
           cover_image_url: string | null
           created_at: string
           display_name: string | null
           font_family: string | null
           id: string
           institution_id: string
+          legal_name: string | null
           logo_url: string | null
+          nit: string | null
+          phone: string | null
           primary_color: string | null
+          rector_name: string | null
           secondary_color: string | null
           updated_at: string
           visual_style: string | null
         }
         Insert: {
           accent_color?: string | null
+          address?: string | null
           cover_image_url?: string | null
           created_at?: string
           display_name?: string | null
           font_family?: string | null
           id?: string
           institution_id: string
+          legal_name?: string | null
           logo_url?: string | null
+          nit?: string | null
+          phone?: string | null
           primary_color?: string | null
+          rector_name?: string | null
           secondary_color?: string | null
           updated_at?: string
           visual_style?: string | null
         }
         Update: {
           accent_color?: string | null
+          address?: string | null
           cover_image_url?: string | null
           created_at?: string
           display_name?: string | null
           font_family?: string | null
           id?: string
           institution_id?: string
+          legal_name?: string | null
           logo_url?: string | null
+          nit?: string | null
+          phone?: string | null
           primary_color?: string | null
+          rector_name?: string | null
           secondary_color?: string | null
           updated_at?: string
           visual_style?: string | null

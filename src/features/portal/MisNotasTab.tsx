@@ -13,6 +13,7 @@ import {
   useGuardianGradeRecords,
   usePreescolarEvaluations,
 } from "@/hooks/useSchoolData";
+import { useInstitutionSettings } from "@/hooks/school/useInstitution";
 import type { Student } from "@/hooks/useSchoolData";
 import { getStudentReportSnapshot } from "@/lib/reportCards";
 import { getGradeColor } from "@/features/calificaciones/helpers";
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 export default function MisNotasTab() {
   const guardianAccountQuery = useGuardianAccount();
   const periodsQuery = useAcademicPeriods();
+  const { data: settings } = useInstitutionSettings();
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [downloadingStudent, setDownloadingStudent] = useState<Student | null>(null);
   const [downloadingSnapshot, setDownloadingSnapshot] = useState<Awaited<ReturnType<typeof getStudentReportSnapshot>> | null>(null);
@@ -87,12 +89,21 @@ export default function MisNotasTab() {
       const snap = await getStudentReportSnapshot(student.id, selectedPeriodData.id);
       if (!snap.studentGradeRecords.length) return toast.error("No hay informacion suficiente.");
       const { downloadReportCard } = await import("@/utils/pdfGenerator");
+      const instData = settings ? {
+        name: settings.legal_name || settings.display_name || "",
+        nit: settings.nit || undefined,
+        address: settings.address || undefined,
+        phone: settings.phone || undefined,
+        rectorName: settings.rector_name || undefined,
+        logoUrl: settings.logo_url || undefined,
+      } : undefined;
       await downloadReportCard(
         { full_name: student.full_name, grades: student.grades },
         { id: selectedPeriodData.id, name: selectedPeriodData.name },
         snap.studentGradeRecords, snap.classSchedules, periods,
         { groupDirectorName: snap.groupDirectorName, periodAverage: snap.periodAverage, rank: snap.rank, totalStudents: snap.totalStudents },
         deliveryDate,
+        instData
       );
     } catch { toast.error("No fue posible descargar el boletin."); }
     finally { setIsDownloadingReport(false); }
@@ -204,6 +215,7 @@ export default function MisNotasTab() {
         periodName={selectedPeriodData?.name}
         preescolarRef={preescolarRef}
         records={downloadingSnapshot?.preescolarEvaluations ?? preescolarRecords}
+        institutionSettings={settings || undefined}
         reportSummary={downloadingSnapshot ? { periodAverage: downloadingSnapshot.periodAverage, rank: downloadingSnapshot.rank, totalStudents: downloadingSnapshot.totalStudents } : undefined}
       />
     </div>

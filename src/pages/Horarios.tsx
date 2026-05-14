@@ -1,6 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useGrades, useSchedules } from "@/hooks/useSchoolData";
 import type { Schedule } from "@/hooks/useSchoolData";
+import { useInstitutionSettings } from "@/hooks/school/useInstitution";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ const Horarios = () => {
   const { data: grades, isLoading: gradesLoading, error: gradesError } = useGrades();
   const { userRole, teacherId } = useAuth();
   const isRector = userRole === 'rector';
+  const { data: settings } = useInstitutionSettings();
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   
   // El Rector busca por grado. El Profesor trae todos sus horarios a la vez y luego filtramos localmente.
@@ -87,7 +89,15 @@ const Horarios = () => {
   const handleDownloadSchedule = async () => {
     if (!selectedGradeData || !schedules) return;
     const { downloadSchedulePDF } = await import("@/utils/pdfGenerator");
-    await downloadSchedulePDF(selectedGradeData.name, gradeSchedules, uniqueStartTimes);
+    const instData = settings ? {
+      name: settings.legal_name || settings.display_name || "",
+      nit: settings.nit || undefined,
+      address: settings.address || undefined,
+      phone: settings.phone || undefined,
+      rectorName: settings.rector_name || undefined,
+      logoUrl: settings.logo_url || undefined,
+    } : undefined;
+    await downloadSchedulePDF(selectedGradeData.name, gradeSchedules, uniqueStartTimes, instData);
   };
 
   const isLoading = gradesLoading || schedulesLoading;

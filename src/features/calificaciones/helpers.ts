@@ -395,12 +395,22 @@ export function buildPreescolarReportPayload({
   periodName,
   reportSummary,
   student,
-}: PreescolarReportPayloadInput): {
+  institutionSettings,
+}: PreescolarReportPayloadInput & { institutionSettings?: any }): {
   schoolInfo: SchoolInfo;
   studentInfo: StudentInfo;
 } {
   return {
-    schoolInfo: preescolarSchoolInfo,
+    schoolInfo: {
+      republic: preescolarSchoolInfo.republic,
+      ministry: preescolarSchoolInfo.ministry,
+      department: preescolarSchoolInfo.department,
+      city: preescolarSchoolInfo.city,
+      name: institutionSettings?.legal_name || institutionSettings?.display_name || preescolarSchoolInfo.name,
+      address: institutionSettings?.address || preescolarSchoolInfo.address,
+      phoneNit: `${institutionSettings?.phone ? `Tel: ${institutionSettings.phone}` : ''} ${institutionSettings?.nit ? `NIT: ${institutionSettings.nit}` : ''}`.trim() || preescolarSchoolInfo.phoneNit,
+      logoUrl: institutionSettings?.logo_url || preescolarSchoolInfo.logoUrl,
+    },
     studentInfo: {
       average: formatReportAverage(reportSummary?.periodAverage ?? null),
       deliveryDate: formatDeliveryDate(deliveryDate),

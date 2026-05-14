@@ -58,7 +58,16 @@ type GStateCapableDoc = jsPDF & {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const INST = {
+export interface PdfInstitutionData {
+  name: string;
+  nit?: string;
+  address?: string;
+  phone?: string;
+  rectorName?: string;
+  logoUrl?: string;
+}
+
+export const FALLBACK_INST = {
   republic: 'REPÚBLICA DE COLOMBIA',
   ministry: 'MINISTERIO DE EDUCACIÓN NACIONAL',
   department: 'DEPARTAMENTO DEL MAGDALENA',
@@ -67,6 +76,20 @@ const INST = {
   phone: 'Tel: 3104755752',
   nit: 'NIT: 39.144.200-1',
 };
+
+function getInstInfo(inst?: PdfInstitutionData) {
+  return {
+    republic: FALLBACK_INST.republic,
+    ministry: FALLBACK_INST.ministry,
+    department: FALLBACK_INST.department,
+    name: inst?.name || FALLBACK_INST.name,
+    address: inst?.address || FALLBACK_INST.address,
+    phone: inst?.phone ? `Tel: ${inst.phone}` : FALLBACK_INST.phone,
+    nit: inst?.nit ? `NIT: ${inst.nit}` : FALLBACK_INST.nit,
+    rectorName: inst?.rectorName || 'RECTOR(A)',
+    logoUrl: inst?.logoUrl,
+  };
+}
 
 const PREESCOLAR_GRADES = [
   'párvulo', 'pre-jardín', 'jardín', 'transición', 'preescolar',
@@ -94,9 +117,9 @@ function getPerformanceColor(grade: number): [number, number, number] {
   return [185, 28, 28];                      // red
 }
 
-async function getLogoBase64(): Promise<string | null> {
+async function getLogoBase64(url?: string): Promise<string | null> {
   try {
-    const response = await fetch('/logo-iabc.jpg');
+    const response = await fetch(url || '/logo-iabc.jpg');
     const blob = await response.blob();
     return new Promise(resolve => {
       const reader = new FileReader();
@@ -140,7 +163,8 @@ function setDocumentOpacity(doc: jsPDF, opacity: number) {
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-async function drawHeader(doc: jsPDF, logoB64: string | null): Promise<number> {
+async function drawHeader(doc: jsPDF, logoB64: string | null, instData?: PdfInstitutionData): Promise<number> {
+  const info = getInstInfo(instData);
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
 
@@ -165,12 +189,12 @@ async function drawHeader(doc: jsPDF, logoB64: string | null): Promise<number> {
 
   // Center text block
   doc.setTextColor(0, 0, 0);
-  centerText(doc, INST.republic, 18, 7, 'bold');
-  centerText(doc, INST.ministry, 23, 7, 'bold');
-  centerText(doc, INST.department, 28, 7.5, 'bold');
-  centerText(doc, INST.name, 34, 9, 'bold');
-  centerText(doc, INST.address, 39, 6.5, 'normal');
-  centerText(doc, `${INST.phone}   ${INST.nit}`, 44, 6, 'normal');
+  centerText(doc, info.republic, 18, 7, 'bold');
+  centerText(doc, info.ministry, 23, 7, 'bold');
+  centerText(doc, info.department, 28, 7.5, 'bold');
+  centerText(doc, info.name, 34, 9, 'bold');
+  centerText(doc, info.address, 39, 6.5, 'normal');
+  centerText(doc, `${info.phone}   ${info.nit}`, 44, 6, 'normal');
 
   return 57; // nextY after header
 }
@@ -538,7 +562,8 @@ function drawObservations(doc: jsPDF, y: number, text: string): number {
 
 // ─── Signatures ───────────────────────────────────────────────────────────────
 
-function drawSignatures(doc: jsPDF, y: number): number {
+function drawSignatures(doc: jsPDF, y: number, instData?: PdfInstitutionData): number {
+  const info = getInstInfo(instData);
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
   const usableWidth = pageWidth - margin * 2;
@@ -546,7 +571,7 @@ function drawSignatures(doc: jsPDF, y: number): number {
   const spacing = (usableWidth - lineLen * 3) / 2; // even gaps between the 3 blocks
 
   const positions = [
-    { x: margin, label: 'RECTOR(A)', sub: 'Firma y Sello' },
+    { x: margin, label: info.rectorName, sub: 'Firma y Sello' },
     { x: margin + lineLen + spacing, label: 'DIRECTOR(A) DE GRUPO', sub: 'Firma' },
     { x: margin + (lineLen + spacing) * 2, label: 'ACUDIENTE', sub: 'Firma y C.C.' },
   ];
@@ -569,7 +594,8 @@ function drawSignatures(doc: jsPDF, y: number): number {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-function drawFooter(doc: jsPDF) {
+function drawFooter(doc: jsPDF, instData?: PdfInstitutionData) {
+  const info = getInstInfo(instData);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
@@ -583,7 +609,7 @@ function drawFooter(doc: jsPDF) {
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(80, 80, 80);
   doc.text(
-    `${INST.name}  •  ${INST.address}  •  ${INST.nit}`,
+    `${info.name}  •  ${info.address}  •  ${info.nit}`,
     pageWidth / 2, y,
     { align: 'center' }
   );
@@ -610,15 +636,17 @@ export async function generateReportCard(
   classSchedules: { subject_id: string }[],
   allPeriods: Period[],
   reportSummary?: ReportCardStudentSummary,
-  deliveryDate?: string
+  deliveryDate?: string,
+  instData?: PdfInstitutionData
 ) {
+  const info = getInstInfo(instData);
   const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
-  const logoB64 = await getLogoBase64();
+  const logoB64 = await getLogoBase64(info.logoUrl);
 
   if (logoB64) drawWatermark(doc, logoB64);
 
   // 1. Header
-  let y = await drawHeader(doc, logoB64);
+  let y = await drawHeader(doc, logoB64, instData);
 
   // 2. Title banner
   const isPre = isPreescolar(student.grades?.name);
@@ -682,10 +710,10 @@ export async function generateReportCard(
   y = drawObservations(doc, y, obsText);
 
   // 8. Signatures
-  y = drawSignatures(doc, y);
+  y = drawSignatures(doc, y, instData);
 
   // 9. Footer
-  drawFooter(doc);
+  drawFooter(doc, instData);
 
   return doc;
 }
@@ -697,7 +725,8 @@ export async function downloadReportCard(
   classSchedules: { subject_id: string }[],
   allPeriods: Period[],
   reportSummary?: ReportCardStudentSummary,
-  deliveryDate?: string
+  deliveryDate?: string,
+  instData?: PdfInstitutionData
 ) {
   const doc = await generateReportCard(
     student,
@@ -707,6 +736,7 @@ export async function downloadReportCard(
     allPeriods,
     reportSummary,
     deliveryDate,
+    instData,
   );
   const name = `Boletin_${student.full_name.replace(/\s+/g, '_')}_${period.name.replace(/\s+/g, '_')}.pdf`;
   doc.save(name);
@@ -727,12 +757,14 @@ interface ScheduleEntry {
 export async function generateSchedulePDF(
   gradeName: string,
   schedules: ScheduleEntry[],
-  timeSlots: string[]
+  timeSlots: string[],
+  instData?: PdfInstitutionData
 ) {
+  const info = getInstInfo(instData);
   const doc = new jsPDF('landscape');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const logoB64 = await getLogoBase64();
+  const logoB64 = await getLogoBase64(info.logoUrl);
 
   if (logoB64) {
     setDocumentOpacity(doc, 0.08);
@@ -750,7 +782,7 @@ export async function generateSchedulePDF(
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text(INST.name, pageWidth / 2, 18, { align: 'center' });
+  doc.text(info.name, pageWidth / 2, 18, { align: 'center' });
   doc.setFontSize(13);
   doc.setFont('helvetica', 'normal');
   doc.text(`HORARIO DE CLASES — ${gradeName.toUpperCase()}`, pageWidth / 2, 30, { align: 'center' });
@@ -792,7 +824,7 @@ export async function generateSchedulePDF(
   doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text(`${INST.name}  •  ${new Date().toLocaleDateString('es-CO')}`, pageWidth / 2, footerY, { align: 'center' });
+  doc.text(`${info.name}  •  ${new Date().toLocaleDateString('es-CO')}`, pageWidth / 2, footerY, { align: 'center' });
 
   return doc;
 }
@@ -800,9 +832,10 @@ export async function generateSchedulePDF(
 export async function downloadSchedulePDF(
   gradeName: string,
   schedules: ScheduleEntry[],
-  timeSlots: string[]
+  timeSlots: string[],
+  instData?: PdfInstitutionData
 ) {
-  const doc = await generateSchedulePDF(gradeName, schedules, timeSlots);
+  const doc = await generateSchedulePDF(gradeName, schedules, timeSlots, instData);
   doc.save(`Horario_${gradeName.replace(/\\s+/g, '_')}.pdf`);
 }
 
@@ -813,12 +846,14 @@ export async function generateAttendanceListPDF(
   students: { full_name: string }[],
   periodName: string = '',
   teacherName: string = '',
-  subjectName: string = ''
+  subjectName: string = '',
+  instData?: PdfInstitutionData
 ) {
+  const info = getInstInfo(instData);
   const doc = new jsPDF('portrait');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const logoB64 = await getLogoBase64();
+  const logoB64 = await getLogoBase64(info.logoUrl);
 
   // Outer border with lila color
   doc.setDrawColor(180, 130, 255);
@@ -847,7 +882,7 @@ export async function generateAttendanceListPDF(
   autoTable(doc, {
     startY: 34,
     body: [
-      [`Escuela: ${INST.name}`, `Profesor:    ${formattedTeacher}`],
+      [`Escuela: ${info.name}`, `Profesor:    ${formattedTeacher}`],
       [`Grado/grupo:    ${gradeName.toUpperCase()}`, `Materia:    ${formattedSubject}`],
       [`Ciclo escolar:    ${new Date().getFullYear()}`, `Periodo:    ${formattedPeriod}`]
     ],
@@ -990,9 +1025,10 @@ export async function downloadAttendanceListPDF(
   students: { full_name: string }[],
   periodName: string = '',
   teacherName: string = '',
-  subjectName: string = ''
+  subjectName: string = '',
+  instData?: PdfInstitutionData
 ) {
-  const doc = await generateAttendanceListPDF(gradeName, students, periodName, teacherName, subjectName);
+  const doc = await generateAttendanceListPDF(gradeName, students, periodName, teacherName, subjectName, instData);
   doc.save(`Asistencia_${gradeName.replace(/\\s+/g, '_')}_${subjectName.replace(/\\s+/g, '_')}.pdf`);
 }
 
@@ -1003,12 +1039,14 @@ export async function generateGradingTemplatePDF(
   students: { full_name: string }[],
   periodName: string = '',
   teacherName: string = '',
-  subjectName: string = ''
+  subjectName: string = '',
+  instData?: PdfInstitutionData
 ) {
+  const info = getInstInfo(instData);
   const doc = new jsPDF('portrait');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const logoB64 = await getLogoBase64();
+  const logoB64 = await getLogoBase64(info.logoUrl);
 
   if (logoB64) {
     setDocumentOpacity(doc, 0.05);
@@ -1029,7 +1067,7 @@ export async function generateGradingTemplatePDF(
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(INST.name, pageWidth / 2, 12, { align: 'center' });
+  doc.text(info.name, pageWidth / 2, 12, { align: 'center' });
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text(`PLANTILLA PARA NOTAS — GRADO ${gradeName.toUpperCase()}`, pageWidth / 2, 20, { align: 'center' });
@@ -1086,7 +1124,7 @@ export async function generateGradingTemplatePDF(
   doc.line(14, footerY - 4, pageWidth - 14, footerY - 4);
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text(`${INST.name}  •  Generado el ${new Date().toLocaleDateString('es-CO')}`, pageWidth / 2, footerY + 2, { align: 'center' });
+  doc.text(`${info.name}  •  Generado el ${new Date().toLocaleDateString('es-CO')}`, pageWidth / 2, footerY + 2, { align: 'center' });
 
   return doc;
 }
@@ -1096,8 +1134,9 @@ export async function downloadGradingTemplatePDF(
   students: { full_name: string }[],
   periodName: string = '',
   teacherName: string = '',
-  subjectName: string = ''
+  subjectName: string = '',
+  instData?: PdfInstitutionData
 ) {
-  const doc = await generateGradingTemplatePDF(gradeName, students, periodName, teacherName, subjectName);
+  const doc = await generateGradingTemplatePDF(gradeName, students, periodName, teacherName, subjectName, instData);
   doc.save(`Plantilla_Notas_${gradeName.replace(/\\s+/g, '_')}_${subjectName.replace(/\\s+/g, '_')}.pdf`);
 }

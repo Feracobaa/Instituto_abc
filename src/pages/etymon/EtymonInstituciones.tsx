@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Palette, RefreshCcw, Sparkles } from "lucide-react";
+import { Loader2, Palette, RefreshCcw, Sparkles, Building, Upload } from "lucide-react";
 import { ProviderLayout } from "@/components/provider/ProviderLayout";
 import { ProviderEmptyState } from "@/components/provider/ProviderEmptyState";
 import { ProviderFloatingInput, ProviderFloatingTextarea } from "@/components/provider/ProviderFloatingField";
@@ -17,7 +17,7 @@ import {
   useEtymonCreateUser,
 } from "@/hooks/provider";
 import { useToast } from "@/hooks/use-toast";
-
+import { supabase } from "@/integrations/supabase/client";
 const commercialStatuses = ["lead", "active", "paused", "churned"] as const;
 const billingStatuses = ["pending", "paid", "overdue", "waived"] as const;
 const subscriptionStatuses = ["trialing", "active", "past_due", "canceled"] as const;
@@ -76,6 +76,11 @@ interface BrandingFormState {
   primary_color: string;
   secondary_color: string;
   visual_style: VisualStyleValue;
+  address: string;
+  legal_name: string;
+  nit: string;
+  phone: string;
+  rector_name: string;
 }
 
 interface CreateInstitutionForm extends BrandingFormState {
@@ -97,6 +102,11 @@ function makeBrandingForm(displayName = ""): BrandingFormState {
     primary_color: "#0EA5E9",
     secondary_color: "#1E293B",
     visual_style: "clean",
+    address: "",
+    legal_name: "",
+    nit: "",
+    phone: "",
+    rector_name: "",
   };
 }
 
@@ -235,6 +245,56 @@ export default function EtymonInstituciones() {
     temporaryPassword: "",
   });
 
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover', isCreateForm = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // For creating new, we don't have ID yet, so just prefix 'new'
+    const prefix = selectedSummary ? selectedSummary.institution.id : 'new_tenant';
+
+    try {
+      if (type === 'logo') setIsUploadingLogo(true);
+      else setIsUploadingCover(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${prefix}_${type}_${Date.now()}.${fileExt}`;
+
+      const { error } = await supabase.storage
+        .from('institution_assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('institution_assets')
+        .getPublicUrl(fileName);
+
+      if (publicUrlData) {
+        if (isCreateForm) {
+           setCreateForm(curr => ({ ...curr, [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrlData.publicUrl }));
+        } else {
+           setBrandingForm(curr => ({ ...curr, [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrlData.publicUrl }));
+           // Auto-save the logo to the database so the user doesn't have to manually click save
+           if (selectedSummary) {
+             upsertSettingsMutation.mutate({
+               institution_id: selectedSummary.institution.id,
+               [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrlData.publicUrl,
+             });
+           }
+        }
+        toast({ title: 'Archivo subido', description: 'El archivo se subió y guardó con éxito.' });
+      }
+    } catch (err) {
+      toast({ title: 'Error al subir', description: 'Hubo un error subiendo el archivo.', variant: 'destructive' });
+    } finally {
+      if (type === 'logo') setIsUploadingLogo(false);
+      else setIsUploadingCover(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedInstitutionId && summaries && summaries.length > 0) {
       setSelectedInstitutionId(summaries[0].institution.id);
@@ -258,6 +318,11 @@ export default function EtymonInstituciones() {
       primary_color: selectedSummary.settings?.primary_color ?? "#0EA5E9",
       secondary_color: selectedSummary.settings?.secondary_color ?? "#1E293B",
       visual_style: (selectedSummary.settings?.visual_style as VisualStyleValue) ?? "clean",
+      address: selectedSummary.settings?.address ?? "",
+      legal_name: selectedSummary.settings?.legal_name ?? "",
+      nit: selectedSummary.settings?.nit ?? "",
+      phone: selectedSummary.settings?.phone ?? "",
+      rector_name: selectedSummary.settings?.rector_name ?? "",
     });
 
     setCommercialForm({
@@ -369,6 +434,11 @@ export default function EtymonInstituciones() {
       primary_color: normalizedColors.primary_color || null,
       secondary_color: normalizedColors.secondary_color || null,
       visual_style: brandingForm.visual_style,
+      address: brandingForm.address || null,
+      legal_name: brandingForm.legal_name || null,
+      nit: brandingForm.nit || null,
+      phone: brandingForm.phone || null,
+      rector_name: brandingForm.rector_name || null,
     });
   };
 
@@ -581,16 +651,38 @@ export default function EtymonInstituciones() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <ProviderFloatingInput
-                    label="Logo URL"
-                    value={createForm.logo_url}
-                    onChange={(event) => setCreateForm((current) => ({ ...current, logo_url: event.target.value }))}
-                  />
-                  <ProviderFloatingInput
-                    label="Portada URL"
-                    value={createForm.cover_image_url}
-                    onChange={(event) => setCreateForm((current) => ({ ...current, cover_image_url: event.target.value }))}
-                  />
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Logo (Escudo)</p>
+                    <div className="flex flex-col gap-2">
+                      <ProviderFloatingInput
+                        label="URL (o sube archivo abajo)"
+                        value={createForm.logo_url}
+                        onChange={(event) => setCreateForm((current) => ({ ...current, logo_url: event.target.value }))}
+                      />
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="text-xs text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                        onChange={(e) => handleFileUpload(e, 'logo', true)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Portada</p>
+                    <div className="flex flex-col gap-2">
+                      <ProviderFloatingInput
+                        label="URL (o sube archivo abajo)"
+                        value={createForm.cover_image_url}
+                        onChange={(event) => setCreateForm((current) => ({ ...current, cover_image_url: event.target.value }))}
+                      />
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="text-xs text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                        onChange={(e) => handleFileUpload(e, 'cover', true)}
+                      />
+                    </div>
+                  </div>
 
                   <ColorInput
                     label="Color primario"
@@ -717,16 +809,46 @@ export default function EtymonInstituciones() {
                           value={brandingForm.display_name}
                           onChange={(event) => setBrandingForm((current) => ({ ...current, display_name: event.target.value }))}
                         />
-                        <ProviderFloatingInput
-                          label="Logo URL"
-                          value={brandingForm.logo_url}
-                          onChange={(event) => setBrandingForm((current) => ({ ...current, logo_url: event.target.value }))}
-                        />
-                        <ProviderFloatingInput
-                          label="Portada URL"
-                          value={brandingForm.cover_image_url}
-                          onChange={(event) => setBrandingForm((current) => ({ ...current, cover_image_url: event.target.value }))}
-                        />
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Logo (Escudo)</p>
+                          <div className="flex flex-col gap-2">
+                            <ProviderFloatingInput
+                              label="URL (o sube archivo abajo)"
+                              value={brandingForm.logo_url}
+                              onChange={(event) => setBrandingForm((current) => ({ ...current, logo_url: event.target.value }))}
+                            />
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="text-xs text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                                onChange={(e) => handleFileUpload(e, 'logo')}
+                                disabled={isUploadingLogo}
+                              />
+                              {isUploadingLogo && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Portada</p>
+                          <div className="flex flex-col gap-2">
+                            <ProviderFloatingInput
+                              label="URL (o sube archivo abajo)"
+                              value={brandingForm.cover_image_url}
+                              onChange={(event) => setBrandingForm((current) => ({ ...current, cover_image_url: event.target.value }))}
+                            />
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="text-xs text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                                onChange={(e) => handleFileUpload(e, 'cover')}
+                                disabled={isUploadingCover}
+                              />
+                              {isUploadingCover && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+                            </div>
+                          </div>
+                        </div>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                           <ColorInput
                             label="Color primario"
@@ -792,6 +914,43 @@ export default function EtymonInstituciones() {
                         </div>
                         <Button className="etymon-btn-primary w-full" onClick={handleSaveBranding} disabled={upsertSettingsMutation.isPending}>
                           Guardar branding
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="etymon-surface-soft p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <Building className="h-4 w-4 text-[var(--et-accent)]" />
+                        <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Operativo / PDFs</h4>
+                      </div>
+                      <div className="space-y-3">
+                        <ProviderFloatingInput
+                          label="Nombre Legal (opcional)"
+                          value={brandingForm.legal_name}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, legal_name: event.target.value }))}
+                        />
+                        <ProviderFloatingInput
+                          label="NIT"
+                          value={brandingForm.nit}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, nit: event.target.value }))}
+                        />
+                        <ProviderFloatingInput
+                          label="Dirección"
+                          value={brandingForm.address}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, address: event.target.value }))}
+                        />
+                        <ProviderFloatingInput
+                          label="Teléfono"
+                          value={brandingForm.phone}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, phone: event.target.value }))}
+                        />
+                        <ProviderFloatingInput
+                          label="Nombre del Rector(a)"
+                          value={brandingForm.rector_name}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, rector_name: event.target.value }))}
+                        />
+                        <Button className="etymon-btn-primary w-full" onClick={handleSaveBranding} disabled={upsertSettingsMutation.isPending}>
+                          Guardar Operativo y Branding
                         </Button>
                       </div>
                     </div>
