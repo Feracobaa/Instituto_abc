@@ -389,6 +389,7 @@ export type Database = {
         Row: {
           accent_color: string | null
           address: string | null
+          block_reports_on_debt: boolean
           cover_image_url: string | null
           created_at: string
           display_name: string | null
@@ -408,6 +409,7 @@ export type Database = {
         Insert: {
           accent_color?: string | null
           address?: string | null
+          block_reports_on_debt?: boolean
           cover_image_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -427,6 +429,7 @@ export type Database = {
         Update: {
           accent_color?: string | null
           address?: string | null
+          block_reports_on_debt?: boolean
           cover_image_url?: string | null
           created_at?: string
           display_name?: string | null

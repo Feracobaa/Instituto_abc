@@ -1,4 +1,5 @@
-import { Calendar, ClipboardList, Loader2, MapPin, Phone, Users } from "lucide-react";
+import { useMemo } from "react";
+import { Calendar, ClipboardList, Loader2, MapPin, Phone, Users, Lock } from "lucide-react";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RoleBadge } from "@/components/ui/RoleBadge";
@@ -11,14 +12,19 @@ import {
   usePreescolarEvaluations,
 } from "@/hooks/useSchoolData";
 import { isPreescolarGradeName } from "@/features/calificaciones/helpers";
+import { useInstitutionSettings } from "@/hooks/school/useInstitution";
+import { useGuardianTuitionStatus } from "@/hooks/school/useGuardianPortalExtras";
 
 const dayNames = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
 export function ParentDashboard() {
   const guardianAccountQuery = useGuardianAccount();
   const periodsQuery = useAcademicPeriods();
+  const { data: settings } = useInstitutionSettings();
 
   const student = guardianAccountQuery.data?.students ?? null;
+  const { data: tuitionRecords = [], isLoading: isLoadingTuition } = useGuardianTuitionStatus(student?.id);
+
   const periods = periodsQuery.data ?? [];
   const activePeriod = periods.find((period) => period.is_active) ?? periods[0];
   const isPreescolar = isPreescolarGradeName(student?.grades?.name);
@@ -30,11 +36,17 @@ export function ParentDashboard() {
   });
   const schedulesQuery = useGuardianSchedules(student?.grade_id ?? undefined);
 
+  const hasPendingDebt = useMemo(() => {
+    if (!settings?.block_reports_on_debt) return false;
+    return tuitionRecords.some((r) => (r.pending_amount ?? 0) > 0);
+  }, [settings?.block_reports_on_debt, tuitionRecords]);
+
   const isLoading = guardianAccountQuery.isLoading
     || periodsQuery.isLoading
     || gradeRecordsQuery.isLoading
     || preescolarQuery.isLoading
-    || schedulesQuery.isLoading;
+    || schedulesQuery.isLoading
+    || isLoadingTuition;
 
   if (isLoading) {
     return (
@@ -111,10 +123,10 @@ export function ParentDashboard() {
         />
         <StatCard
           title={isPreescolar ? "Evaluaciones" : "Promedio actual"}
-          value={isPreescolar ? preescolarRecords.length : averageGrade?.toFixed(1) || "—"}
-          icon={ClipboardList}
-          description={activePeriod?.name || "Sin bimestre activo"}
-          variant={isPreescolar ? "default" : averageGrade && averageGrade >= 3 ? "success" : "default"}
+          value={hasPendingDebt ? "Bloqueado" : (isPreescolar ? preescolarRecords.length : averageGrade?.toFixed(1) || "—")}
+          icon={hasPendingDebt ? Lock : ClipboardList}
+          description={hasPendingDebt ? "Saldos pendientes" : (activePeriod?.name || "Sin bimestre activo")}
+          variant={hasPendingDebt ? "default" : (isPreescolar ? "default" : averageGrade && averageGrade >= 3 ? "success" : "default")}
         />
         <StatCard
           title="Clases hoy"

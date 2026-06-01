@@ -81,6 +81,7 @@ interface BrandingFormState {
   nit: string;
   phone: string;
   rector_name: string;
+  block_reports_on_debt: boolean;
 }
 
 interface CreateInstitutionForm extends BrandingFormState {
@@ -107,6 +108,7 @@ function makeBrandingForm(displayName = ""): BrandingFormState {
     nit: "",
     phone: "",
     rector_name: "",
+    block_reports_on_debt: false,
   };
 }
 
@@ -323,6 +325,7 @@ export default function EtymonInstituciones() {
       nit: selectedSummary.settings?.nit ?? "",
       phone: selectedSummary.settings?.phone ?? "",
       rector_name: selectedSummary.settings?.rector_name ?? "",
+      block_reports_on_debt: selectedSummary.settings?.block_reports_on_debt ?? false,
     });
 
     setCommercialForm({
@@ -439,6 +442,7 @@ export default function EtymonInstituciones() {
       nit: brandingForm.nit || null,
       phone: brandingForm.phone || null,
       rector_name: brandingForm.rector_name || null,
+      block_reports_on_debt: brandingForm.block_reports_on_debt,
     });
   };
 
@@ -949,6 +953,18 @@ export default function EtymonInstituciones() {
                           value={brandingForm.rector_name}
                           onChange={(event) => setBrandingForm((current) => ({ ...current, rector_name: event.target.value }))}
                         />
+                        <div className="flex items-center gap-2 py-1">
+                          <input
+                            type="checkbox"
+                            id="block_reports_on_debt"
+                            checked={brandingForm.block_reports_on_debt}
+                            onChange={(e) => setBrandingForm((current) => ({ ...current, block_reports_on_debt: e.target.checked }))}
+                            className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-[var(--et-accent)] focus:ring-[var(--et-accent)]"
+                          />
+                          <label htmlFor="block_reports_on_debt" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 cursor-pointer select-none">
+                            Bloquear descarga de boletines por mora
+                          </label>
+                        </div>
                         <Button className="etymon-btn-primary w-full" onClick={handleSaveBranding} disabled={upsertSettingsMutation.isPending}>
                           Guardar Operativo y Branding
                         </Button>

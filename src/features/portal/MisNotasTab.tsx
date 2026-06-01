@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, Download, Loader2 } from "lucide-react";
+import { ClipboardList, Download, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { PreescolarReportHandle } from "@/components/reports/PreescolarReport";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
   usePreescolarEvaluations,
 } from "@/hooks/useSchoolData";
 import { useInstitutionSettings } from "@/hooks/school/useInstitution";
+import { useGuardianTuitionStatus } from "@/hooks/school/useGuardianPortalExtras";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Student } from "@/hooks/useSchoolData";
 import { getStudentReportSnapshot } from "@/lib/reportCards";
 import { getGradeColor } from "@/features/calificaciones/helpers";
@@ -44,6 +46,12 @@ export default function MisNotasTab() {
 
   const gradeRecordsQuery = useGuardianGradeRecords(student?.id, selectedPeriod || undefined);
   const preescolarQuery = usePreescolarEvaluations({ studentId: student?.id, periodId: selectedPeriod || undefined });
+  const { data: tuitionRecords = [], isLoading: isLoadingTuition } = useGuardianTuitionStatus(student?.id);
+
+  const hasPendingDebt = useMemo(() => {
+    if (!settings?.block_reports_on_debt) return false;
+    return tuitionRecords.some((r) => (r.pending_amount ?? 0) > 0);
+  }, [settings?.block_reports_on_debt, tuitionRecords]);
 
   const gradeRecords = gradeRecordsQuery.data ?? [];
   const preescolarRecords = useMemo(() => preescolarQuery.data ?? [], [preescolarQuery.data]);
@@ -74,6 +82,9 @@ export default function MisNotasTab() {
 
   const handleDownloadReport = async () => {
     if (!student || !selectedPeriodData) return toast.error("Selecciona un bimestre valido.");
+    if (hasPendingDebt) {
+      return toast.error("Descarga bloqueada: Su cuenta presenta saldos pendientes en pensiones.");
+    }
     if (isPreescolar) {
       if (!preescolarRecords.length) return toast.error("Sin evaluaciones para generar el boletin.");
       try {
@@ -109,8 +120,8 @@ export default function MisNotasTab() {
     finally { setIsDownloadingReport(false); }
   };
 
-  const isLoading = guardianAccountQuery.isLoading || periodsQuery.isLoading || gradeRecordsQuery.isLoading || preescolarQuery.isLoading;
-  const canDownload = Boolean(student && selectedPeriodData && (isPreescolar ? preescolarRecords.length > 0 : gradeRecords.length > 0));
+  const isLoading = guardianAccountQuery.isLoading || periodsQuery.isLoading || gradeRecordsQuery.isLoading || preescolarQuery.isLoading || isLoadingTuition;
+  const canDownload = Boolean(student && selectedPeriodData && (isPreescolar ? preescolarRecords.length > 0 : gradeRecords.length > 0) && !hasPendingDebt);
 
   return (
     <div className="space-y-6">
@@ -130,7 +141,7 @@ export default function MisNotasTab() {
             </SelectContent>
           </Select>
           <Button onClick={() => void handleDownloadReport()} disabled={!canDownload || isDownloadingReport} size="sm" className="gap-2">
-            {isDownloadingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {isDownloadingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : (hasPendingDebt ? <Lock className="h-4 w-4" /> : <Download className="h-4 w-4" />)}
             Boletín
           </Button>
         </div>
@@ -138,6 +149,26 @@ export default function MisNotasTab() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      ) : hasPendingDebt ? (
+        <div className="rounded-xl border bg-card p-8 text-center shadow-card space-y-6 max-w-2xl mx-auto my-8">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <Lock className="h-8 w-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Visualización de Calificaciones Bloqueada</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Las calificaciones y el boletín de este bimestre no están disponibles debido a que la cuenta presenta saldos pendientes en las pensiones escolares.
+            </p>
+          </div>
+          <div className="rounded-lg bg-muted/40 p-4 border text-left text-xs space-y-2">
+            <p className="font-semibold text-foreground">¿Cómo solucionar esto?</p>
+            <ol className="list-decimal pl-4 space-y-1 text-muted-foreground">
+              <li>Diríjase a la pestaña de <strong>Pensiones</strong> para revisar el detalle de su cuenta de cobro.</li>
+              <li>Realice el pago de los meses pendientes.</li>
+              <li>Una vez la administración registre sus abonos en el sistema, la visualización y descarga de calificaciones se habilitará inmediatamente.</li>
+            </ol>
+          </div>
+        </div>
       ) : !student ? (
         <EmptyState icon={ClipboardList} title="Sin estudiante vinculado" description="Rectoría debe revisar la vinculación de esta cuenta." />
       ) : isPreescolar ? (

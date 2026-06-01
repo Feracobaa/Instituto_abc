@@ -457,6 +457,7 @@ export function useProviderUpsertInstitutionSettings() {
           | "rector_name"
           | "secondary_color"
           | "visual_style"
+          | "block_reports_on_debt"
         >
       >,
     ) => {
