@@ -1,0 +1,215 @@
+.report-wrapper {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  box-sizing: border-box;
+  font-family: 'Helvetica', 'Arial', sans-serif;
+  color: #000;
+}
+
+.report-header {
+  text-align: center;
+  margin-bottom: 5px;
+  position: relative;
+  border: 1.5px solid #000;
+  padding: 8px;
+}
+
+.report-header::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  border: 1px solid #000;
+  pointer-events: none;
+}
+
+.header-logo-left,
+.header-logo-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+}
+
+.header-logo-left {
+  left: 15px;
+}
+
+.header-logo-right {
+  right: 15px;
+}
+
+.header-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.header-text {
+  display: inline-block;
+  line-height: 1.1;
+}
+
+.header-text h4 {
+  margin: 1px 0;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.header-text h3 {
+  margin: 4px 0 1px 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.header-title-banner {
+  background-color: #1e3a8a;
+  color: white;
+  text-align: center;
+  font-weight: bold;
+  padding: 4px;
+  font-size: 10px;
+  margin-bottom: 5px;
+}
+
+.student-info {
+  border: 1px solid #000;
+  padding: 4px 8px;
+  margin-bottom: 5px;
+  font-size: 9.5px;
+}
+
+/* Use simple block and inline-block layout for reliable html2canvas capture. */
+.info-row {
+  margin-bottom: 3px;
+}
+
+.info-item {
+  display: inline-block;
+  width: 48%;
+  vertical-align: top;
+}
+
+.info-label {
+  font-weight: bold;
+}
+
+.info-value {
+  margin-left: 5px;
+  text-transform: uppercase;
+}
+
+.dimensions-container {
+  margin-top: 3px;
+}
+
+.dimension-card {
+  border: 1px solid #000;
+  margin-bottom: 3px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  table-layout: fixed;
+}
+
+.dimension-title {
+  background-color: #1e3a8a;
+  color: white;
+  font-weight: bold;
+  font-size: 9px;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #000;
+}
+
+.dimension-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.dimension-icon {
+  width: 60px;
+  flex-shrink: 0;
+  border-right: 1px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+}
+
+.dimension-img {
+  max-width: 100%;
+  max-height: 60px;
+  object-fit: contain;
+}
+
+.dimension-content {
+  flex: 1;
+  padding: 3px 6px;
+}
+
+.dimension-section {
+  margin-bottom: 2px;
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.dimension-section:last-child {
+  margin-bottom: 0;
+}
+
+.dimension-section strong {
+  display: inline-block;
+  font-weight: bold;
+  margin-bottom: 1px;
+  margin-right: 4px;
+  color: #333;
+}
+
+.dimension-section p {
+  margin: 0;
+  padding-left: 0px;
+  text-align: justify;
+  text-justify: inter-word;
+  white-space: pre-line;
+}
+
+.report-footer {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.signatures {
+  margin-top: 15px;
+  text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  display: table;
+  width: 100%;
+}
+
+.signature-block {
+  display: inline-block;
+  width: 30%;
+  margin: 0 1.5%;
+  vertical-align: top;
+}
+
+.signature-line {
+  border-bottom: 1px solid #000;
+  margin-bottom: 5px;
+  height: 20px;
+}
+
+.signature-label {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.signature-sub {
+  font-size: 9px;
+}

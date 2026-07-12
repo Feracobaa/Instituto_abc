@@ -1,0 +1,47 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project specific
+/*.sql
+!/sql/
+!/sql/**
+/consultas/
+*.docx
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+tmp_*/
+supabase/.temp/
+
+# Internal documentation — sensitive architecture and strategy files
+# Move to a separate private repo or local-only directory
+AUDITORIA_*.md
+CODEX_*.md
+DIAGNOSTICO_*.md
+GOBIERNO_*.md
+PLAN_MAESTRO_*.md
+MATRIZ_*.md
+etymon_master_plan.md

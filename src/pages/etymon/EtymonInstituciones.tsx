@@ -1,0 +1,1200 @@
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Palette, RefreshCcw, Sparkles, Building, Upload, Users } from "lucide-react";
+import { ProviderLayout } from "@/components/provider/ProviderLayout";
+import { ProviderEmptyState } from "@/components/provider/ProviderEmptyState";
+import { ProviderFloatingInput, ProviderFloatingTextarea } from "@/components/provider/ProviderFloatingField";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  useProviderAssignUserRoleByEmail,
+  useProviderCreateInstitution,
+  useProviderInstitutionSummaries,
+  useEtymonSetInstitutionActive,
+  useProviderSubscriptionPlans,
+  useProviderUpsertCustomerAccount,
+  useProviderUpsertInstitutionSettings,
+  useProviderUpsertInstitutionSubscription,
+  useEtymonCreateUser,
+} from "@/hooks/provider";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+const commercialStatuses = ["lead", "active", "paused", "churned"] as const;
+const billingStatuses = ["pending", "paid", "overdue", "waived"] as const;
+const subscriptionStatuses = ["trialing", "active", "past_due", "canceled"] as const;
+const institutionRoles = ["rector", "profesor", "parent", "contable"] as const;
+const colorRegex = /^#[0-9A-Fa-f]{6}$/;
+
+const fontFamilyOptions = [
+  { value: "modern-sans", label: "Modern Sans" },
+  { value: "academic-sans", label: "Academic Sans" },
+  { value: "friendly-rounded", label: "Friendly Rounded" },
+  { value: "classic-serif", label: "Classic Serif" },
+] as const;
+
+const visualStyleOptions = [
+  { value: "clean", label: "Clean" },
+  { value: "bold", label: "Bold" },
+  { value: "minimal", label: "Minimal" },
+] as const;
+
+const brandPresets = [
+  {
+    accent_color: "#14B8A6",
+    key: "coastal",
+    label: "Coastal Tech",
+    primary_color: "#0EA5E9",
+    secondary_color: "#1E293B",
+    visual_style: "clean",
+  },
+  {
+    accent_color: "#F59E0B",
+    key: "academia",
+    label: "Academia Gold",
+    primary_color: "#0F172A",
+    secondary_color: "#334155",
+    visual_style: "bold",
+  },
+  {
+    accent_color: "#4F46E5",
+    key: "future",
+    label: "Future Indigo",
+    primary_color: "#111827",
+    secondary_color: "#312E81",
+    visual_style: "minimal",
+  },
+] as const;
+
+type FontFamilyValue = (typeof fontFamilyOptions)[number]["value"];
+type VisualStyleValue = (typeof visualStyleOptions)[number]["value"];
+
+interface BrandingFormState {
+  accent_color: string;
+  cover_image_url: string;
+  display_name: string;
+  font_family: FontFamilyValue;
+  logo_url: string;
+  primary_color: string;
+  secondary_color: string;
+  visual_style: VisualStyleValue;
+  address: string;
+  legal_name: string;
+  nit: string;
+  phone: string;
+  rector_name: string;
+  block_reports_on_debt: boolean;
+}
+
+interface CreateInstitutionForm extends BrandingFormState {
+  billingStatus: string;
+  name: string;
+  notes: string;
+  planId: string;
+  slug: string;
+  subscriptionStatus: string;
+}
+
+function makeBrandingForm(displayName = ""): BrandingFormState {
+  return {
+    accent_color: "#14B8A6",
+    cover_image_url: "",
+    display_name: displayName,
+    font_family: "modern-sans",
+    logo_url: "",
+    primary_color: "#0EA5E9",
+    secondary_color: "#1E293B",
+    visual_style: "clean",
+    address: "",
+    legal_name: "",
+    nit: "",
+    phone: "",
+    rector_name: "",
+    block_reports_on_debt: false,
+  };
+}
+
+function defaultCreateForm(): CreateInstitutionForm {
+  return {
+    ...makeBrandingForm(""),
+    billingStatus: "pending",
+    name: "",
+    notes: "",
+    planId: "",
+    slug: "",
+    subscriptionStatus: "trialing",
+  };
+}
+
+function ensureHexOrEmpty(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return "";
+  return colorRegex.test(normalized) ? normalized.toUpperCase() : null;
+}
+
+function fontPreviewClass(value: FontFamilyValue) {
+  if (value === "friendly-rounded") return "font-[Nunito]";
+  if (value === "classic-serif") return "font-serif";
+  if (value === "academic-sans") return "font-[Inter] tracking-[0.01em]";
+  return "font-[Inter]";
+}
+
+function styleBadgeClass(value: VisualStyleValue) {
+  if (value === "bold") return "uppercase tracking-[0.16em]";
+  if (value === "minimal") return "tracking-[0.08em]";
+  return "tracking-[0.12em]";
+}
+
+function ColorInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const safeColor = colorRegex.test(value) ? value : "#0EA5E9";
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={safeColor}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          className="h-11 w-14 cursor-pointer rounded-lg border border-[var(--et-border)] bg-transparent p-1"
+        />
+        <ProviderFloatingInput
+          label="Hex"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BrandPreview({ title, branding }: { title: string; branding: BrandingFormState }) {
+  return (
+    <div className="etymon-surface-soft overflow-hidden p-0">
+      <div
+        className="relative min-h-[190px] p-4"
+        style={{
+          background: `linear-gradient(145deg, ${branding.primary_color} 0%, ${branding.secondary_color} 52%, ${branding.accent_color} 100%)`,
+        }}
+      >
+        {branding.cover_image_url ? (
+          <img
+            src={branding.cover_image_url}
+            alt="Portada de marca"
+            className="absolute inset-0 h-full w-full object-cover opacity-35"
+          />
+        ) : null}
+
+        <div className="relative z-10 flex h-full flex-col justify-between">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-black/35 px-2.5 py-1 text-[11px] text-white/90">
+            <Sparkles className="h-3.5 w-3.5" />
+            Preview de marca
+          </div>
+
+          <div>
+            <p className={`text-[11px] text-white/75 ${styleBadgeClass(branding.visual_style)}`}>{title}</p>
+            <h4 className={`mt-1 text-xl text-white ${fontPreviewClass(branding.font_family)}`}>
+              {branding.display_name || "Nombre institucional"}
+            </h4>
+            <p className="mt-2 inline-flex rounded-full bg-white/20 px-3 py-1 text-xs text-white">
+              {visualStyleOptions.find((option) => option.value === branding.visual_style)?.label}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function EtymonInstituciones() {  const { data: summaries, isLoading } = useProviderInstitutionSummaries();
+  const { data: plans } = useProviderSubscriptionPlans();
+
+  const createInstitutionMutation = useProviderCreateInstitution();
+  const setInstitutionActiveMutation = useEtymonSetInstitutionActive();
+  const upsertSettingsMutation = useProviderUpsertInstitutionSettings();
+  const upsertSubscriptionMutation = useProviderUpsertInstitutionSubscription();
+  const upsertCustomerAccountMutation = useProviderUpsertCustomerAccount();
+  const assignUserRoleMutation = useProviderAssignUserRoleByEmail();
+  const createUserMutation = useEtymonCreateUser();
+
+  const [createForm, setCreateForm] = useState<CreateInstitutionForm>(defaultCreateForm());
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<string>("");
+  const [brandingForm, setBrandingForm] = useState<BrandingFormState>(makeBrandingForm());
+  const [commercialForm, setCommercialForm] = useState({
+    billing_status: "pending" as (typeof billingStatuses)[number],
+    commercial_status: "active" as (typeof commercialStatuses)[number],
+    notes: "",
+  });
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    current_period_end: "",
+    current_period_start: "",
+    notes: "",
+    plan_id: "",
+    status: "trialing" as (typeof subscriptionStatuses)[number],
+  });
+  const [accessForm, setAccessForm] = useState({
+    email: "",
+    fullName: "",
+    role: "rector" as (typeof institutionRoles)[number],
+    temporaryPassword: "",
+  });
+
+  const [activeTab, setActiveTab] = useState<'general' | 'branding' | 'subscription' | 'users'>('general');
+
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover', isCreateForm = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // For creating new, we don't have ID yet, so just prefix 'new'
+    const prefix = selectedSummary ? selectedSummary.institution.id : 'new_tenant';
+
+    try {
+      if (type === 'logo') setIsUploadingLogo(true);
+      else setIsUploadingCover(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${prefix}_${type}_${Date.now()}.${fileExt}`;
+
+      const { error } = await supabase.storage
+        .from('institution_assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('institution_assets')
+        .getPublicUrl(fileName);
+
+      if (publicUrlData) {
+        if (isCreateForm) {
+           setCreateForm(curr => ({ ...curr, [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrlData.publicUrl }));
+        } else {
+           setBrandingForm(curr => ({ ...curr, [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrlData.publicUrl }));
+           // Auto-save the logo to the database so the user doesn't have to manually click save
+           if (selectedSummary) {
+             upsertSettingsMutation.mutate({
+               institution_id: selectedSummary.institution.id,
+               [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrlData.publicUrl,
+             });
+           }
+        }
+        toast({ title: 'Archivo subido', description: 'El archivo se subió y guardó con éxito.' });
+      }
+    } catch (err) {
+      toast({ title: 'Error al subir', description: 'Hubo un error subiendo el archivo.', variant: 'destructive' });
+    } finally {
+      if (type === 'logo') setIsUploadingLogo(false);
+      else setIsUploadingCover(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedInstitutionId && summaries && summaries.length > 0) {
+      setSelectedInstitutionId(summaries[0].institution.id);
+    }
+  }, [selectedInstitutionId, summaries]);
+
+  const selectedSummary = useMemo(
+    () => summaries?.find((summary) => summary.institution.id === selectedInstitutionId) ?? null,
+    [selectedInstitutionId, summaries],
+  );
+
+  useEffect(() => {
+    if (!selectedSummary) return;
+
+    setBrandingForm({
+      accent_color: selectedSummary.settings?.accent_color ?? "#14B8A6",
+      cover_image_url: selectedSummary.settings?.cover_image_url ?? "",
+      display_name: selectedSummary.settings?.display_name ?? selectedSummary.institution.name,
+      font_family: (selectedSummary.settings?.font_family as FontFamilyValue) ?? "modern-sans",
+      logo_url: selectedSummary.settings?.logo_url ?? "",
+      primary_color: selectedSummary.settings?.primary_color ?? "#0EA5E9",
+      secondary_color: selectedSummary.settings?.secondary_color ?? "#1E293B",
+      visual_style: (selectedSummary.settings?.visual_style as VisualStyleValue) ?? "clean",
+      address: selectedSummary.settings?.address ?? "",
+      legal_name: selectedSummary.settings?.legal_name ?? "",
+      nit: selectedSummary.settings?.nit ?? "",
+      phone: selectedSummary.settings?.phone ?? "",
+      rector_name: selectedSummary.settings?.rector_name ?? "",
+      block_reports_on_debt: selectedSummary.settings?.block_reports_on_debt ?? false,
+    });
+
+    setCommercialForm({
+      billing_status: (selectedSummary.customerAccount?.billing_status as (typeof billingStatuses)[number]) ?? "pending",
+      commercial_status: (selectedSummary.customerAccount?.commercial_status as (typeof commercialStatuses)[number]) ?? "active",
+      notes: selectedSummary.customerAccount?.notes ?? "",
+    });
+
+    setSubscriptionForm({
+      current_period_end: selectedSummary.subscription?.current_period_end ?? "",
+      current_period_start: selectedSummary.subscription?.current_period_start ?? "",
+      notes: selectedSummary.subscription?.notes ?? "",
+      plan_id: selectedSummary.subscription?.plan_id ?? plans?.[0]?.id ?? "",
+      status: (selectedSummary.subscription?.status as (typeof subscriptionStatuses)[number]) ?? "trialing",
+    });
+  }, [plans, selectedSummary]);
+
+  const validateBrandingColors = (payload: BrandingFormState) => {
+    const primary = ensureHexOrEmpty(payload.primary_color);
+    const secondary = ensureHexOrEmpty(payload.secondary_color);
+    const accent = ensureHexOrEmpty(payload.accent_color);
+
+    if (primary === null || secondary === null || accent === null) {
+      toast({
+        title: "Color invalido",
+        description: "Usa formato HEX de 6 digitos, por ejemplo #0EA5E9.",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    return {
+      accent_color: accent,
+      primary_color: primary,
+      secondary_color: secondary,
+    };
+  };
+
+  const handleCreateInstitution = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const normalizedColors = validateBrandingColors(createForm);
+    if (!normalizedColors) return;
+
+    await createInstitutionMutation.mutateAsync({
+      accentColor: normalizedColors.accent_color || undefined,
+      billingStatus: createForm.billingStatus,
+      coverImageUrl: createForm.cover_image_url || undefined,
+      displayName: createForm.display_name || undefined,
+      fontFamily: createForm.font_family,
+      name: createForm.name,
+      notes: createForm.notes || undefined,
+      planId: createForm.planId || undefined,
+      primaryColor: normalizedColors.primary_color || undefined,
+      secondaryColor: normalizedColors.secondary_color || undefined,
+      slug: createForm.slug,
+      subscriptionStatus: createForm.subscriptionStatus,
+      visualStyle: createForm.visual_style,
+    });
+
+    setCreateForm(defaultCreateForm());
+  };
+
+  const handleToggleInstitutionStatus = async (institutionId: string, currentStatus: boolean, slug: string) => {
+    const typedSlug = window.prompt(
+      `Accion critica. Escribe el slug "${slug}" para ${currentStatus ? "desactivar" : "activar"} esta institucion.`,
+    );
+
+    if (typedSlug !== slug) {
+      toast({
+        title: "Confirmacion invalida",
+        description: "No se aplicaron cambios porque el slug no coincide.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reason = window.prompt(
+      `Registra el motivo de ${currentStatus ? "archivo" : "reactivacion"} para ${slug}.`,
+    );
+
+    if (!reason || !reason.trim()) {
+      toast({
+        title: "Motivo requerido",
+        description: "Debes registrar un motivo para ejecutar esta accion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await setInstitutionActiveMutation.mutateAsync({
+      institutionId,
+      isActive: !currentStatus,
+      reason: reason.trim(),
+    });
+  };
+
+  const handleSaveBranding = async () => {
+    if (!selectedSummary) return;
+    const normalizedColors = validateBrandingColors(brandingForm);
+    if (!normalizedColors) return;
+
+    await upsertSettingsMutation.mutateAsync({
+      accent_color: normalizedColors.accent_color || null,
+      cover_image_url: brandingForm.cover_image_url || null,
+      display_name: brandingForm.display_name,
+      font_family: brandingForm.font_family,
+      institution_id: selectedSummary.institution.id,
+      logo_url: brandingForm.logo_url || null,
+      primary_color: normalizedColors.primary_color || null,
+      secondary_color: normalizedColors.secondary_color || null,
+      visual_style: brandingForm.visual_style,
+      address: brandingForm.address || null,
+      legal_name: brandingForm.legal_name || null,
+      nit: brandingForm.nit || null,
+      phone: brandingForm.phone || null,
+      rector_name: brandingForm.rector_name || null,
+      block_reports_on_debt: brandingForm.block_reports_on_debt,
+    });
+  };
+
+  const handleSaveCommercial = async () => {
+    if (!selectedSummary) return;
+    await upsertCustomerAccountMutation.mutateAsync({
+      billing_status: commercialForm.billing_status,
+      commercial_status: commercialForm.commercial_status,
+      institution_id: selectedSummary.institution.id,
+      notes: commercialForm.notes || null,
+    });
+  };
+
+  const handleSaveSubscription = async () => {
+    if (!selectedSummary || !subscriptionForm.plan_id) {
+      toast({
+        title: "Plan requerido",
+        description: "Selecciona un plan antes de guardar la suscripcion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await upsertSubscriptionMutation.mutateAsync({
+      current_period_end: subscriptionForm.current_period_end || null,
+      current_period_start: subscriptionForm.current_period_start || null,
+      institution_id: selectedSummary.institution.id,
+      notes: subscriptionForm.notes || null,
+      plan_id: subscriptionForm.plan_id,
+      status: subscriptionForm.status,
+    });
+  };
+
+  const handleProcessUserAccess = async () => {
+    if (!selectedSummary) return;
+    if (!accessForm.email.trim()) {
+      toast({ title: "Email requerido", description: "Ingresa el correo del usuario.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await createUserMutation.mutateAsync({
+        email: accessForm.email.trim().toLowerCase(),
+        full_name: accessForm.fullName.trim() || "Usuario " + accessForm.role,
+        institution_id: selectedSummary.institution.id,
+        role: accessForm.role as "rector" | "profesor" | "contable",
+        temporary_password: accessForm.temporaryPassword.trim() || undefined,
+      });
+      setAccessForm((current) => ({ ...current, email: "", fullName: "", temporaryPassword: "" }));
+    } catch (err) {
+      const msg = (err as Error).message?.toLowerCase() ?? "";
+      if (msg.includes("already exists") || msg.includes("already registered")) {
+        await assignUserRoleMutation.mutateAsync({
+          email: accessForm.email.trim().toLowerCase(),
+          fullName: accessForm.fullName.trim() || undefined,
+          institutionId: selectedSummary.institution.id,
+          makeDefault: true,
+          role: accessForm.role,
+        });
+        toast({
+          title: "Usuario vinculado",
+          description: "El usuario ya existia y fue asignado exitosamente a la institucion.",
+        });
+        setAccessForm((current) => ({ ...current, email: "", fullName: "", temporaryPassword: "" }));
+      }
+    }
+  };
+
+  const applyPresetToCreate = (preset: (typeof brandPresets)[number]) => {
+    setCreateForm((current) => ({
+      ...current,
+      accent_color: preset.accent_color,
+      primary_color: preset.primary_color,
+      secondary_color: preset.secondary_color,
+      visual_style: preset.visual_style as VisualStyleValue,
+    }));
+  };
+
+  const applyPresetToBranding = (preset: (typeof brandPresets)[number]) => {
+    setBrandingForm((current) => ({
+      ...current,
+      accent_color: preset.accent_color,
+      primary_color: preset.primary_color,
+      secondary_color: preset.secondary_color,
+      visual_style: preset.visual_style as VisualStyleValue,
+    }));
+  };
+
+  return (
+    <ProviderLayout title="Instituciones" subtitle="Inducción, imagen de marca avanzada y operación comercial por colegio">
+      <div className="space-y-6">
+        <section className="etymon-surface p-5">
+          <header className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">Nueva Institución</h3>
+              <p className="mt-1 text-sm text-slate-500">Crea una institución con personalización visual completa desde el primer día.</p>
+            </div>
+            {createInstitutionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin text-slate-500" /> : null}
+          </header>
+
+          <form onSubmit={handleCreateInstitution} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+              <div className="lg:col-span-4">
+                <ProviderFloatingInput
+                  label="Identificador único (Slug)"
+                  value={createForm.slug}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, slug: event.target.value.toLowerCase() }))}
+                  required
+                />
+              </div>
+              <div className="lg:col-span-4">
+                <ProviderFloatingInput
+                  label="Nombre de la institución"
+                  value={createForm.name}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="lg:col-span-4">
+                <ProviderFloatingInput
+                  label="Nombre a mostrar"
+                  value={createForm.display_name}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, display_name: event.target.value }))}
+                />
+              </div>
+
+              <div className="lg:col-span-3">
+                <p className="mb-1 text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Plan inicial</p>
+                <Select
+                  value={createForm.planId || "none"}
+                  onValueChange={(value) => setCreateForm((current) => ({ ...current, planId: value === "none" ? "" : value }))}
+                >
+                  <SelectTrigger className="etymon-input h-12 text-slate-100">
+                    <SelectValue placeholder="Seleccionar plan" />
+                  </SelectTrigger>
+                  <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-slate-100">
+                    <SelectItem value="none">Sin plan activo</SelectItem>
+                    {(plans ?? []).map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="lg:col-span-3">
+                <p className="mb-1 text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Estado de suscripción</p>
+                <Select
+                  value={createForm.subscriptionStatus}
+                  onValueChange={(value) => setCreateForm((current) => ({ ...current, subscriptionStatus: value }))}
+                >
+                  <SelectTrigger className="etymon-input h-12 text-slate-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-slate-100">
+                    {subscriptionStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="lg:col-span-3">
+                <p className="mb-1 text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Estado de cobro</p>
+                <Select
+                  value={createForm.billingStatus}
+                  onValueChange={(value) => setCreateForm((current) => ({ ...current, billingStatus: value }))}
+                >
+                  <SelectTrigger className="etymon-input h-12 text-slate-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-slate-100">
+                    {billingStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="lg:col-span-3 flex items-end">
+                <Button type="submit" disabled={createInstitutionMutation.isPending} className="etymon-btn-primary h-12 w-full">
+                  Crear institución
+                </Button>
+              </div>
+
+              <div className="lg:col-span-12">
+                <ProviderFloatingTextarea
+                  label="Notas operativas"
+                  value={createForm.notes}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, notes: event.target.value }))}
+                />
+              </div>
+            </div>
+
+            <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr,0.8fr]">
+              <div className="etymon-surface-soft p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Brand Kit Inicial</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {brandPresets.map((preset) => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => applyPresetToCreate(preset)}
+                        className="rounded-full border border-[var(--et-border)] px-2 py-0.5 text-[10px] text-slate-400 transition-colors hover:text-slate-200"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Logo (Escudo)</p>
+                    <div className="flex flex-col gap-2">
+                      <ProviderFloatingInput
+                        label="URL (o sube archivo abajo)"
+                        value={createForm.logo_url}
+                        onChange={(event) => setCreateForm((current) => ({ ...current, logo_url: event.target.value }))}
+                      />
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="text-xs text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                        onChange={(e) => handleFileUpload(e, 'logo', true)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Portada</p>
+                    <div className="flex flex-col gap-2">
+                      <ProviderFloatingInput
+                        label="URL (o sube archivo abajo)"
+                        value={createForm.cover_image_url}
+                        onChange={(event) => setCreateForm((current) => ({ ...current, cover_image_url: event.target.value }))}
+                      />
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="text-xs text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                        onChange={(e) => handleFileUpload(e, 'cover', true)}
+                      />
+                    </div>
+                  </div>
+
+                  <ColorInput
+                    label="Color primario"
+                    value={createForm.primary_color}
+                    onChange={(value) => setCreateForm((current) => ({ ...current, primary_color: value }))}
+                  />
+                  <ColorInput
+                    label="Color secundario"
+                    value={createForm.secondary_color}
+                    onChange={(value) => setCreateForm((current) => ({ ...current, secondary_color: value }))}
+                  />
+                  <ColorInput
+                    label="Color acento"
+                    value={createForm.accent_color}
+                    onChange={(value) => setCreateForm((current) => ({ ...current, accent_color: value }))}
+                  />
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Tipografía</p>
+                      <Select
+                        value={createForm.font_family}
+                        onValueChange={(value) => setCreateForm((current) => ({ ...current, font_family: value as FontFamilyValue }))}
+                      >
+                        <SelectTrigger className="etymon-input h-11 text-slate-100">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-slate-100">
+                          {fontFamilyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-[0.1em] text-slate-500">Estilo visual</p>
+                      <Select
+                        value={createForm.visual_style}
+                        onValueChange={(value) => setCreateForm((current) => ({ ...current, visual_style: value as VisualStyleValue }))}
+                      >
+                        <SelectTrigger className="etymon-input h-11 text-slate-100">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-slate-100">
+                          {visualStyleOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <BrandPreview title="Nueva Institución" branding={createForm} />
+            </section>
+          </form>
+        </section>
+
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="etymon-surface p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Colegios</h3>
+
+            {isLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                {(summaries ?? []).map((summary) => (
+                  <button
+                    key={summary.institution.id}
+                    onClick={() => setSelectedInstitutionId(summary.institution.id)}
+                    className={`w-full rounded-xl border px-3 py-3 text-left transition-all ${
+                      selectedInstitutionId === summary.institution.id
+                        ? "border-[var(--et-accent)] bg-[color:var(--et-accent-soft)] text-slate-100"
+                        : "border-[var(--et-border)] [background:var(--et-chip-bg)] text-slate-300 hover:border-[var(--et-accent)]"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{summary.institution.name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{summary.institution.slug}</p>
+                    <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${summary.institution.is_active ? "border border-emerald-400/35 bg-emerald-400/12 text-emerald-200" : "border border-slate-500/35 bg-slate-500/15 text-slate-300"}`}>
+                      {summary.institution.is_active ? "Activa" : "Inactiva"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </aside>
+
+          <article className="etymon-surface p-5">
+            {selectedSummary ? (
+              <div className="space-y-6">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center border-b border-[var(--et-border)] pb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-[var(--et-text)]">{selectedSummary.institution.name}</h3>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--et-text-muted)]">{selectedSummary.institution.slug}</p>
+                  </div>
+                  <Button
+                    className="etymon-btn-outline gap-2 text-xs py-1.5 h-auto font-semibold"
+                    onClick={() => handleToggleInstitutionStatus(
+                      selectedSummary.institution.id,
+                      selectedSummary.institution.is_active,
+                      selectedSummary.institution.slug,
+                    )}
+                    disabled={setInstitutionActiveMutation.isPending}
+                  >
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                    {selectedSummary.institution.is_active ? "Desactivar" : "Activar"}
+                  </Button>
+                </div>
+
+                {/* Tabs Selector */}
+                <div className="flex border-b border-[var(--et-border)] gap-2 overflow-x-auto pb-px">
+                  {([
+                    { id: 'general', label: 'Operativo y General' },
+                    { id: 'branding', label: 'Identidad y Marca' },
+                    { id: 'subscription', label: 'Comercial y Suscripción' },
+                    { id: 'users', label: 'Acceso de Usuarios' },
+                  ] as const).map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all shrink-0 ${
+                        activeTab === tab.id
+                          ? "border-[var(--et-accent)] text-[var(--et-text)]"
+                          : "border-transparent text-[var(--et-text-muted)] hover:text-[var(--et-text-subtle)]"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tab Contents */}
+                <div className="pt-2">
+                  {activeTab === 'general' && (
+                    <div className="space-y-4 max-w-2xl">
+                      <div className="etymon-surface-soft p-5 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-[var(--et-border)] pb-3 mb-1">
+                          <Building className="h-4 w-4 text-[var(--et-accent)]" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--et-text-subtle)]">Información Operativa / PDFs</h4>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <ProviderFloatingInput
+                            label="Nombre Legal (opcional)"
+                            value={brandingForm.legal_name}
+                            onChange={(event) => setBrandingForm((current) => ({ ...current, legal_name: event.target.value }))}
+                          />
+                          <ProviderFloatingInput
+                            label="NIT"
+                            value={brandingForm.nit}
+                            onChange={(event) => setBrandingForm((current) => ({ ...current, nit: event.target.value }))}
+                          />
+                          <ProviderFloatingInput
+                            label="Dirección"
+                            value={brandingForm.address}
+                            onChange={(event) => setBrandingForm((current) => ({ ...current, address: event.target.value }))}
+                          />
+                          <ProviderFloatingInput
+                            label="Teléfono"
+                            value={brandingForm.phone}
+                            onChange={(event) => setBrandingForm((current) => ({ ...current, phone: event.target.value }))}
+                          />
+                        </div>
+                        <ProviderFloatingInput
+                          label="Nombre del Rector(a)"
+                          value={brandingForm.rector_name}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, rector_name: event.target.value }))}
+                        />
+                        <div className="flex items-center gap-2.5 py-2 border-t border-[var(--et-border)] mt-4">
+                          <input
+                            type="checkbox"
+                            id="block_reports_on_debt"
+                            checked={brandingForm.block_reports_on_debt}
+                            onChange={(e) => setBrandingForm((current) => ({ ...current, block_reports_on_debt: e.target.checked }))}
+                            className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-[var(--et-accent)] focus:ring-[var(--et-accent)]"
+                          />
+                          <label htmlFor="block_reports_on_debt" className="text-xs font-semibold text-[var(--et-text-subtle)] cursor-pointer select-none">
+                            Bloquear descarga de boletines por mora comercial
+                          </label>
+                        </div>
+                        <Button className="etymon-btn-primary w-full h-11" onClick={handleSaveBranding} disabled={upsertSettingsMutation.isPending}>
+                          Guardar Datos Operativos
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'branding' && (
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+                      <div className="etymon-surface-soft p-5 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-[var(--et-border)] pb-3 mb-1">
+                          <Palette className="h-4 w-4 text-[var(--et-accent)]" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--et-text-subtle)]">Configuración de Identidad Visual</h4>
+                        </div>
+                        <ProviderFloatingInput
+                          label="Nombre a mostrar"
+                          value={brandingForm.display_name}
+                          onChange={(event) => setBrandingForm((current) => ({ ...current, display_name: event.target.value }))}
+                        />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Escudo / Logotipo</p>
+                            <ProviderFloatingInput
+                              label="URL"
+                              value={brandingForm.logo_url}
+                              onChange={(event) => setBrandingForm((current) => ({ ...current, logo_url: event.target.value }))}
+                            />
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="text-[10px] text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-2.5 file:py-1 file:text-[10px] file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                                onChange={(e) => handleFileUpload(e, 'logo')}
+                                disabled={isUploadingLogo}
+                              />
+                              {isUploadingLogo && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Portada de acceso</p>
+                            <ProviderFloatingInput
+                              label="URL"
+                              value={brandingForm.cover_image_url}
+                              onChange={(event) => setBrandingForm((current) => ({ ...current, cover_image_url: event.target.value }))}
+                            />
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="text-[10px] text-slate-400 file:mr-2 file:rounded-full file:border-0 file:bg-[var(--et-accent-soft)] file:px-2.5 file:py-1 file:text-[10px] file:font-semibold file:text-[var(--et-accent)] hover:file:bg-[var(--et-accent)] hover:file:text-white"
+                                onChange={(e) => handleFileUpload(e, 'cover')}
+                                disabled={isUploadingCover}
+                              />
+                              {isUploadingCover && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <ColorInput
+                            label="Color primario"
+                            value={brandingForm.primary_color}
+                            onChange={(value) => setBrandingForm((current) => ({ ...current, primary_color: value }))}
+                          />
+                          <ColorInput
+                            label="Color secundario"
+                            value={brandingForm.secondary_color}
+                            onChange={(value) => setBrandingForm((current) => ({ ...current, secondary_color: value }))}
+                          />
+                        </div>
+                        <ColorInput
+                          label="Color acento"
+                          value={brandingForm.accent_color}
+                          onChange={(value) => setBrandingForm((current) => ({ ...current, accent_color: value }))}
+                        />
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Tipografía</p>
+                            <Select
+                              value={brandingForm.font_family}
+                              onValueChange={(value) => setBrandingForm((current) => ({ ...current, font_family: value as FontFamilyValue }))}
+                            >
+                              <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                                {fontFamilyOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Estilo visual</p>
+                            <Select
+                              value={brandingForm.visual_style}
+                              onValueChange={(value) => setBrandingForm((current) => ({ ...current, visual_style: value as VisualStyleValue }))}
+                            >
+                              <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                                {visualStyleOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 border-t border-[var(--et-border)] pt-3 mt-4">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Paletas preestablecidas</p>
+                          <div className="flex flex-wrap gap-2">
+                            {brandPresets.map((preset) => (
+                              <button
+                                key={preset.key}
+                                type="button"
+                                onClick={() => applyPresetToBranding(preset)}
+                                className="rounded-full border border-[var(--et-border)] bg-[var(--et-chip-bg)] px-3 py-1 text-[10px] text-[var(--et-text-subtle)] transition-colors hover:text-white hover:border-[var(--et-accent)]"
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Button className="etymon-btn-primary w-full h-11" onClick={handleSaveBranding} disabled={upsertSettingsMutation.isPending}>
+                          Guardar Identidad
+                        </Button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)] px-1">Identidad Activa</p>
+                        <BrandPreview title="Identidad activa" branding={brandingForm} />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'subscription' && (
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+                      {/* Subscription details */}
+                      <div className="etymon-surface-soft p-5 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-[var(--et-border)] pb-3 mb-1">
+                          <Building className="h-4 w-4 text-[var(--et-accent)]" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--et-text-subtle)]">Suscripción Académica</h4>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Plan Asociado</p>
+                            <Select
+                              value={subscriptionForm.plan_id || "none"}
+                              onValueChange={(value) => setSubscriptionForm((current) => ({ ...current, plan_id: value === "none" ? "" : value }))}
+                            >
+                              <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                                <SelectItem value="none">Sin plan activo</SelectItem>
+                                {(plans ?? []).map((plan) => (
+                                  <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Estado de Suscripción</p>
+                            <Select
+                              value={subscriptionForm.status}
+                              onValueChange={(value) => setSubscriptionForm((current) => ({ ...current, status: value as (typeof subscriptionStatuses)[number] }))}
+                            >
+                              <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                                {subscriptionStatuses.map((status) => (
+                                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <ProviderFloatingInput
+                            type="date"
+                            label="Inicio del ciclo"
+                            value={subscriptionForm.current_period_start}
+                            onChange={(event) => setSubscriptionForm((current) => ({ ...current, current_period_start: event.target.value }))}
+                          />
+                          <ProviderFloatingInput
+                            type="date"
+                            label="Vencimiento del ciclo"
+                            value={subscriptionForm.current_period_end}
+                            onChange={(event) => setSubscriptionForm((current) => ({ ...current, current_period_end: event.target.value }))}
+                          />
+                        </div>
+                        <ProviderFloatingTextarea
+                          label="Notas de suscripción interna"
+                          value={subscriptionForm.notes}
+                          onChange={(event) => setSubscriptionForm((current) => ({ ...current, notes: event.target.value }))}
+                        />
+                        <Button className="etymon-btn-primary w-full h-11" onClick={handleSaveSubscription} disabled={upsertSubscriptionMutation.isPending}>
+                          Guardar Suscripción
+                        </Button>
+                      </div>
+
+                      {/* Commercial Account */}
+                      <div className="etymon-surface-soft p-5 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-[var(--et-border)] pb-3 mb-1">
+                          <Building className="h-4 w-4 text-[var(--et-accent)]" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--et-text-subtle)]">Cuenta Comercial y Cobro</h4>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Estado Comercial</p>
+                            <Select
+                              value={commercialForm.commercial_status}
+                              onValueChange={(value) => setCommercialForm((current) => ({ ...current, commercial_status: value as (typeof commercialStatuses)[number] }))}
+                            >
+                              <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                                {commercialStatuses.map((status) => (
+                                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Estado de Cobros</p>
+                            <Select
+                              value={commercialForm.billing_status}
+                              onValueChange={(value) => setCommercialForm((current) => ({ ...current, billing_status: value as (typeof billingStatuses)[number] }))}
+                            >
+                              <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                                {billingStatuses.map((status) => (
+                                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <ProviderFloatingTextarea
+                          label="Notas comerciales y de cobro"
+                          value={commercialForm.notes}
+                          onChange={(event) => setCommercialForm((current) => ({ ...current, notes: event.target.value }))}
+                        />
+                        <Button className="etymon-btn-outline w-full h-11" onClick={handleSaveCommercial} disabled={upsertCustomerAccountMutation.isPending}>
+                          Guardar Datos Comerciales
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'users' && (
+                    <div className="space-y-4 max-w-2xl">
+                      <div className="etymon-surface-soft p-5 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-[var(--et-border)] pb-3 mb-1">
+                          <Users className="h-4 w-4 text-[var(--et-accent)]" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--et-text-subtle)]">Otorgar Acceso Administrativo</h4>
+                        </div>
+                        <p className="text-xs text-[var(--et-text-muted)] leading-relaxed">
+                          Ingresa el correo electrónico institucional. Si el usuario no existe en la base central, se creará una cuenta automáticamente. Si ya existe, se le vinculará este rol asignado en esta institución.
+                        </p>
+                        <ProviderFloatingInput
+                          type="email"
+                          label="Correo del usuario"
+                          value={accessForm.email}
+                          onChange={(event) => setAccessForm((current) => ({ ...current, email: event.target.value }))}
+                        />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <ProviderFloatingInput
+                            label="Nombre completo (opcional)"
+                            value={accessForm.fullName}
+                            onChange={(event) => setAccessForm((current) => ({ ...current, fullName: event.target.value }))}
+                          />
+                          <ProviderFloatingInput
+                            label="Contraseña temporal (opcional)"
+                            type="password"
+                            value={accessForm.temporaryPassword}
+                            onChange={(event) => setAccessForm((current) => ({ ...current, temporaryPassword: event.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--et-text-muted)]">Rol en la institución</p>
+                          <Select
+                            value={accessForm.role}
+                            onValueChange={(value) => setAccessForm((current) => ({ ...current, role: value as (typeof institutionRoles)[number] }))}
+                          >
+                            <SelectTrigger className="etymon-input h-10 text-xs text-slate-100">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="border-[var(--et-border)] [background:var(--et-input-bg)] text-xs text-slate-100">
+                              {institutionRoles.filter((r) => r !== "parent").map((role) => (
+                                <SelectItem key={role} value={role}>{role}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          className="etymon-btn-primary w-full h-11"
+                          onClick={handleProcessUserAccess}
+                          disabled={createUserMutation.isPending || assignUserRoleMutation.isPending}
+                        >
+                          {createUserMutation.isPending || assignUserRoleMutation.isPending ? "Otorgando acceso..." : "Otorgar acceso a institución"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ProviderEmptyState
+                title="Selecciona una institución"
+                description="Escoge un colegio para administrar imagen de marca, comercial, suscripción y acceso de usuarios."
+              />
+            )}
+          </article>
+        </section>
+      </div>
+    </ProviderLayout>
+  );
+}
