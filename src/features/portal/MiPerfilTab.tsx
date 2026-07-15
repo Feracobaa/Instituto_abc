@@ -26,7 +26,8 @@ const emptyForm: FormState = { address: "", birth_date: "", confirm_password: ""
 
 export default function MiPerfilTab() {
   const guardianAccountQuery = useGuardianAccount();
-  const updateGuardianProfile = useUpdateGuardianProfile();  const [formData, setFormData] = useState<FormState>(emptyForm);
+  const updateGuardianProfile = useUpdateGuardianProfile();
+  const [formData, setFormData] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const guardianAccount = guardianAccountQuery.data;
@@ -49,12 +50,16 @@ export default function MiPerfilTab() {
     const validation = guardianProfileFormSchema.safeParse(formData);
     if (!validation.success) {
       setErrors(getFieldErrors(validation.error));
-      toast({ title: "Revisa el formulario", description: "Completa los campos obligatorios.", variant: "destructive" });
+      toast.error("Revisa el formulario", {
+        description: "Completa los campos obligatorios.",
+      });
       return;
     }
     if (requiresOnboarding && !validation.data.new_password) {
       setErrors((c) => ({ ...c, new_password: "Debes cambiar la contraseña temporal en el primer ingreso." }));
-      toast({ title: "Debes cambiar tu contraseña", variant: "destructive" });
+      toast.error("Debes cambiar tu contraseña", {
+        description: "Completa los campos obligatorios.",
+      });
       return;
     }
     const metadataUpdate = validation.data.guardian_name ? { full_name: validation.data.guardian_name } : undefined;
@@ -63,7 +68,12 @@ export default function MiPerfilTab() {
         ...(metadataUpdate ? { data: metadataUpdate } : {}),
         ...(validation.data.new_password ? { password: validation.data.new_password } : {}),
       });
-      if (authError) { toast({ title: "No fue posible actualizar el acceso", description: getFriendlyErrorMessage(authError), variant: "destructive" }); return; }
+      if (authError) {
+        toast.error("No fue posible actualizar el acceso", {
+          description: getFriendlyErrorMessage(authError),
+        });
+        return;
+      }
     }
     await updateGuardianProfile.mutateAsync({
       address: validation.data.address, birth_date: validation.data.birth_date,
@@ -147,7 +157,7 @@ export default function MiPerfilTab() {
           </Button>
         </div>
       </form>
-      
+
       <div className="mt-6">
         <PushNotificationSettings />
       </div>

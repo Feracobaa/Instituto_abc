@@ -20,13 +20,14 @@ type LoginMode = "staff" | "family";
 
 export default function Auth() {
   const { isProviderOwner, loading, signIn, user } = useAuth();
-  const navigate = useNavigate();  const { slug } = useParams<{ slug?: string }>();
+  const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
 
   const [loginMode, setLoginMode] = useState<LoginMode>("staff");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginData, setLoginData] = useState({ identifier: "", password: "" });
-  
+
   const [branding, setBranding] = useState<{
     accent_color?: string;
     cover_image_url?: string;
@@ -83,10 +84,8 @@ export default function Auth() {
 
     const validation = loginSchema.safeParse(loginData);
     if (!validation.success) {
-      toast({
-        title: "Error de validacion",
-        description: validation.error.errors[0].message,
-        variant: "destructive",
+      toast.error("Error al iniciar sesion", {
+        description: "Credenciales invalidas o cuenta no autorizada",
       });
       return;
     }
@@ -96,15 +95,13 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: "Error al iniciar sesion",
+      toast.error("Error al iniciar sesion", {
         description: "Credenciales invalidas o cuenta no autorizada",
-        variant: "destructive",
       });
       return;
     }
 
-    toast({ title: "Bienvenido a la plataforma" });
+    toast.success("Bienvenido a la plataforma");
   };
 
   if (loading || !branding.isLoaded) {
@@ -127,14 +124,14 @@ export default function Auth() {
 
       <div className="relative z-10 w-full max-w-[420px] p-6">
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-          
+
           {/* Header & Logo */}
           <div className="mb-8 flex flex-col items-center justify-center text-center">
             {isEtymon ? (
               <div className="mb-6">
-                <InteractiveLogoVideo 
-                  src="/Logo_animated_for_webpage_202607091648.mp4" 
-                  className="h-20 w-20 bg-transparent" 
+                <InteractiveLogoVideo
+                  src="/Logo_animated_for_webpage_202607091648.mp4"
+                  className="h-20 w-20 bg-transparent"
                 />
               </div>
             ) : branding.logo_url ? (
@@ -142,14 +139,14 @@ export default function Auth() {
                 <img src={branding.logo_url} alt={displayName} className="h-full w-full object-contain" />
               </div>
             ) : (
-              <div 
+              <div
                 className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)]"
                 style={{ backgroundColor: primaryColor }}
               >
                 <span className="text-2xl font-bold text-white">{displayName.charAt(0)}</span>
               </div>
             )}
-            
+
             <h1 className="text-2xl font-bold tracking-tight text-white">
               {isEtymon ? "ETYMON" : displayName}
             </h1>
@@ -165,18 +162,16 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={() => setLoginMode("staff")}
-                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
-                  loginMode === "staff" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
-                }`}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${loginMode === "staff" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+                  }`}
               >
                 Personal
               </button>
               <button
                 type="button"
                 onClick={() => setLoginMode("family")}
-                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
-                  loginMode === "family" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
-                }`}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${loginMode === "family" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+                  }`}
               >
                 Estudiante
               </button>
@@ -231,7 +226,7 @@ export default function Auth() {
               </Button>
             </form>
           </div>
-          
+
           <div className="mt-8 text-center text-xs text-white/30">
             Powered by <span className="font-semibold tracking-wider text-white/50">ETYMON</span>
           </div>
