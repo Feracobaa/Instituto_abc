@@ -19,7 +19,7 @@ const loginSchema = z.object({
 type LoginMode = "staff" | "family";
 
 export default function Auth() {
-  const { isProviderOwner, loading, signIn, user } = useAuth();
+  const { isProviderOwner, loading, signIn, user, userRole, signOut } = useAuth();
   const navigate = useNavigate();
   const { slug } = useParams<{ slug?: string }>();
 
@@ -75,9 +75,18 @@ export default function Auth() {
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (user && !loading) {
-      navigate(isProviderOwner ? "/etymon" : "/");
+      if (isProviderOwner) {
+        navigate("/etymon");
+      } else if (userRole) {
+        navigate("/");
+      } else {
+        toast.error("Acceso denegado", {
+          description: "Tu cuenta no tiene un rol asignado en la plataforma. Contacta al administrador.",
+        });
+        signOut();
+      }
     }
-  }, [isProviderOwner, loading, navigate, user]);
+  }, [isProviderOwner, loading, navigate, user, userRole, signOut]);
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
