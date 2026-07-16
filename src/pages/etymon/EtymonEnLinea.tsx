@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProviderLayout } from "@/components/provider/ProviderLayout";
 import { ProviderEmptyState } from "@/components/provider/ProviderEmptyState";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Activity,

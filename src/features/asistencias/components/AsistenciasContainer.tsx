@@ -37,7 +37,7 @@ import {
   useStudentAttendance,
 } from "../hooks/useAttendance";
 import type { AttendanceStatus } from "@/hooks/school/types";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 import { cn } from "@/lib/utils";
 import {

@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useCreateSubject, useGrades, useSubjects, useUpdateSubject } from "@/hooks/useSchoolData";
 import type { Subject } from "@/hooks/useSchoolData";
 import { getFieldErrors, subjectFormSchema } from "@/lib/schoolSchemas";

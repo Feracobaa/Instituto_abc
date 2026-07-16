@@ -13,7 +13,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { TabsContent } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Wallet, Users, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstitutionSettings, useUpdateInstitutionSettings } from "@/hooks/school/useInstitution";
 import {

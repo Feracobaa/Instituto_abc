@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescri
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { FileText, TrendingUp, TrendingDown, ClipboardList, Trash2, Plus, FileSpreadsheet, Download } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useAccountingLedger, useCreateFinancialTransaction, useAccountingTeachers, useInventoryItems } from "@/hooks/useSchoolData";
 import { normalizeLegacyAmount, monthLabel, formatCurrency, todayIso, parseMoneyInput, formatMoneyInput } from "@/features/contabilidad/utils";
 import { exportToCSV, exportToPDF } from "@/features/contabilidad/exportUtils";

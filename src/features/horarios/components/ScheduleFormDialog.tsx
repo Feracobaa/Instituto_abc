@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TimePicker } from "@/components/ui/time-picker";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useCreateSchedule, useDeleteSchedule, useGrades, useSchedules, useSubjects, useTeachers } from "@/hooks/useSchoolData";
 import type { Schedule } from "@/hooks/useSchoolData";
 import { findScheduleConflicts, getScheduleDraftsForSave } from "@/features/horarios/conflicts";

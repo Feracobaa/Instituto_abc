@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useCreateTeacher, useGrades, useSubjects, useUpdateTeacher } from "@/hooks/useSchoolData";
 import { getFieldErrors, teacherFormSchema } from "@/lib/schoolSchemas";
 

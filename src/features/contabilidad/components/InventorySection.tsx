@@ -12,7 +12,7 @@ import { PaginatedTable } from "@/components/ui/PaginatedTable";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, ClipboardList, Trash2, Plus, FileSpreadsheet, Download } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useInventoryItems, useCreateInventoryItem } from "@/hooks/useSchoolData";
 import { parseMoneyInput, formatMoneyInput, formatCurrency, todayIso } from "@/features/contabilidad/utils";
 import { exportToCSV, exportToPDF } from "@/features/contabilidad/exportUtils";

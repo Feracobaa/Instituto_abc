@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { schoolQueryKeys } from "@/hooks/school/queryKeys";
 import type { CurrentInstitutionModuleAccessRow, InstitutionSettings } from "@/hooks/school/types";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 export function useUpdateInstitutionSettings() {
   const queryClient = useQueryClient();

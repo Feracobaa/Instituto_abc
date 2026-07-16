@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, ClipboardList, Download } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useTuitionMonthStatus, useAccountingLedger, useInstitutionSettings } from "@/hooks/useSchoolData";
 import { formatCurrency, monthLabel, normalizeLegacyAmount, statusVariant, toSchoolMonthDate } from "@/features/contabilidad/utils";
 import { SCHOOL_MONTH_START, SCHOOL_MONTH_END } from "@/features/contabilidad/constants";

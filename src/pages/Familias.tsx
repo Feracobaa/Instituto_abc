@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { useGrades, useGuardianAccounts, useProvisionGuardianAccounts, useResetGuardianPassword, useStudents } from "@/hooks/useSchoolData";
 import type { ProvisionGuardianAccountResult } from "@/hooks/useSchoolData";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 export default function Familias() {

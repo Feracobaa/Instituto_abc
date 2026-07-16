@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "BMv1PloAuikZZxvZLvgixxnwNyFlwlsKb3B3TCdDz1DDIGNl4LxFTIb8Tw8OMvVgnPJkyOl-5oKSjehyLL8uD_Q";
 

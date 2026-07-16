@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { schoolQueryKeys } from "@/hooks/school/queryKeys";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 import type {
   AccountingLedgerEntry,

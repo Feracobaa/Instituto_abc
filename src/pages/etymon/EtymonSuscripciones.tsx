@@ -16,7 +16,7 @@ import {
   useProviderSubscriptionPlans,
   useProviderUpsertInstitutionSubscription,
 } from "@/hooks/provider";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 const subscriptionStatuses = ["trialing", "active", "past_due", "canceled"] as const;
 

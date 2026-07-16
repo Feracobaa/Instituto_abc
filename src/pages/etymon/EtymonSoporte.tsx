@@ -14,7 +14,7 @@ import {
   useProviderSetSupportContext,
   useProviderSupportContext,
 } from "@/hooks/provider";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function EtymonSoporte() {

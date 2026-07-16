@@ -11,7 +11,15 @@ export function ContractStatusBanner({ daysRemaining, periodEnd }: ContractStatu
   // Asegurarnos de que no rompa si viene una fecha rara
   let formattedDate = periodEnd;
   try {
-    formattedDate = format(new Date(periodEnd), "dd 'de' MMMM 'de' yyyy", { locale: es });
+    const parts = periodEnd.split("-");
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      formattedDate = format(new Date(year, month, day), "dd 'de' MMMM 'de' yyyy", { locale: es });
+    } else {
+      formattedDate = format(new Date(periodEnd + "T12:00:00"), "dd 'de' MMMM 'de' yyyy", { locale: es });
+    }
   } catch (error) {
     console.error("Error formatting contract period end date:", error);
   }

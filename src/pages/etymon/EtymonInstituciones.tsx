@@ -16,7 +16,7 @@ import {
   useProviderUpsertInstitutionSubscription,
   useEtymonCreateUser,
 } from "@/hooks/provider";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 const commercialStatuses = ["lead", "active", "paused", "churned"] as const;
 const billingStatuses = ["pending", "paid", "overdue", "waived"] as const;

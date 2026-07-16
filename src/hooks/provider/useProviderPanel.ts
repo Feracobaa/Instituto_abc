@@ -15,7 +15,7 @@ import type {
   SubscriptionPlanModule,
   SubscriptionPlan,
 } from "@/hooks/school/types";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getFriendlyErrorMessage } from "@/lib/supabaseErrors";
 
