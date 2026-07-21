@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, OnlineUserPresence } from "@/contexts/AuthContext";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
@@ -31,7 +32,7 @@ function getClientBrowserAndOS() {
 export function PresenceTracker() {
   const { user, userRole, signOut, isProviderOwner, setOnlineUsers, setPresenceChannel } = useAuth();
   const location = useLocation();
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const { data: instStatus } = useInstitutionStatus({
     enabled: Boolean(user) && !isProviderOwner,
   });
@@ -102,30 +103,30 @@ export function PresenceTracker() {
       .on("presence", { event: "sync" }, () => {
         const presenceState = channel.presenceState();
         console.log("PresenceTracker Websocket: Sincronizando estado de presencia:", presenceState);
-        const usersList: any[] = [];
+        const usersList: OnlineUserPresence[] = [];
 
         Object.keys(presenceState).forEach((key) => {
-          const presenceList = presenceState[key] as any[];
+          const presenceList = presenceState[key] as unknown as Record<string, unknown>[];
           if (presenceList && presenceList.length > 0) {
             const metadata = presenceList[presenceList.length - 1];
             if (!metadata.user_id) return;
 
             usersList.push({
-              user_id: metadata.user_id,
-              email: metadata.email || "",
-              full_name: metadata.full_name || "Usuario",
-              role: metadata.role || "usuario",
-              institution_name: metadata.institution_name || "Sin institución",
-              page_url: metadata.page_url || "/",
-              browser: metadata.browser || "Desconocido",
-              os: metadata.os || "Desconocido",
-              online_at: metadata.online_at || new Date().toISOString(),
+              user_id: String(metadata.user_id),
+              email: String(metadata.email || ""),
+              full_name: String(metadata.full_name || "Usuario"),
+              role: String(metadata.role || "usuario"),
+              institution_name: String(metadata.institution_name || "Sin institución"),
+              page_url: String(metadata.page_url || "/"),
+              browser: String(metadata.browser || "Desconocido"),
+              os: String(metadata.os || "Desconocido"),
+              online_at: String(metadata.online_at || new Date().toISOString()),
             });
           }
         });
 
         // Eliminar duplicados si un usuario tiene múltiples conexiones en distintas keys
-        const uniqueUsers: any[] = [];
+        const uniqueUsers: OnlineUserPresence[] = [];
         const seenUserIds = new Set<string>();
 
         usersList.forEach((u) => {
@@ -165,6 +166,7 @@ export function PresenceTracker() {
       setPresenceChannel(null);
       setOnlineUsers([]);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, signOut, isProviderOwner, instStatus?.institution_name, setOnlineUsers, setPresenceChannel]);
 
   // 3. Actualizar metadatos de track cuando el usuario navegue sin reconectar el canal

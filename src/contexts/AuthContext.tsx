@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/types';
 import { buildGuardianAuthEmail, isLikelyEmailLogin } from '@/lib/guardianAuth';
@@ -40,8 +40,8 @@ interface AuthContextType {
   userRole: UserRole;
   onlineUsers: OnlineUserPresence[];
   setOnlineUsers: React.Dispatch<React.SetStateAction<OnlineUserPresence[]>>;
-  presenceChannel: any;
-  setPresenceChannel: React.Dispatch<React.SetStateAction<any>>;
+  presenceChannel: RealtimeChannel | null;
+  setPresenceChannel: React.Dispatch<React.SetStateAction<RealtimeChannel | null>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [effectiveInstitutionId, setEffectiveInstitutionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUserPresence[]>([]);
-  const [presenceChannel, setPresenceChannel] = useState<any>(null);
+  const [presenceChannel, setPresenceChannel] = useState<RealtimeChannel | null>(null);
   const hydratedUserIdRef = useRef<string | null>(null);
   const hydratingUserIdRef = useRef<string | null>(null);
   const userContextReadyRef = useRef(false);

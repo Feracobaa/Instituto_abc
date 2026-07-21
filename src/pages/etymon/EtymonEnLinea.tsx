@@ -109,6 +109,7 @@ export default function EtymonEnLinea() {
       fetchHistory(1, searchQuery, roleFilter);
     }, 400);
     return () => clearTimeout(handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, roleFilter]);
 
   const handlePageChange = (newPage: number) => {

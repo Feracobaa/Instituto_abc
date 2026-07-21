@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast as rawToast } from "sonner";

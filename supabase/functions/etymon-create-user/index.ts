@@ -86,7 +86,7 @@ function json(req: Request, body: unknown, status = 200): Response {
 }
 
 // Handler
-Deno.serve(async (req: Request) => { // eslint-disable-line
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: getCorsHeaders(req) });
   if (req.method !== "POST") return json(req, { error: "Method not allowed." }, 405);
 
