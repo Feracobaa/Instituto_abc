@@ -86,10 +86,17 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <SidebarProvider>
       <InstitutionThemeProvider>
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="flex min-h-screen w-full bg-background relative overflow-hidden">
+        {/* Animated ambient mesh background */}
+        <div className="bg-mesh">
+          <div className="blob blob-1"></div>
+          <div className="blob blob-2"></div>
+          <div className="blob blob-3"></div>
+        </div>
+
         <AppSidebar />
-        <main className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-sm transition-all duration-300">
+        <main className="flex min-w-0 flex-1 flex-col relative z-10">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-card/70 px-4 backdrop-blur-sm transition-all duration-300">
             <SidebarTrigger className="flex-shrink-0 hover-lift" />
             <div className="h-4 w-px bg-border" />
             

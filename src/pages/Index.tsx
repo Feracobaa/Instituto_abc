@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ContractStatusBanner } from "@/components/dashboard/ContractStatusBanner";
+import { CircularCalendar } from "@/components/dashboard/CircularCalendar";
 
 const dayNames = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
@@ -187,76 +188,88 @@ function StaffDashboard() {
       )}
 
       {isRector ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Profesores" value={teachers?.length || 0} icon={Users} description="Docentes activos" variant="rector" />
-            <StatCard title="Estudiantes" value={students?.length || 0} icon={GraduationCap} description="Estudiantes matriculados" variant="default" />
-            <StatCard title="Materias" value={subjects?.length || 0} icon={BookOpen} description="Materias activas" variant="default" />
-            <StatCard
-              title="Promedio general"
-              value={averageGrade.toFixed(1)}
-              icon={ClipboardList}
-              description="Calificacion promedio"
-              variant={averageGrade < 3 ? "default" : "success"}
-              alert={averageGrade > 0 && averageGrade < 3}
-            />
-          </div>
-
-          <AcademicPeriodsManager periods={periods} />
-
-          {gradeAverages.length > 0 && (
-            <div className="rounded-xl border bg-card p-6 shadow-card hover-lift">
-              <div className="mb-5 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <h3 className="font-heading font-bold text-foreground">Rendimiento por grado</h3>
-              </div>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={gradeAverages.filter(g => g.average !== null)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} domain={[0, 5]} />
-                    <Tooltip
-                      cursor={{ fill: 'transparent' }}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}
-                      itemStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number) => [value.toFixed(1), 'Promedio']}
-                    />
-                    <Bar dataKey="average" radius={[4, 4, 0, 0]}>
-                      {gradeAverages.filter(g => g.average !== null).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={
-                          entry.average! >= 4 ? 'hsl(var(--success))' :
-                          entry.average! >= 3 ? 'hsl(var(--warning))' :
-                          'hsl(var(--destructive))'
-                        } />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <StatCard title="Profesores" value={teachers?.length || 0} icon={Users} description="Docentes activos" variant="rector" />
+              <StatCard title="Estudiantes" value={students?.length || 0} icon={GraduationCap} description="Estudiantes matriculados" variant="default" />
+              <StatCard title="Materias" value={subjects?.length || 0} icon={BookOpen} description="Materias activas" variant="default" />
+              <StatCard
+                title="Promedio general"
+                value={averageGrade.toFixed(1)}
+                icon={ClipboardList}
+                description="Calificacion promedio"
+                variant={averageGrade < 3 ? "default" : "success"}
+                alert={averageGrade > 0 && averageGrade < 3}
+              />
             </div>
-          )}
-        </>
+
+            <AcademicPeriodsManager periods={periods} />
+
+            {gradeAverages.length > 0 && (
+              <div className="rounded-xl border bg-card p-6 shadow-card hover-lift">
+                <div className="mb-5 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <h3 className="font-heading font-bold text-foreground">Rendimiento por grado</h3>
+                </div>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gradeAverages.filter(g => g.average !== null)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} domain={[0, 5]} />
+                      <Tooltip
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}
+                        itemStyle={{ color: 'hsl(var(--foreground))' }}
+                        formatter={(value: number) => [value.toFixed(1), 'Promedio']}
+                      />
+                      <Bar dataKey="average" radius={[4, 4, 0, 0]}>
+                        {gradeAverages.filter(g => g.average !== null).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={
+                            entry.average! >= 4 ? 'hsl(var(--success))' :
+                            entry.average! >= 3 ? 'hsl(var(--warning))' :
+                            'hsl(var(--destructive))'
+                          } />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="lg:col-span-1 flex justify-center items-start">
+            <CircularCalendar />
+          </div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Mis estudiantes" value={myRealStudents.length} icon={GraduationCap} description="Estudiantes en mis clases" variant="profesor" />
-          <StatCard
-            title="Pendientes"
-            value={pendingCount > 0 ? pendingCount : "✓"}
-            icon={ClipboardList}
-            description={pendingCount > 0 ? "Sin nota en este periodo" : "Todo al dia"}
-            variant={pendingCount > 0 ? "warning" : "success"}
-            alert={pendingCount > 5}
-          />
-          <StatCard
-            title="Mi promedio"
-            value={myGradeRecords.length > 0
-              ? (myGradeRecords.reduce((accumulator, record) => accumulator + record.grade, 0) / myGradeRecords.length).toFixed(1)
-              : "—"}
-            icon={TrendingUp}
-            description="Promedio de mis clases"
-            variant="default"
-          />
-          <StatCard title="Clases hoy" value={myTodaySchedule.length} icon={Calendar} description={dayNames[adjustedDay]} variant="default" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <StatCard title="Mis estudiantes" value={myRealStudents.length} icon={GraduationCap} description="Estudiantes en mis clases" variant="profesor" />
+              <StatCard
+                title="Pendientes"
+                value={pendingCount > 0 ? pendingCount : "✓"}
+                icon={ClipboardList}
+                description={pendingCount > 0 ? "Sin nota en este periodo" : "Todo al dia"}
+                variant={pendingCount > 0 ? "warning" : "success"}
+                alert={pendingCount > 5}
+              />
+              <StatCard
+                title="Mi promedio"
+                value={myGradeRecords.length > 0
+                  ? (myGradeRecords.reduce((accumulator, record) => accumulator + record.grade, 0) / myGradeRecords.length).toFixed(1)
+                  : "—"}
+                icon={TrendingUp}
+                description="Promedio de mis clases"
+                variant="default"
+              />
+              <StatCard title="Clases hoy" value={myTodaySchedule.length} icon={Calendar} description={dayNames[adjustedDay]} variant="default" />
+            </div>
+          </div>
+          <div className="lg:col-span-1 flex justify-center items-start">
+            <CircularCalendar />
+          </div>
         </div>
       )}
 

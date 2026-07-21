@@ -20,24 +20,24 @@ export function StatCard({
 }: StatCardProps) {
 
   const containerVariants = {
-    default: 'bg-card border',
-    primary: 'gradient-primary text-primary-foreground border-0',
-    success: 'bg-success/8 border-success/20',
-    warning: 'bg-warning/8 border-warning/20',
-    rector: 'gradient-rector text-white border-0',
-    profesor: 'gradient-profesor text-white border-0',
+    default: 'bg-card border text-foreground',
+    primary: 'bg-blue-500/12 dark:bg-blue-500/18 border-blue-500/30 text-foreground backdrop-blur-md shadow-sm',
+    success: 'bg-success/8 border-success/30 text-foreground backdrop-blur-md',
+    warning: 'bg-warning/8 border-warning/30 text-foreground backdrop-blur-md',
+    rector: 'bg-purple-500/12 dark:bg-purple-500/18 border-purple-500/30 text-foreground backdrop-blur-md shadow-sm',
+    profesor: 'bg-sky-500/12 dark:bg-sky-500/18 border-sky-500/30 text-foreground backdrop-blur-md shadow-sm',
   };
 
   const iconVariants = {
     default: 'bg-primary/10 text-primary',
-    primary: 'bg-white/20 text-white',
+    primary: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
     success: 'bg-success/15 text-success',
     warning: 'bg-warning/15 text-warning',
-    rector: 'bg-white/20 text-white',
-    profesor: 'bg-white/20 text-white',
+    rector: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
+    profesor: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
   };
 
-  const isColored = ['primary', 'rector', 'profesor'].includes(variant);
+  const isColored = false;
 
   return (
     <div className={cn(
