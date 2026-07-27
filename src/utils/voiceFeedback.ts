@@ -26,15 +26,32 @@ class VoiceFeedbackService {
     return this.audioCtx;
   }
 
+  private lastSpokenText: string = '';
+  private lastSpokenTime: number = 0;
+
   /**
    * Enuncia un mensaje en español utilizando la Web Speech API
    */
   public speak(text: string, priority: 'high' | 'normal' = 'normal') {
     if (!this.synth) return;
 
+    const now = Date.now();
+
+    // Evitar hablar lo mismo o reiniciar locuciones si han pasado menos de 1000ms
+    if (this.lastSpokenText === text && (now - this.lastSpokenTime) < 1500) {
+      return;
+    }
+
+    if ((now - this.lastSpokenTime) < 700 && priority !== 'high') {
+      return;
+    }
+
     try {
-      if (priority === 'high' || this.synth.speaking) {
-        this.synth.cancel(); // Cancelar locuciones previas si hay alta prioridad
+      this.lastSpokenText = text;
+      this.lastSpokenTime = now;
+
+      if (this.synth.speaking) {
+        this.synth.cancel(); // Cancelar locución previa activa
       }
 
       const utterance = new SpeechSynthesisUtterance(text);

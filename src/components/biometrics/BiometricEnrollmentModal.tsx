@@ -44,6 +44,9 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
 
   const { saveStudentBiometric, deleteStudentBiometric, getBiometricsForStudents, loading } = useBiometrics();
 
+  const sampleCooldownUntilRef = useRef<number>(0);
+  const hasSavedRef = useRef<boolean>(false);
+
   // Cargar si el estudiante ya posee huella registrada
   useEffect(() => {
     if (isOpen && studentId) {
@@ -57,6 +60,8 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       setCapturedSamples([]);
       setStabilityProgress(0);
       consecutiveStabilityRef.current = 0;
+      sampleCooldownUntilRef.current = 0;
+      hasSavedRef.current = false;
     }
   }, [isOpen, studentId, getBiometricsForStudents]);
 
@@ -168,10 +173,10 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
   };
 
   /**
-   * Captura manual de una muestra facial
+   * Captura manual o automática de una muestra facial con cooldown de seguridad
    */
   const handleTakeSample = useCallback(() => {
-    if (!studentId || !videoRef.current) return;
+    if (!studentId || !videoRef.current || hasSavedRef.current) return;
 
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
@@ -183,10 +188,13 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       return;
     }
 
+    // Cooldown de 1.4 segundos entre cada muestra para dar tiempo al alumno a escuchar la instrucción y girar la cabeza
+    sampleCooldownUntilRef.current = Date.now() + 1400;
+    consecutiveStabilityRef.current = 0;
+    setStabilityProgress(0);
+
     const newSamples = [...capturedSamples, extracted.embedding];
     setCapturedSamples(newSamples);
-    setStabilityProgress(0);
-    consecutiveStabilityRef.current = 0;
 
     voiceFeedback.playSound('success');
 
@@ -197,17 +205,19 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       toast.success('Muestra 2/3 capturada. Mire nuevamente al frente.');
       voiceFeedback.speak('Muestra dos capturada. Excelente, mire de nuevo al centro.', 'high');
     } else if (newSamples.length >= 3) {
-      toast.success('Muestra 3/3 capturada. Guardando huella biométrica...');
-      voiceFeedback.speak('Muestras completadas. Registrando huella en el sistema.', 'high');
+      toast.success('Muestras completadas. Guardando huella biométrica...');
     }
   }, [studentId, capturedSamples]);
 
   /**
-   * Procesa las muestras y guarda el centroide biométrico definitivo
+   * Procesa las muestras y guarda el centroide biométrico definitivo (UNA SOLA VEZ)
    */
   const handleSaveFinalBiometric = useCallback(async (samplesToUse?: number[][]) => {
     const list = samplesToUse || capturedSamples;
-    if (!list.length || !studentId) return;
+    if (!list.length || !studentId || hasSavedRef.current) return;
+
+    hasSavedRef.current = true;
+    if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
 
     const finalCentroid = computeCentroidEmbedding(list);
     const ok = await saveStudentBiometric(studentId, finalCentroid);
@@ -217,12 +227,14 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       stopCamera();
       if (onSuccess) onSuccess();
       onClose();
+    } else {
+      hasSavedRef.current = false;
     }
   }, [capturedSamples, studentId, saveStudentBiometric, studentName, stopCamera, onSuccess, onClose]);
 
   // Guardado automático inmediato cuando se completan las 3 muestras
   useEffect(() => {
-    if (capturedSamples.length >= 3 && !loading) {
+    if (capturedSamples.length >= 3 && !loading && !hasSavedRef.current) {
       handleSaveFinalBiometric(capturedSamples);
     }
   }, [capturedSamples, loading, handleSaveFinalBiometric]);
@@ -231,13 +243,15 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
    * Bucle de captura automática inteligente en tiempo real
    */
   useEffect(() => {
-    if (!isCapturing || !isAutoEnroll || capturedSamples.length >= 3 || loading) {
+    if (!isCapturing || !isAutoEnroll || capturedSamples.length >= 3 || loading || hasSavedRef.current) {
       if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
       return;
     }
 
     autoScanIntervalRef.current = setInterval(() => {
-      if (!videoRef.current) return;
+      if (!videoRef.current || hasSavedRef.current) return;
+      if (Date.now() < sampleCooldownUntilRef.current) return;
+
       if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
 
       const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
@@ -268,6 +282,8 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     setCapturedSamples([]);
     setStabilityProgress(0);
     consecutiveStabilityRef.current = 0;
+    sampleCooldownUntilRef.current = 0;
+    hasSavedRef.current = false;
     toast.info('Secuencia de captura reiniciada.');
     voiceFeedback.speak('Secuencia de captura reiniciada. Posicionese de frente.', 'normal');
   };
