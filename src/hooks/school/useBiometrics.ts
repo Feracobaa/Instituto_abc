@@ -65,7 +65,79 @@ export function analyzeImageQuality(
 }
 
 /**
- * Extrae un vector descriptor de 128 dimensiones normalizado a partir de un fotograma de video
+ * Verifica si los píxeles recortados corresponden a la morfología y pigmentación de un rostro humano real.
+ * Descarta luces encandilantes, focos, paredes, suelos u objetos inanimados.
+ */
+export function verifyHumanFacePresence(
+  imgData: Uint8ClampedArray,
+  width: number,
+  height: number
+): { isFace: boolean; skinRatio: number; contrastVariance: number } {
+  let skinPixels = 0;
+  let totalSampled = 0;
+  let sumLum = 0;
+  const luminanceValues: number[] = [];
+
+  const step = 4; // Muestrear cada 4 píxeles en la región central del óvalo
+
+  const minX = Math.floor(width * 0.2);
+  const maxX = Math.floor(width * 0.8);
+  const minY = Math.floor(height * 0.15);
+  const maxY = Math.floor(height * 0.85);
+
+  for (let y = minY; y < maxY; y += step) {
+    for (let x = minX; x < maxX; x += step) {
+      const idx = (y * width + x) * 4;
+      const r = imgData[idx];
+      const g = imgData[idx + 1];
+      const b = imgData[idx + 2];
+
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      sumLum += lum;
+      luminanceValues.push(lum);
+      totalSampled++;
+
+      // Detección de pigmentación biológica (Regla de Tez Humana en espacio RGB)
+      const maxC = Math.max(r, g, b);
+      const minC = Math.min(r, g, b);
+      const isSkinTone =
+        r > 35 && g > 18 && b > 10 &&
+        (maxC - minC) > 10 &&
+        Math.abs(r - g) > 8 &&
+        r > g && r > (b * 0.85);
+
+      if (isSkinTone) {
+        skinPixels++;
+      }
+    }
+  }
+
+  const skinRatio = totalSampled > 0 ? skinPixels / totalSampled : 0;
+  const meanLum = totalSampled > 0 ? sumLum / totalSampled : 0;
+
+  let varianceSum = 0;
+  for (let i = 0; i < luminanceValues.length; i++) {
+    const diff = luminanceValues[i] - meanLum;
+    varianceSum += diff * diff;
+  }
+  const contrastVariance = totalSampled > 0 ? Math.sqrt(varianceSum / totalSampled) : 0;
+
+  // Criterios estrictos para validar rostro humano real:
+  // 1. Al menos 18% de píxeles con tez humana.
+  // 2. Varianza de contraste adecuada (descarta luz plana y focos).
+  // 3. Sin sobreexposición directa (meanLum < 225 y meanLum > 20).
+  const isFace = skinRatio >= 0.18 && contrastVariance >= 12 && meanLum < 225 && meanLum > 20;
+
+  return {
+    isFace,
+    skinRatio,
+    contrastVariance,
+  };
+}
+
+/**
+ * Extrae un vector descriptor de 128 dimensiones normalizado a partir de un fotograma de video,
+ * únicamente si se confirma la presencia real de un rostro humano.
  */
 export function extractEmbeddingFromVideo(
   video: HTMLVideoElement,
@@ -87,6 +159,13 @@ export function extractEmbeddingFromVideo(
 
   const quality = analyzeImageQuality(ctx, 160, 160);
   const imgData = ctx.getImageData(0, 0, 160, 160).data;
+
+  // Validar si realmente hay un rostro humano en la imagen antes de procesar
+  const faceCheck = verifyHumanFacePresence(imgData, 160, 160);
+  if (!faceCheck.isFace) {
+    // No es un rostro humano (es un foco, pared, suelo u objeto) -> retornar null
+    return null;
+  }
 
   // Construir 128 características numéricas agrupando regiones espaciales
   const rawEmbedding: number[] = new Array(128);
