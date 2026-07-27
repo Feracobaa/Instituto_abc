@@ -38,11 +38,27 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
 
   const startCamera = useCallback(async (mode: CameraFacingMode) => {
     stopCamera();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error('La cámara requiere una conexión HTTPS o localhost si navegas desde un celular.', { duration: 8000 });
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode, width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: mode } },
+          audio: false,
+        });
+      } catch (firstErr) {
+        console.warn('Fallback a restricciones de video simples en modal:', firstErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -51,7 +67,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       }
     } catch (err) {
       console.error('Error abriendo cámara:', err);
-      toast.error('No se pudo acceder a la cámara para el registro biométrico.');
+      toast.error('No se pudo acceder a la cámara. Por favor verifica los permisos del navegador.');
     }
   }, [stopCamera]);
 

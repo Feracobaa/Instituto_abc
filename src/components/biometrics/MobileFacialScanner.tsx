@@ -37,32 +37,45 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
 
   const { matchBiometric } = useBiometrics();
 
-  // Iniciar cámara
+  // Iniciar cámara con fallbacks para móviles
   const startCamera = useCallback(async (mode: CameraFacingMode) => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error('La cámara requiere una conexión HTTPS o localhost si estás navegando desde un celular.', { duration: 8000 });
+      setStatusMessage('Requiere HTTPS en móviles');
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: mode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: mode } },
+          audio: false,
+        });
+      } catch (firstErr) {
+        console.warn('Fallback a restricciones de video simples:', firstErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setIsScanning(true);
+        setStatusMessage('Posicione el rostro dentro del óvalo');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error al acceder a la cámara:', err);
-      toast.error('No se pudo acceder a la cámara del dispositivo.');
-      setStatusMessage('Error de cámara');
+      const msg = err instanceof Error ? err.message : 'Permiso denegado o cámara no soportada';
+      toast.error(`No se pudo iniciar la cámara: ${msg}`);
+      setStatusMessage('Error al iniciar la cámara');
     }
   }, []);
 
