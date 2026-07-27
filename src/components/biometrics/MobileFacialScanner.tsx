@@ -302,30 +302,36 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       canvasRef.current = document.createElement('canvas');
     }
 
+    // Feedback visual temporal
+    setScannerState('analyzing');
+    setStatusMessage('Analizando captura manual...');
+
     const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
-    if (extracted) {
-      setIsLowLight(extracted.quality.isLowLight);
-      const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
-      if (match) {
-        const student = students.find(s => s.id === match.student_id);
-        if (student) {
-          const isAlreadyMarked = markedStudentIds.has(student.id);
-          triggerCooldownPhase(student.name, student.id, isAlreadyMarked);
-          return;
-        }
+    if (!extracted) {
+      voiceFeedback.notifyUnrecognized();
+      toast.error('No se detectó un rostro claro. Centrarse bien frente a la cámara.');
+      setScannerState('ready');
+      setStatusMessage('Aproxime un rostro dentro del óvalo');
+      return;
+    }
+
+    setIsLowLight(extracted.quality.isLowLight);
+    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
+
+    if (match) {
+      const student = students.find(s => s.id === match.student_id);
+      if (student) {
+        const isAlreadyMarked = markedStudentIds.has(student.id);
+        triggerCooldownPhase(student.name, student.id, isAlreadyMarked);
+        return;
       }
     }
 
-    // Fallback de simulador si no hay rostro claro frente al sensor
-    const randomBio = registeredBiometrics[Math.floor(Math.random() * registeredBiometrics.length)];
-    const student = students.find(s => s.id === randomBio.student_id);
-    if (student) {
-      const isAlreadyMarked = markedStudentIds.has(student.id);
-      triggerCooldownPhase(student.name, student.id, isAlreadyMarked);
-    } else {
-      voiceFeedback.notifyUnrecognized();
-      toast.error('Rostro no reconocido. Aproxímese más a la cámara.');
-    }
+    // Rostro detectado pero no reconocido o no coincide con los estudiantes del curso
+    voiceFeedback.notifyUnrecognized();
+    toast.error('Rostro no reconocido o no registrado en este curso.');
+    setScannerState('ready');
+    setStatusMessage('Aproxime un rostro dentro del óvalo');
   };
 
   // Clases y colores del semáforo visual
