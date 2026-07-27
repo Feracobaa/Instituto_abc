@@ -41,20 +41,20 @@ const menuItems: Array<{
   title: string;
   url: string;
 }> = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleCode: "dashboard" },
-  { title: "Contabilidad", url: "/contabilidad", icon: Calculator, moduleCode: "contabilidad" },
-  { title: "Pensiones", url: "/pensiones", icon: GraduationCap, moduleCode: "contabilidad" },
-  { title: "Usuarios", url: "/usuarios", icon: Users, moduleCode: "usuarios" },
-  { title: "Profesores", url: "/profesores", icon: Users, moduleCode: "profesores" },
-  { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, moduleCode: "estudiantes" },
-  { title: "Portal Estudiantil", url: "/familias", icon: Users, moduleCode: "familias" },
-  { title: "Horarios", url: "/horarios", icon: Calendar, moduleCode: "horarios" },
-  { title: "Grados", url: "/grados", icon: GraduationCap, moduleCode: "grados" },
-  { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias" },
-  { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones" },
-  { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias" },
-  { title: "Mi Portal", url: "/portal", icon: BookOpen, moduleCode: "mis_notas" },
-];
+    { title: "Dashboard", url: "/", icon: LayoutDashboard, moduleCode: "dashboard" },
+    { title: "Contabilidad", url: "/contabilidad", icon: Calculator, moduleCode: "contabilidad" },
+    { title: "Pensiones", url: "/pensiones", icon: GraduationCap, moduleCode: "contabilidad" },
+    { title: "Usuarios", url: "/usuarios", icon: Users, moduleCode: "usuarios" },
+    { title: "Profesores", url: "/profesores", icon: Users, moduleCode: "profesores" },
+    { title: "Estudiantes", url: "/estudiantes", icon: UserPlus, moduleCode: "estudiantes" },
+    { title: "Portal Estudiantil", url: "/familias", icon: Users, moduleCode: "familias" },
+    { title: "Horarios", url: "/horarios", icon: Calendar, moduleCode: "horarios" },
+    { title: "Grados", url: "/grados", icon: GraduationCap, moduleCode: "grados" },
+    { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias" },
+    { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones" },
+    { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias" },
+    { title: "Mi Portal", url: "/portal", icon: BookOpen, moduleCode: "mis_notas" },
+  ];
 
 export function AppSidebar() {
   const location = useLocation();
@@ -88,7 +88,7 @@ export function AppSidebar() {
       if (isProviderOwner) return true;
       // If moduleAccess is loaded, hide items completely if they have no access (is_enabled = false)
       if (moduleAccess && moduleAccess[item.moduleCode]?.is_enabled === false) return false;
-      
+
       // Hide student portal from non-parent users
       if (userRole !== "parent" && item.url === "/portal") return false;
 
@@ -129,9 +129,9 @@ export function AppSidebar() {
 
   const displayName = userRole === "parent"
     ? guardianAccount?.students?.guardian_name
-      || guardianAccount?.username
-      || user?.user_metadata?.full_name
-      || "Acudiente"
+    || guardianAccount?.username
+    || user?.user_metadata?.full_name
+    || "Acudiente"
     : user?.user_metadata?.full_name || user?.email || "Usuario";
   const institutionName = institutionSettings?.display_name?.trim() || "Instituto Pedagogico ABC";
   const institutionLogo = institutionSettings?.logo_url?.trim() || "/logo-iabc.jpg";
@@ -175,8 +175,8 @@ export function AppSidebar() {
     const baseColor = isRectorOrContable
       ? "168, 85, 247" // Purple
       : isProfesor
-      ? "14, 165, 233" // Sky blue
-      : "59, 130, 246"; // Blue (parent)
+        ? "14, 165, 233" // Sky blue
+        : "59, 130, 246"; // Blue (parent)
 
     return {
       bg: isDark ? `rgba(${baseColor}, 0.32)` : `rgba(${baseColor}, 0.16)`,
@@ -188,7 +188,7 @@ export function AppSidebar() {
   const glass = getGlassStyle();
 
   return (
-    <Sidebar 
+    <Sidebar
       className="border-r border-border backdrop-blur-md transition-all duration-300"
       style={{
         backgroundColor: isDark ? "rgba(15, 23, 42, 0.35)" : "rgba(255, 255, 255, 0.35)",

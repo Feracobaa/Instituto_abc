@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   AlertCircle,
   BookOpen,
   CalendarDays,
+  Camera,
   CheckCheck,
   CheckCircle2,
   ClipboardCheck,
@@ -10,9 +11,13 @@ import {
   Loader2,
   Lock,
   Save,
+  ScanFace,
   UserRound,
   XCircle,
 } from "lucide-react";
+import { MobileFacialScanner } from "@/components/biometrics/MobileFacialScanner";
+import { useBiometrics } from "@/hooks/school/useBiometrics";
+import { StudentBiometric } from "@/types/biometrics";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -230,6 +235,29 @@ export function AsistenciasContainer() {
 
   const studentsQuery = useAttendanceStudents(selectedContext?.grade_id);
   const students = useMemo(() => studentsQuery.data ?? [], [studentsQuery.data]);
+
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [registeredBiometrics, setRegisteredBiometrics] = useState<StudentBiometric[]>([]);
+  const { getBiometricsForStudents } = useBiometrics();
+
+  useEffect(() => {
+    if (students.length > 0) {
+      const studentIds = students.map((s) => s.id);
+      getBiometricsForStudents(studentIds).then(setRegisteredBiometrics);
+    } else {
+      setRegisteredBiometrics([]);
+    }
+  }, [students, getBiometricsForStudents]);
+
+  const handleFacialAttendanceMarked = useCallback((studentId: string, status: AttendanceStatus) => {
+    setDraftMap((prev) => ({
+      ...prev,
+      [studentId]: {
+        status,
+        justification_note: prev[studentId]?.justification_note || '',
+      },
+    }));
+  }, []);
 
   const attendanceQuery = useStudentAttendance(
     selectedContext
@@ -577,6 +605,16 @@ export function AsistenciasContainer() {
               <Button
                 type="button"
                 variant="outline"
+                onClick={() => setIsScannerOpen(true)}
+                disabled={!canEditDate || students.length === 0}
+                className="gap-2 border-emerald-600 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
+              >
+                <ScanFace className="h-4 w-4 text-emerald-600" />
+                Escanear Cámara (Facial)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 onClick={markAllPresent}
                 disabled={!canEditDate || saveAttendance.isPending}
                 className="gap-2"
@@ -728,6 +766,15 @@ export function AsistenciasContainer() {
             </div>
           )}
         </div>
+      )}
+
+      {isScannerOpen && (
+        <MobileFacialScanner
+          students={students.map((s) => ({ id: s.id, name: s.full_name }))}
+          registeredBiometrics={registeredBiometrics}
+          onAttendanceMarked={handleFacialAttendanceMarked}
+          onClose={() => setIsScannerOpen(false)}
+        />
       )}
     </div>
   );

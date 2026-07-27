@@ -1301,6 +1301,38 @@ export type Database = {
           },
         ]
       }
+      student_biometrics: {
+        Row: {
+          created_at: string
+          embedding: number[]
+          id: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          embedding: number[]
+          id?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: number[]
+          id?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_biometrics_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_guardian_accounts: {
         Row: {
           created_at: string

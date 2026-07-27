@@ -5,9 +5,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Pencil, Trash2, Loader2, Users, Phone, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Users, Phone, Search, ScanFace } from "lucide-react";
 import { useState, useMemo } from "react";
 import { StudentFormDialog } from "@/components/students/StudentFormDialog";
+import { BiometricEnrollmentModal } from "@/components/biometrics/BiometricEnrollmentModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   AlertDialog,
@@ -52,6 +53,9 @@ const Estudiantes = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+
+  const [biometricModalOpen, setBiometricModalOpen] = useState(false);
+  const [biometricTarget, setBiometricTarget] = useState<{ id: string; name: string } | null>(null);
 
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -197,6 +201,18 @@ const Estudiantes = () => {
                     </div>
                     {canManage && (
                       <div className="flex gap-0.5 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          title="Registrar Huella Facial"
+                          onClick={() => {
+                            setBiometricTarget({ id: student.id, name: student.full_name });
+                            setBiometricModalOpen(true);
+                          }}
+                        >
+                          <ScanFace className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(student)}>
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
@@ -260,6 +276,14 @@ const Estudiantes = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {biometricTarget && (
+        <BiometricEnrollmentModal
+          isOpen={biometricModalOpen}
+          studentId={biometricTarget.id}
+          studentName={biometricTarget.name}
+          onClose={() => setBiometricModalOpen(false)}
+        />
+      )}
     </MainLayout>
   );
 };
