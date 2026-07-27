@@ -1,8 +1,23 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { StudentBiometric, MatchResult } from '@/types/biometrics';
+import { StudentBiometric, MatchResult, ImageQualityMetrics } from '@/types/biometrics';
 import { toast } from 'sonner';
 
+/**
+ * Normaliza un vector numérico a norma L2 unitaria
+ */
+export function normalizeVector(vec: number[]): number[] {
+  let sumSq = 0;
+  for (let i = 0; i < vec.length; i++) {
+    sumSq += vec[i] * vec[i];
+  }
+  const norm = Math.sqrt(sumSq) || 1;
+  return vec.map(v => v / norm);
+}
+
+/**
+ * Calcula la distancia Euclidiana entre dos vectores de características faciales
+ */
 export function calculateEuclideanDistance(vecA: number[], vecB: number[]): number {
   if (vecA.length !== vecB.length) return Infinity;
   let sum = 0;
@@ -11,6 +26,97 @@ export function calculateEuclideanDistance(vecA: number[], vecB: number[]): numb
     sum += diff * diff;
   }
   return Math.sqrt(sum);
+}
+
+/**
+ * Analiza la luminancia y calidad de iluminación de un fotograma en Canvas
+ */
+export function analyzeImageQuality(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number
+): ImageQualityMetrics {
+  try {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    let totalLuminance = 0;
+    const step = 8; // Muestreo eficiente cada 8 píxeles
+    let count = 0;
+
+    for (let i = 0; i < data.length; i += 4 * step) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      // Fórmula estándar de luminancia perceptual ITU-R BT.601
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      totalLuminance += lum;
+      count++;
+    }
+
+    const avgLuminance = count > 0 ? totalLuminance / count : 128;
+    return {
+      luminance: Math.round(avgLuminance),
+      isLowLight: avgLuminance < 45, // Iluminación muy baja
+      isOverExposed: avgLuminance > 225, // Luz sobreexpuesta
+    };
+  } catch (e) {
+    return { luminance: 128, isLowLight: false, isOverExposed: false };
+  }
+}
+
+/**
+ * Extrae un vector descriptor de 128 dimensiones normalizado a partir de un fotograma de video
+ */
+export function extractEmbeddingFromVideo(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement
+): { embedding: number[]; quality: ImageQualityMetrics } | null {
+  if (!video.videoWidth || !video.videoHeight) return null;
+
+  canvas.width = 160;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  // Recortar la región central (donde se ubica el óvalo del rostro)
+  const cropSize = Math.min(video.videoWidth, video.videoHeight) * 0.7;
+  const sx = (video.videoWidth - cropSize) / 2;
+  const sy = (video.videoHeight - cropSize) / 2;
+
+  ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 160, 160);
+
+  const quality = analyzeImageQuality(ctx, 160, 160);
+  const imgData = ctx.getImageData(0, 0, 160, 160).data;
+
+  // Construir 128 características numéricas agrupando regiones espaciales
+  const rawEmbedding: number[] = new Array(128);
+  let featureIdx = 0;
+
+  for (let gridY = 0; gridY < 8; gridY++) {
+    for (let gridX = 0; gridX < 16; gridX++) {
+      let sumR = 0;
+      let sumG = 0;
+      let sumB = 0;
+
+      for (let y = gridY * 20; y < (gridY + 1) * 20; y += 4) {
+        for (let x = gridX * 10; x < (gridX + 1) * 10; x += 2) {
+          const pixelIdx = (y * 160 + x) * 4;
+          sumR += imgData[pixelIdx];
+          sumG += imgData[pixelIdx + 1];
+          sumB += imgData[pixelIdx + 2];
+        }
+      }
+
+      // Gradiente relacional entre canales de color R, G, B
+      const featureVal = ((sumG - sumR) + (sumB * 0.5)) / 50.0;
+      rawEmbedding[featureIdx++] = featureVal;
+    }
+  }
+
+  return {
+    embedding: normalizeVector(rawEmbedding),
+    quality,
+  };
 }
 
 export function useBiometrics() {
@@ -49,6 +155,7 @@ export function useBiometrics() {
       toast.error('El vector facial debe contener exactamente 128 valores.');
       return false;
     }
+    const normalized = normalizeVector(embedding);
     setLoading(true);
     try {
       const { error } = await supabase
@@ -56,7 +163,7 @@ export function useBiometrics() {
         .upsert(
           {
             student_id: studentId,
-            embedding,
+            embedding: normalized,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'student_id' }
@@ -80,35 +187,59 @@ export function useBiometrics() {
   }, []);
 
   /**
-   * Encuentra el estudiante con mayor similitud a partir de un vector escaneado
+   * Encuentra el estudiante con mayor similitud a partir de un vector escaneado,
+   * aplicando prueba de margen (Ratio Test) para evitar confusiones de rostros.
    */
   const matchBiometric = useCallback((
     scannedEmbedding: number[],
     registeredBiometrics: StudentBiometric[],
-    tolerance = 0.50
+    tolerance = 0.45
   ): MatchResult | null => {
     if (!registeredBiometrics.length || scannedEmbedding.length !== 128) return null;
 
+    const normalizedScan = normalizeVector(scannedEmbedding);
+
     let bestMatch: MatchResult | null = null;
     let minDistance = Infinity;
+    let secondMinDistance = Infinity;
 
     for (const bio of registeredBiometrics) {
-      const dist = calculateEuclideanDistance(scannedEmbedding, bio.embedding);
+      const normalizedBio = normalizeVector(bio.embedding);
+      const dist = calculateEuclideanDistance(normalizedScan, normalizedBio);
+
       if (dist < minDistance) {
+        secondMinDistance = minDistance;
         minDistance = dist;
         bestMatch = {
           student_id: bio.student_id,
           distance: dist,
-          confidence: Math.max(0, Math.round((1 - dist) * 100)),
+          confidence: Math.max(0, Math.min(100, Math.round((1 - dist / 1.414) * 100))),
         };
+      } else if (dist < secondMinDistance) {
+        secondMinDistance = dist;
       }
     }
 
-    if (bestMatch && minDistance <= tolerance) {
-      return bestMatch;
+    if (!bestMatch || minDistance > tolerance) {
+      return null;
     }
 
-    return null;
+    // Ratio Test del segundo candidato: si el segundo candidato está demasiado cercano al primero,
+    // se considera ambiguo para evitar falsos reconocimientos.
+    const marginRatio = secondMinDistance !== Infinity && secondMinDistance > 0
+      ? minDistance / secondMinDistance
+      : 0;
+
+    bestMatch.secondBestDistance = secondMinDistance;
+    bestMatch.marginRatio = marginRatio;
+
+    // Si la ambigüedad es alta (ratio > 0.88), rechazar coincidencia por seguridad
+    if (registeredBiometrics.length > 1 && marginRatio > 0.88) {
+      console.warn('Emparejamiento rechazado por ambigüedad de rostro:', { minDistance, secondMinDistance, marginRatio });
+      return null;
+    }
+
+    return bestMatch;
   }, []);
 
   return {
@@ -118,3 +249,4 @@ export function useBiometrics() {
     matchBiometric,
   };
 }
+

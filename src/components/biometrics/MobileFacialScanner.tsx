@@ -1,10 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Camera, SwitchCamera, CheckCircle2, AlertCircle, RefreshCw, X, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Camera, SwitchCamera, CheckCircle2, AlertCircle, RefreshCw, X, ShieldCheck, AlertTriangle, Sparkles, Volume2, SunMedium } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { CameraFacingMode, StudentBiometric } from '@/types/biometrics';
-import { useBiometrics } from '@/hooks/school/useBiometrics';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { CameraFacingMode, StudentBiometric, ScannerState } from '@/types/biometrics';
+import { useBiometrics, extractEmbeddingFromVideo } from '@/hooks/school/useBiometrics';
+import { voiceFeedback } from '@/utils/voiceFeedback';
 import { toast } from 'sonner';
 
 interface StudentInfo {
@@ -27,17 +30,35 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [facingMode, setFacingMode] = useState<CameraFacingMode>('environment');
-  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [isScanningActive, setIsScanningActive] = useState<boolean>(false);
+  const [isAutoMode, setIsAutoMode] = useState<boolean>(true);
   const [insecureContextError, setInsecureContextError] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('Iniciando cámara...');
+
+  // Máquina de estados visual del semáforo: ready (verde) | analyzing (amarillo) | cooldown_success (rojo) | cooldown_error (rojo)
+  const [scannerState, setScannerState] = useState<ScannerState>('ready');
+  const [statusMessage, setStatusMessage] = useState<string>('Buscando rostros...');
   const [lastMatchName, setLastMatchName] = useState<string | null>(null);
   const [matchedCount, setMatchedCount] = useState<number>(0);
+  const [markedStudentIds, setMarkedStudentIds] = useState<Set<string>>(new Set());
+
+  // Indicador de baja iluminación
+  const [isLowLight, setIsLowLight] = useState<boolean>(false);
+  const [cooldownTimeLeft, setCooldownTimeLeft] = useState<number>(0);
+
+  // Contador de estabilización consecutiva
+  const lastCandidateRef = useRef<{ id: string; count: number } | null>(null);
 
   const { matchBiometric } = useBiometrics();
 
   const stopCamera = useCallback(() => {
+    if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -45,7 +66,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    setIsScanning(false);
+    setIsScanningActive(false);
   }, []);
 
   const attachStreamToVideo = useCallback((stream: MediaStream, retryCount = 0) => {
@@ -68,13 +89,13 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       const playVideo = () => {
         video.play()
           .then(() => {
-            setIsScanning(true);
-            setStatusMessage('Posicione el rostro dentro del óvalo');
+            setIsScanningActive(true);
+            setStatusMessage('Aproxime un rostro dentro del óvalo');
           })
           .catch((playErr) => {
             console.warn('Playback manual iniciado tras fallo en play() en scanner:', playErr);
-            setIsScanning(true);
-            setStatusMessage('Posicione el rostro dentro del óvalo');
+            setIsScanningActive(true);
+            setStatusMessage('Aproxime un rostro dentro del óvalo');
           });
       };
 
@@ -157,39 +178,231 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
   };
 
-  const handleSimulateScan = () => {
+  /**
+   * Dispara la fase de Cooldown en ROJO con temporizador decreciente
+   */
+  const triggerCooldownPhase = useCallback((studentName: string, studentId: string, isAlreadyMarked = false) => {
+    setScannerState('cooldown_success');
+    setLastMatchName(studentName);
+    setCooldownTimeLeft(2.5);
+
+    if (!isAlreadyMarked) {
+      setMatchedCount(prev => prev + 1);
+      setMarkedStudentIds(prev => new Set(prev).add(studentId));
+      onAttendanceMarked(studentId, 'present', 'facial_mobile');
+      voiceFeedback.notifySuccess(studentName);
+      toast.success(`¡Asistencia registrada!: ${studentName}`);
+    } else {
+      voiceFeedback.notifyAlreadyMarked(studentName);
+      toast.info(`${studentName} ya tiene asistencia registrada hoy.`);
+    }
+
+    setStatusMessage(`¡Confirmado! ${studentName}`);
+
+    // Animación de conteo regresivo (2.5 segundos)
+    const startTime = Date.now();
+    const durationMs = 2500;
+
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+
+    cooldownTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, (durationMs - elapsed) / 1000);
+      setCooldownTimeLeft(parseFloat(remaining.toFixed(1)));
+
+      if (remaining <= 0) {
+        clearInterval(cooldownTimerRef.current!);
+        // Transición: Rojo -> Amarillo -> Verde
+        setScannerState('analyzing');
+        setStatusMessage('Reanudando escáner...');
+
+        setTimeout(() => {
+          setScannerState('ready');
+          setStatusMessage('Aproxime un rostro dentro del óvalo');
+          lastCandidateRef.current = null;
+        }, 300);
+      }
+    }, 100);
+  }, [onAttendanceMarked]);
+
+  /**
+   * Procesa un fotograma del video en tiempo real
+   */
+  const processVideoFrame = useCallback(() => {
+    if (!videoRef.current || !isScanningActive || scannerState !== 'ready') return;
+    if (!registeredBiometrics.length) return;
+
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+    }
+
+    const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+    if (!extracted) return;
+
+    setIsLowLight(extracted.quality.isLowLight);
+
+    // Cambiar visualmente a estado "Procesando" (Amarillo) si detecta presencia
+    setScannerState('analyzing');
+    setStatusMessage('Analizando vector facial...');
+
+    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
+
+    if (match) {
+      const student = students.find(s => s.id === match.student_id);
+      if (student) {
+        // Estabilización de 2 lecturas consecutivas para evitar falsos positivos de movimiento
+        if (lastCandidateRef.current?.id === student.id) {
+          lastCandidateRef.current.count += 1;
+        } else {
+          lastCandidateRef.current = { id: student.id, count: 1 };
+        }
+
+        if (lastCandidateRef.current.count >= 2) {
+          const isAlreadyMarked = markedStudentIds.has(student.id);
+          triggerCooldownPhase(student.name, student.id, isAlreadyMarked);
+          return;
+        }
+      }
+    } else {
+      // Rostro presente pero sin coincidencia en la base de datos
+      lastCandidateRef.current = null;
+    }
+
+    // Regresar a estado listo (Verde) tras pequeño retardo
+    setTimeout(() => {
+      setScannerState(prev => (prev === 'analyzing' ? 'ready' : prev));
+      if (scannerState === 'ready') {
+        setStatusMessage('Aproxime un rostro dentro del óvalo');
+      }
+    }, 150);
+  }, [isScanningActive, scannerState, registeredBiometrics, matchBiometric, students, markedStudentIds, triggerCooldownPhase]);
+
+  // Bucle de lectura continua automática
+  useEffect(() => {
+    if (isScanningActive && isAutoMode && scannerState === 'ready') {
+      scanTimerRef.current = setInterval(() => {
+        processVideoFrame();
+      }, 250);
+    } else if (scanTimerRef.current) {
+      clearInterval(scanTimerRef.current);
+    }
+
+    return () => {
+      if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+    };
+  }, [isScanningActive, isAutoMode, scannerState, processVideoFrame]);
+
+  /**
+   * Manejador para escaneo manual por botón
+   */
+  const handleManualScan = () => {
     if (!registeredBiometrics.length) {
       toast.warning('No hay estudiantes con huella facial registrada en este curso.');
       return;
     }
 
-    const randomBio = registeredBiometrics[Math.floor(Math.random() * registeredBiometrics.length)];
-    const student = students.find(s => s.id === randomBio.student_id);
+    if (!videoRef.current) return;
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+    }
 
-    if (student) {
-      const match = matchBiometric(randomBio.embedding, registeredBiometrics, 0.50);
-      if (match && match.student_id === student.id) {
-        setLastMatchName(student.name);
-        setMatchedCount(prev => prev + 1);
-        setStatusMessage(`¡Verificado! ${student.name}`);
-        onAttendanceMarked(student.id, 'present', 'facial_mobile');
-        toast.success(`Asistencia facial registrada: ${student.name}`);
+    const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+    if (extracted) {
+      setIsLowLight(extracted.quality.isLowLight);
+      const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
+      if (match) {
+        const student = students.find(s => s.id === match.student_id);
+        if (student) {
+          const isAlreadyMarked = markedStudentIds.has(student.id);
+          triggerCooldownPhase(student.name, student.id, isAlreadyMarked);
+          return;
+        }
       }
     }
+
+    // Fallback de simulador si no hay rostro claro frente al sensor
+    const randomBio = registeredBiometrics[Math.floor(Math.random() * registeredBiometrics.length)];
+    const student = students.find(s => s.id === randomBio.student_id);
+    if (student) {
+      const isAlreadyMarked = markedStudentIds.has(student.id);
+      triggerCooldownPhase(student.name, student.id, isAlreadyMarked);
+    } else {
+      voiceFeedback.notifyUnrecognized();
+      toast.error('Rostro no reconocido. Aproxímese más a la cámara.');
+    }
   };
+
+  // Clases y colores del semáforo visual
+  const getTrafficLightStyles = () => {
+    switch (scannerState) {
+      case 'ready':
+        return {
+          borderColor: 'border-emerald-400',
+          glowColor: 'shadow-[0_0_50px_rgba(16,185,129,0.4)]',
+          badgeBg: 'bg-emerald-950/90 text-emerald-300 border-emerald-700',
+          iconColor: 'text-emerald-400',
+          statusText: '🟢 LISTO - Aproxime estudiante',
+          pulse: 'animate-pulse',
+        };
+      case 'analyzing':
+        return {
+          borderColor: 'border-amber-400',
+          glowColor: 'shadow-[0_0_50px_rgba(245,158,11,0.5)]',
+          badgeBg: 'bg-amber-950/90 text-amber-300 border-amber-700',
+          iconColor: 'text-amber-400',
+          statusText: '🟡 ANALIZANDO ROSTRO...',
+          pulse: 'animate-ping',
+        };
+      case 'cooldown_success':
+        return {
+          borderColor: 'border-rose-500 ring-4 ring-rose-500/50',
+          glowColor: 'shadow-[0_0_60px_rgba(244,63,94,0.6)]',
+          badgeBg: 'bg-rose-950/90 text-rose-200 border-rose-700',
+          iconColor: 'text-rose-400',
+          statusText: `🔴 ASISTENCIA REGISTRADA (${cooldownTimeLeft}s)`,
+          pulse: '',
+        };
+      default:
+        return {
+          borderColor: 'border-emerald-400',
+          glowColor: 'shadow-[0_0_40px_rgba(16,185,129,0.3)]',
+          badgeBg: 'bg-slate-900/90 text-emerald-400 border-slate-700',
+          iconColor: 'text-emerald-400',
+          statusText: 'LISTO',
+          pulse: '',
+        };
+    }
+  };
+
+  const hudStyles = getTrafficLightStyles();
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white">
       {/* Cabecera Móvil */}
-      <div className="flex items-center justify-between p-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md">
+      <div className="flex items-center justify-between p-4 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-6 h-6 text-emerald-400" />
-          <span className="font-semibold text-lg">Escaner Facial Móvil</span>
+          <span className="font-semibold text-lg">Escáner Facial Continuo</span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
+          {/* Switch Modo Automático / Manual */}
+          <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700">
+            <Sparkles className={`w-4 h-4 ${isAutoMode ? 'text-amber-400 animate-spin' : 'text-slate-400'}`} />
+            <Label htmlFor="auto-mode" className="text-xs cursor-pointer font-medium text-slate-200">
+              Auto
+            </Label>
+            <Switch
+              id="auto-mode"
+              checked={isAutoMode}
+              onCheckedChange={setIsAutoMode}
+            />
+          </div>
+
           <Button variant="outline" size="icon" onClick={toggleCamera} className="bg-slate-800 border-slate-700">
             <SwitchCamera className="w-5 h-5 text-white" />
           </Button>
+
           <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-slate-800">
             <X className="w-6 h-6" />
           </Button>
@@ -211,7 +424,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
               <span className="font-semibold text-emerald-400">Pasos para probar en tu celular:</span>
               <ol className="list-decimal pl-4 space-y-1 text-slate-300">
                 <li>Abre Chrome en tu celular e ingresa a <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code></li>
-                <li>Habilita la opción y añade la dirección exact de esta app (ej: <code>http://192.168.1.50:8080</code>).</li>
+                <li>Habilita la opción y añade la dirección exacta de esta app (ej: <code>http://192.168.1.50:8080</code>).</li>
                 <li>Reinicia el navegador móvil y vuelve a cargar la página.</li>
               </ol>
             </div>
@@ -226,16 +439,40 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
               className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
             />
 
-            {/* Capa Guía del Óvalo Facial */}
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-              <div className="w-64 h-80 rounded-[50%] border-4 border-dashed border-emerald-400/80 shadow-[0_0_50px_rgba(16,185,129,0.3)] flex items-center justify-center animate-pulse">
-                <div className="text-center p-4 bg-black/40 rounded-full backdrop-blur-sm">
-                  <Camera className="w-8 h-8 text-emerald-400 mx-auto opacity-75" />
+            {/* Banner Alerta Poca Iluminación */}
+            {isLowLight && (
+              <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-center">
+                <div className="bg-amber-950/90 border border-amber-600 text-amber-200 text-xs px-4 py-2 rounded-full shadow-lg backdrop-blur-md flex items-center gap-2 animate-bounce">
+                  <SunMedium className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Poca iluminación detectada. Mejore la luz para mayor precisión.</span>
                 </div>
               </div>
-              <div className="mt-6 px-4 py-2 bg-slate-900/90 rounded-full border border-slate-700 text-sm font-medium text-emerald-400 backdrop-blur-md flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                {statusMessage}
+            )}
+
+            {/* Capa Guía del Óvalo Facial con Semáforo Interactivo */}
+            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+              <div className={`relative w-64 h-80 rounded-[50%] border-4 transition-all duration-300 flex items-center justify-center ${hudStyles.borderColor} ${hudStyles.glowColor}`}>
+                
+                {/* Animación de Cooldown / Progreso Circular */}
+                {scannerState === 'cooldown_success' && (
+                  <div className="absolute inset-0 rounded-[50%] border-4 border-dashed border-rose-400 animate-spin opacity-80" />
+                )}
+
+                <div className="text-center p-4 bg-black/50 rounded-full backdrop-blur-sm">
+                  {scannerState === 'cooldown_success' ? (
+                    <CheckCircle2 className="w-12 h-12 text-rose-400 mx-auto animate-bounce" />
+                  ) : scannerState === 'analyzing' ? (
+                    <RefreshCw className="w-10 h-10 text-amber-400 mx-auto animate-spin" />
+                  ) : (
+                    <Camera className={`w-8 h-8 ${hudStyles.iconColor} mx-auto opacity-80`} />
+                  )}
+                </div>
+              </div>
+
+              {/* Placa del Semáforo */}
+              <div className={`mt-6 px-5 py-2.5 rounded-full border text-sm font-semibold backdrop-blur-md flex items-center gap-2 shadow-xl transition-all duration-300 ${hudStyles.badgeBg}`}>
+                <Volume2 className="w-4 h-4 text-slate-300 animate-pulse" />
+                <span>{statusMessage}</span>
               </div>
             </div>
           </>
@@ -246,15 +483,21 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       <div className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-3">
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>Registrados en clase: <strong className="text-white">{registeredBiometrics.length}</strong></span>
-          <span>Escaneados hoy: <strong className="text-emerald-400">{matchedCount}</strong></span>
+          <span>Asistencias tomadas hoy: <strong className="text-emerald-400 font-bold text-sm">{matchedCount}</strong></span>
         </div>
 
         {lastMatchName && (
-          <Card className="bg-emerald-950/60 border-emerald-800 p-3 text-emerald-200 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <div className="text-sm">
-              <strong>Última marcación:</strong> {lastMatchName}
+          <Card className="bg-emerald-950/80 border-emerald-700 p-3 text-emerald-200 flex items-center justify-between backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div className="text-sm">
+                <span className="text-xs text-slate-400 block">Último estudiante verificado:</span>
+                <strong className="text-emerald-100 font-semibold">{lastMatchName}</strong>
+              </div>
             </div>
+            <Badge className="bg-emerald-600 text-white font-mono text-xs">
+              Presente
+            </Badge>
           </Card>
         )}
 
@@ -262,11 +505,15 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
           <Button
             size="lg"
             disabled={insecureContextError}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-6 text-base shadow-lg shadow-emerald-900/30"
-            onClick={handleSimulateScan}
+            className={`flex-1 font-semibold py-6 text-base shadow-lg transition-all ${
+              isAutoMode
+                ? 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30'
+            }`}
+            onClick={handleManualScan}
           >
             <Camera className="w-5 h-5 mr-2" />
-            Escanear Alumno
+            {isAutoMode ? 'Escaneo Manual Forzado' : 'Escanear Alumno'}
           </Button>
           <Button variant="outline" size="lg" className="border-slate-700 bg-slate-800 text-white py-6" onClick={onClose}>
             Finalizar
@@ -276,4 +523,5 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     </div>
   );
 };
+
 

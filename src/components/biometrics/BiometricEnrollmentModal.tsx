@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Camera, RefreshCw, CheckCircle, ShieldCheck, SwitchCamera, AlertTriangle } from 'lucide-react';
-import { useBiometrics } from '@/hooks/school/useBiometrics';
+import { useBiometrics, extractEmbeddingFromVideo } from '@/hooks/school/useBiometrics';
 import { CameraFacingMode } from '@/types/biometrics';
 import { toast } from 'sonner';
 
@@ -155,16 +155,26 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
   };
 
-  const handleCaptureAndSave = async () => {
-    if (!studentId) return;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-    // Generar descriptor biométrico de 128 posiciones para prueba de concepto
-    const syntheticEmbedding: number[] = new Array(128);
-    for (let i = 0; i < 128; i++) {
-      syntheticEmbedding[i] = parseFloat(((Math.random() * 2 - 1) * 0.1).toFixed(6));
+  const handleCaptureAndSave = async () => {
+    if (!studentId || !videoRef.current) return;
+
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
     }
 
-    const ok = await saveStudentBiometric(studentId, syntheticEmbedding);
+    const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+    if (!extracted || !extracted.embedding) {
+      toast.error('No se pudo detectar el rostro en la cámara. Intente centrar su rostro dentro del óvalo.');
+      return;
+    }
+
+    if (extracted.quality.isLowLight) {
+      toast.warning('Poca iluminación detectada. Por favor ilumine mejor la zona para mayor precisión.');
+    }
+
+    const ok = await saveStudentBiometric(studentId, extracted.embedding);
     if (ok) {
       stopCamera();
       if (onSuccess) onSuccess();
