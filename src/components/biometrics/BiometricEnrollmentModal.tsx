@@ -173,6 +173,29 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
   };
 
   /**
+   * Procesa las muestras y guarda el centroide biométrico definitivo (UNA SOLA VEZ)
+   */
+  const handleSaveFinalBiometric = useCallback(async (samplesToUse: number[][]) => {
+    if (!samplesToUse || !samplesToUse.length || !studentId || hasSavedRef.current) return;
+
+    hasSavedRef.current = true;
+    if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
+
+    const finalCentroid = computeCentroidEmbedding(samplesToUse);
+    const ok = await saveStudentBiometric(studentId, finalCentroid);
+
+    if (ok) {
+      voiceFeedback.notifySuccess(studentName);
+      stopCamera();
+      if (onSuccess) onSuccess();
+      onClose();
+    } else {
+      console.error('Fallo al guardar biometría facial en Supabase.');
+      toast.error('No se pudo guardar la huella facial. Por favor intente de nuevo.');
+    }
+  }, [studentId, saveStudentBiometric, studentName, stopCamera, onSuccess, onClose]);
+
+  /**
    * Captura manual o automática de una muestra facial con cooldown de seguridad
    */
   const handleTakeSample = useCallback(() => {
@@ -184,11 +207,10 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
 
     const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
     if (!extracted || !extracted.embedding) {
-      toast.error('No se pudo detectar un rostro claro. Centre su rostro dentro del óvalo.');
       return;
     }
 
-    // Cooldown de 1.4 segundos entre cada muestra para dar tiempo al alumno a escuchar la instrucción y girar la cabeza
+    // Cooldown de 1.4 segundos entre cada muestra para dar tiempo al alumno
     sampleCooldownUntilRef.current = Date.now() + 1400;
     consecutiveStabilityRef.current = 0;
     setStabilityProgress(0);
@@ -206,38 +228,10 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       voiceFeedback.speak('Muestra dos capturada. Excelente, mire de nuevo al centro.', 'high');
     } else if (newSamples.length >= 3) {
       toast.success('Muestras completadas. Guardando huella biométrica...');
+      // Disparar guardado definitivo directamente una sola vez
+      handleSaveFinalBiometric(newSamples);
     }
-  }, [studentId, capturedSamples]);
-
-  /**
-   * Procesa las muestras y guarda el centroide biométrico definitivo (UNA SOLA VEZ)
-   */
-  const handleSaveFinalBiometric = useCallback(async (samplesToUse?: number[][]) => {
-    const list = samplesToUse || capturedSamples;
-    if (!list.length || !studentId || hasSavedRef.current) return;
-
-    hasSavedRef.current = true;
-    if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
-
-    const finalCentroid = computeCentroidEmbedding(list);
-    const ok = await saveStudentBiometric(studentId, finalCentroid);
-
-    if (ok) {
-      voiceFeedback.notifySuccess(studentName);
-      stopCamera();
-      if (onSuccess) onSuccess();
-      onClose();
-    } else {
-      hasSavedRef.current = false;
-    }
-  }, [capturedSamples, studentId, saveStudentBiometric, studentName, stopCamera, onSuccess, onClose]);
-
-  // Guardado automático inmediato cuando se completan las 3 muestras
-  useEffect(() => {
-    if (capturedSamples.length >= 3 && !loading && !hasSavedRef.current) {
-      handleSaveFinalBiometric(capturedSamples);
-    }
-  }, [capturedSamples, loading, handleSaveFinalBiometric]);
+  }, [studentId, capturedSamples, handleSaveFinalBiometric]);
 
   /**
    * Bucle de captura automática inteligente en tiempo real
@@ -499,7 +493,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
 
             {capturedSamples.length >= 3 && (
               <Button
-                onClick={() => handleSaveFinalBiometric()}
+                onClick={() => handleSaveFinalBiometric(capturedSamples)}
                 disabled={loading}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold animate-pulse"
               >
