@@ -37,6 +37,32 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
 
   const { matchBiometric } = useBiometrics();
 
+  const attachStreamToVideo = useCallback((stream: MediaStream, retryCount = 0) => {
+    const video = videoRef.current;
+    if (!video) {
+      if (retryCount < 20) {
+        requestAnimationFrame(() => attachStreamToVideo(stream, retryCount + 1));
+      }
+      return;
+    }
+
+    video.srcObject = stream;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.muted = true;
+    
+    video.play()
+      .then(() => {
+        setIsScanning(true);
+        setStatusMessage('Posicione el rostro dentro del óvalo');
+      })
+      .catch((playErr) => {
+        console.warn('Error en video.play() en scanner:', playErr);
+        setIsScanning(true);
+        setStatusMessage('Posicione el rostro dentro del óvalo');
+      });
+  }, []);
+
   // Iniciar cámara con fallbacks para móviles
   const startCamera = useCallback(async (mode: CameraFacingMode) => {
     if (streamRef.current) {
@@ -65,19 +91,14 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsScanning(true);
-        setStatusMessage('Posicione el rostro dentro del óvalo');
-      }
+      attachStreamToVideo(stream);
     } catch (err: unknown) {
       console.error('Error al acceder a la cámara:', err);
       const msg = err instanceof Error ? err.message : 'Permiso denegado o cámara no soportada';
       toast.error(`No se pudo iniciar la cámara: ${msg}`);
       setStatusMessage('Error al iniciar la cámara');
     }
-  }, []);
+  }, [attachStreamToVideo]);
 
   useEffect(() => {
     startCamera(facingMode);

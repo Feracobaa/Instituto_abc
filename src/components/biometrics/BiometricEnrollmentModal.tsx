@@ -36,6 +36,30 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     setIsCapturing(false);
   }, []);
 
+  const attachStreamToVideo = useCallback((stream: MediaStream, retryCount = 0) => {
+    const video = videoRef.current;
+    if (!video) {
+      if (retryCount < 20) {
+        requestAnimationFrame(() => attachStreamToVideo(stream, retryCount + 1));
+      }
+      return;
+    }
+
+    video.srcObject = stream;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.muted = true;
+    
+    video.play()
+      .then(() => {
+        setIsCapturing(true);
+      })
+      .catch((playErr) => {
+        console.warn('Error al iniciar reproducción de video:', playErr);
+        setIsCapturing(true);
+      });
+  }, []);
+
   const startCamera = useCallback(async (mode: CameraFacingMode) => {
     stopCamera();
 
@@ -60,16 +84,12 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsCapturing(true);
-      }
+      attachStreamToVideo(stream);
     } catch (err) {
       console.error('Error abriendo cámara:', err);
       toast.error('No se pudo acceder a la cámara. Por favor verifica los permisos del navegador.');
     }
-  }, [stopCamera]);
+  }, [stopCamera, attachStreamToVideo]);
 
   useEffect(() => {
     if (isOpen) {
