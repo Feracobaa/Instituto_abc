@@ -242,11 +242,62 @@ export function useBiometrics() {
     return bestMatch;
   }, []);
 
+  /**
+   * Elimina la huella facial registrada de un estudiante
+   */
+  const deleteStudentBiometric = useCallback(async (studentId: string): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('student_biometrics')
+        .delete()
+        .eq('student_id', studentId);
+
+      if (error) {
+        console.error('Error al eliminar biometría:', error);
+        toast.error(`Error al eliminar huella facial: ${error.message}`);
+        return false;
+      }
+
+      toast.success('Huella facial eliminada correctamente.');
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Desconocido';
+      toast.error(`Error inesperado: ${errorMessage}`);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
     getBiometricsForStudents,
     saveStudentBiometric,
+    deleteStudentBiometric,
     matchBiometric,
   };
 }
+
+/**
+ * Calcula el vector centroide promedio de múltiples capturas biométricas
+ */
+export function computeCentroidEmbedding(embeddings: number[][]): number[] {
+  if (!embeddings.length) return [];
+  const dim = embeddings[0].length;
+  const centroid = new Array(dim).fill(0);
+
+  for (const emb of embeddings) {
+    for (let i = 0; i < dim; i++) {
+      centroid[i] += emb[i];
+    }
+  }
+
+  for (let i = 0; i < dim; i++) {
+    centroid[i] /= embeddings.length;
+  }
+
+  return normalizeVector(centroid);
+}
+
 

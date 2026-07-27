@@ -241,15 +241,15 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
 
     setIsLowLight(extracted.quality.isLowLight);
 
-    // Cambiar visualmente a estado "Procesando" (Amarillo) si detecta presencia
-    setScannerState('analyzing');
-    setStatusMessage('Analizando vector facial...');
-
     const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
 
     if (match) {
       const student = students.find(s => s.id === match.student_id);
       if (student) {
+        // Transición a estado analizando (Amarillo) sólo al detectar un candidato potencial
+        setScannerState('analyzing');
+        setStatusMessage(`Analizando coincidencia: ${student.name}...`);
+
         // Estabilización de 2 lecturas consecutivas para evitar falsos positivos de movimiento
         if (lastCandidateRef.current?.id === student.id) {
           lastCandidateRef.current.count += 1;
@@ -264,17 +264,13 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
         }
       }
     } else {
-      // Rostro presente pero sin coincidencia en la base de datos
+      // Rostro no reconocido o vacante
       lastCandidateRef.current = null;
-    }
-
-    // Regresar a estado listo (Verde) tras pequeño retardo
-    setTimeout(() => {
-      setScannerState(prev => (prev === 'analyzing' ? 'ready' : prev));
-      if (scannerState === 'ready') {
+      if (scannerState !== 'ready') {
+        setScannerState('ready');
         setStatusMessage('Aproxime un rostro dentro del óvalo');
       }
-    }, 150);
+    }
   }, [isScanningActive, scannerState, registeredBiometrics, matchBiometric, students, markedStudentIds, triggerCooldownPhase]);
 
   // Bucle de lectura continua automática
