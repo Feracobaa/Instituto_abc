@@ -2,9 +2,12 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Camera, RefreshCw, CheckCircle, ShieldCheck, SwitchCamera, AlertTriangle, Trash2, Sparkles, AlertCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Camera, RefreshCw, CheckCircle, ShieldCheck, SwitchCamera, AlertTriangle, Trash2, Sparkles, Volume2, RotateCcw } from 'lucide-react';
 import { useBiometrics, extractEmbeddingFromVideo, computeCentroidEmbedding } from '@/hooks/school/useBiometrics';
 import { CameraFacingMode, StudentBiometric } from '@/types/biometrics';
+import { voiceFeedback } from '@/utils/voiceFeedback';
 import { toast } from 'sonner';
 
 interface BiometricEnrollmentModalProps {
@@ -25,15 +28,19 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const autoScanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const consecutiveStabilityRef = useRef<number>(0);
 
   const [facingMode, setFacingMode] = useState<CameraFacingMode>('user');
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [isAutoEnroll, setIsAutoEnroll] = useState<boolean>(true);
   const [insecureContextError, setInsecureContextError] = useState<boolean>(false);
 
   // Muestras capturadas para el centroide
   const [capturedSamples, setCapturedSamples] = useState<number[][]>([]);
   const [existingBiometric, setExistingBiometric] = useState<StudentBiometric | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [stabilityProgress, setStabilityProgress] = useState<number>(0); // 0 a 100%
 
   const { saveStudentBiometric, deleteStudentBiometric, getBiometricsForStudents, loading } = useBiometrics();
 
@@ -48,10 +55,14 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
         }
       });
       setCapturedSamples([]);
+      setStabilityProgress(0);
+      consecutiveStabilityRef.current = 0;
     }
   }, [isOpen, studentId, getBiometricsForStudents]);
 
   const stopCamera = useCallback(() => {
+    if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -85,6 +96,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
         video.play()
           .then(() => {
             setIsCapturing(true);
+            voiceFeedback.speak(`Iniciando registro para ${studentName}. Coloque su rostro de frente.`, 'normal');
           })
           .catch((playErr) => {
             console.warn('Playback manual iniciado tras fallo en play():', playErr);
@@ -100,7 +112,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     } catch (e) {
       console.error('Error al vincular el MediaStream al elemento video:', e);
     }
-  }, []);
+  }, [studentName]);
 
   const startCamera = useCallback(async (mode: CameraFacingMode) => {
     stopCamera();
@@ -156,9 +168,9 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
   };
 
   /**
-   * Captura una muestra facial de alta precisión
+   * Captura manual de una muestra facial
    */
-  const handleTakeSample = () => {
+  const handleTakeSample = useCallback(() => {
     if (!studentId || !videoRef.current) return;
 
     if (!canvasRef.current) {
@@ -171,30 +183,93 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       return;
     }
 
-    if (extracted.quality.isLowLight) {
-      toast.warning('Poca iluminación detectada. Por favor ilumine mejor la zona para mayor precisión.');
-    }
-
     const newSamples = [...capturedSamples, extracted.embedding];
     setCapturedSamples(newSamples);
+    setStabilityProgress(0);
+    consecutiveStabilityRef.current = 0;
 
-    toast.success(`Muestra ${newSamples.length}/3 capturada correctamente.`);
-  };
+    voiceFeedback.playSound('success');
+
+    if (newSamples.length === 1) {
+      toast.success('Muestra 1/3 capturada. Ahora gire suavemente la cabeza.');
+      voiceFeedback.speak('Muestra uno capturada. Ahora gire suavemente el rostro.', 'high');
+    } else if (newSamples.length === 2) {
+      toast.success('Muestra 2/3 capturada. Mire nuevamente al frente.');
+      voiceFeedback.speak('Muestra dos capturada. Excelente, mire de nuevo al centro.', 'high');
+    } else if (newSamples.length >= 3) {
+      toast.success('Muestra 3/3 capturada. Guardando huella biométrica...');
+      voiceFeedback.speak('Muestras completadas. Registrando huella en el sistema.', 'high');
+    }
+  }, [studentId, capturedSamples]);
 
   /**
    * Procesa las muestras y guarda el centroide biométrico definitivo
    */
-  const handleSaveFinalBiometric = async () => {
-    if (!capturedSamples.length || !studentId) return;
+  const handleSaveFinalBiometric = useCallback(async (samplesToUse?: number[][]) => {
+    const list = samplesToUse || capturedSamples;
+    if (!list.length || !studentId) return;
 
-    const finalCentroid = computeCentroidEmbedding(capturedSamples);
+    const finalCentroid = computeCentroidEmbedding(list);
     const ok = await saveStudentBiometric(studentId, finalCentroid);
 
     if (ok) {
+      voiceFeedback.notifySuccess(studentName);
       stopCamera();
       if (onSuccess) onSuccess();
       onClose();
     }
+  }, [capturedSamples, studentId, saveStudentBiometric, studentName, stopCamera, onSuccess, onClose]);
+
+  // Guardado automático inmediato cuando se completan las 3 muestras
+  useEffect(() => {
+    if (capturedSamples.length >= 3 && !loading) {
+      handleSaveFinalBiometric(capturedSamples);
+    }
+  }, [capturedSamples, loading, handleSaveFinalBiometric]);
+
+  /**
+   * Bucle de captura automática inteligente en tiempo real
+   */
+  useEffect(() => {
+    if (!isCapturing || !isAutoEnroll || capturedSamples.length >= 3 || loading) {
+      if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
+      return;
+    }
+
+    autoScanIntervalRef.current = setInterval(() => {
+      if (!videoRef.current) return;
+      if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
+
+      const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+      if (extracted && extracted.embedding) {
+        consecutiveStabilityRef.current += 1;
+        const progress = Math.min(100, consecutiveStabilityRef.current * 25);
+        setStabilityProgress(progress);
+
+        // Al alcanzar 100% de estabilidad (4 fotogramas estables consecutivos ~800ms)
+        if (consecutiveStabilityRef.current >= 4) {
+          handleTakeSample();
+        }
+      } else {
+        consecutiveStabilityRef.current = Math.max(0, consecutiveStabilityRef.current - 1);
+        setStabilityProgress(consecutiveStabilityRef.current * 25);
+      }
+    }, 200);
+
+    return () => {
+      if (autoScanIntervalRef.current) clearInterval(autoScanIntervalRef.current);
+    };
+  }, [isCapturing, isAutoEnroll, capturedSamples.length, loading, handleTakeSample]);
+
+  /**
+   * Reinicia la secuencia de captura
+   */
+  const handleResetSamples = () => {
+    setCapturedSamples([]);
+    setStabilityProgress(0);
+    consecutiveStabilityRef.current = 0;
+    toast.info('Secuencia de captura reiniciada.');
+    voiceFeedback.speak('Secuencia de captura reiniciada. Posicionese de frente.', 'normal');
   };
 
   /**
@@ -209,6 +284,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     if (ok) {
       setExistingBiometric(null);
       setCapturedSamples([]);
+      setStabilityProgress(0);
       if (onSuccess) onSuccess();
     }
   };
@@ -220,7 +296,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
           <DialogTitle className="flex items-center justify-between text-xl">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-6 h-6 text-emerald-600" />
-              Registro Biométrico Facial
+              Registro Facial Automático
             </div>
             {existingBiometric && (
               <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs">
@@ -243,7 +319,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center my-3 gap-3">
-            {/* Visualizador de Video */}
+            {/* Visualizador de Video con Guía Animada */}
             <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-800 flex items-center justify-center">
               <video
                 ref={videoRef}
@@ -253,38 +329,111 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
                 className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
               />
 
-              {/* Óvalo guía */}
-              <div className="absolute w-44 h-56 rounded-[50%] border-2 border-dashed border-emerald-400 pointer-events-none flex items-center justify-center">
-                <span className="text-xs bg-black/60 px-2.5 py-1 rounded-full text-emerald-300 backdrop-blur-sm font-medium">
-                  {capturedSamples.length === 0 && '1. Mire al frente'}
-                  {capturedSamples.length === 1 && '2. Gire ligeramente'}
-                  {capturedSamples.length >= 2 && '3. Mantenga la postura'}
-                </span>
+              {/* Óvalo Guía Inteligente con Barra de Progreso de Estabilidad */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                <div className={`relative w-44 h-56 rounded-[50%] border-4 transition-all duration-300 flex items-center justify-center ${
+                  stabilityProgress > 50
+                    ? 'border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.7)] scale-105'
+                    : capturedSamples.length === 1
+                    ? 'border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.5)]'
+                    : 'border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse'
+                }`}>
+
+                  {/* Icono e Indicaciones Animadas por Muestra */}
+                  <div className="text-center p-3 bg-black/60 rounded-full backdrop-blur-md flex flex-col items-center gap-1">
+                    {capturedSamples.length === 0 && (
+                      <>
+                        <div className="w-8 h-8 rounded-full border-2 border-emerald-400 flex items-center justify-center animate-bounce">
+                          <span className="text-emerald-300 font-bold text-sm">1️⃣</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-300">Paso 1: Frente</span>
+                      </>
+                    )}
+
+                    {capturedSamples.length === 1 && (
+                      <>
+                        <div className="w-8 h-8 rounded-full border-2 border-amber-400 flex items-center justify-center animate-spin">
+                          <span className="text-amber-300 font-bold text-sm">2️⃣</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-amber-300">Paso 2: Giro Leve</span>
+                      </>
+                    )}
+
+                    {capturedSamples.length === 2 && (
+                      <>
+                        <div className="w-8 h-8 rounded-full border-2 border-cyan-400 flex items-center justify-center animate-pulse">
+                          <span className="text-cyan-300 font-bold text-sm">3️⃣</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-cyan-300">Paso 3: Centro</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner Flotante de Instrucción y Animación Auto */}
+                <div className="mt-3 px-3.5 py-1.5 bg-slate-900/90 text-white text-xs rounded-full border border-slate-700 shadow-md backdrop-blur-sm flex items-center gap-2">
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  <span className="font-medium">
+                    {capturedSamples.length === 0 && '👤 Mire de frente. Tomando foto automáticamente...'}
+                    {capturedSamples.length === 1 && '↗️ Gire levemente el rostro 15°...'}
+                    {capturedSamples.length === 2 && '🎯 Mire al centro para guardar...'}
+                    {capturedSamples.length >= 3 && '✅ ¡Muestras completadas! Guardando...'}
+                  </span>
+                </div>
               </div>
+
+              {/* Anillo de Progreso de Estabilidad Temporal */}
+              {isAutoEnroll && stabilityProgress > 0 && capturedSamples.length < 3 && (
+                <div className="absolute top-3 right-3 bg-emerald-950/90 border border-emerald-600 text-emerald-200 text-xs px-2.5 py-1 rounded-full font-mono font-bold backdrop-blur-md flex items-center gap-1.5 animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                  <span>Encuadre: {stabilityProgress}%</span>
+                </div>
+              )}
             </div>
 
             {/* Barra de Progreso de Muestras Multi-Ángulo */}
             <div className="w-full bg-slate-100 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-emerald-600" />
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Calidad Multi-Muestra:
+                  Secuencia Automática:
                 </span>
               </div>
               <div className="flex gap-1.5">
                 {[1, 2, 3].map(step => (
                   <Badge
                     key={step}
-                    className={`text-xs px-2.5 py-0.5 font-mono ${
+                    className={`text-xs px-2.5 py-0.5 font-mono transition-all ${
                       capturedSamples.length >= step
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border-dashed border'
                     }`}
                   >
-                    {capturedSamples.length >= step ? `✓ Muestra ${step}` : `Muestra ${step}`}
+                    {capturedSamples.length >= step ? `✓ Foto ${step}` : `Foto ${step}`}
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            {/* Switch Modo Automático / Manual */}
+            <div className="flex items-center justify-between w-full text-xs bg-slate-50 dark:bg-slate-900/60 p-2 rounded-md border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="auto-enroll"
+                  checked={isAutoEnroll}
+                  onCheckedChange={setIsAutoEnroll}
+                />
+                <Label htmlFor="auto-enroll" className="cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+                  Captura Automática Manos Libres
+                </Label>
+              </div>
+
+              {capturedSamples.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={handleResetSamples} className="h-6 text-xs text-amber-600 gap-1">
+                  <RotateCcw className="w-3 h-3" />
+                  Reiniciar
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center justify-between w-full text-xs text-slate-500">
@@ -309,9 +458,9 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
               size="sm"
               onClick={handleDeleteBiometric}
               disabled={loading || isDeleting}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto text-xs"
             >
-              {isDeleting ? <RefreshCw className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              {isDeleting ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
               Borrar Huella
             </Button>
           )}
@@ -321,23 +470,25 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
               Cancelar
             </Button>
 
-            {capturedSamples.length < 3 ? (
+            {!isAutoEnroll && capturedSamples.length < 3 && (
               <Button
                 onClick={handleTakeSample}
                 disabled={loading || !isCapturing || insecureContextError}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white"
               >
                 <Camera className="w-4 h-4 mr-1.5" />
-                Capturar Muestra ({capturedSamples.length}/3)
+                Capturar Manual ({capturedSamples.length}/3)
               </Button>
-            ) : (
+            )}
+
+            {capturedSamples.length >= 3 && (
               <Button
-                onClick={handleSaveFinalBiometric}
+                onClick={() => handleSaveFinalBiometric()}
                 disabled={loading}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold animate-pulse"
               >
                 <CheckCircle className="w-4 h-4 mr-1.5" />
-                Guardar Huella Definitiva
+                Guardando Huella...
               </Button>
             )}
           </div>
@@ -346,5 +497,6 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     </Dialog>
   );
 };
+
 
 
