@@ -106,14 +106,20 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
           video: { facingMode: { ideal: mode } },
           audio: false,
         });
-      } catch (e1) {
+      } catch (e1: any) {
+        if (e1?.name === 'NotAllowedError' || e1?.name === 'SecurityError') {
+          throw e1;
+        }
         console.warn('Falló restricción ideal en scanner:', e1);
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: mode },
             audio: false,
           });
-        } catch (e2) {
+        } catch (e2: any) {
+          if (e2?.name === 'NotAllowedError' || e2?.name === 'SecurityError') {
+            throw e2;
+          }
           console.warn('Falló restricción directa en scanner, fallback a video estándar:', e2);
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
@@ -126,9 +132,11 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
         streamRef.current = stream;
         attachStreamToVideo(stream);
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Error al acceder a la cámara:', err);
-      const msg = err instanceof Error ? err.message : 'Permiso denegado o cámara no soportada';
+      const msg = err?.name === 'NotAllowedError' || err?.name === 'SecurityError'
+        ? 'Permiso de cámara denegado o bloqueado por directiva de seguridad.'
+        : (err instanceof Error ? err.message : 'Permiso denegado o cámara no soportada');
       toast.error(`No se pudo iniciar la cámara: ${msg}`);
       setStatusMessage('Error al iniciar la cámara');
     }

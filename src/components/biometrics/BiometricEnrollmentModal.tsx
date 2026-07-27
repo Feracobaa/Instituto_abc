@@ -95,23 +95,26 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
     try {
       let stream: MediaStream | null = null;
       
-      // Intento 1: facingMode ideal
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: mode } },
           audio: false,
         });
-      } catch (e1) {
+      } catch (e1: any) {
+        if (e1?.name === 'NotAllowedError' || e1?.name === 'SecurityError') {
+          throw e1;
+        }
         console.warn('Falló la restricción ideal de cámara, intentando por nombre:', e1);
-        // Intento 2: facingMode directo
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: mode },
             audio: false,
           });
-        } catch (e2) {
+        } catch (e2: any) {
+          if (e2?.name === 'NotAllowedError' || e2?.name === 'SecurityError') {
+            throw e2;
+          }
           console.warn('Falló la restricción directa de cámara, usando video general:', e2);
-          // Intento 3: video por defecto (útil para computadores de escritorio)
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
@@ -123,9 +126,13 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
         streamRef.current = stream;
         attachStreamToVideo(stream);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error abriendo la cámara:', err);
-      toast.error('No se pudo acceder a la cámara. Por favor verifica que diste permisos en tu navegador.');
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+        toast.error('El permiso de cámara fue denegado o bloqueado por la directiva de seguridad.');
+      } else {
+        toast.error('No se pudo acceder a la cámara. Por favor verifica los permisos del navegador.');
+      }
     }
   }, [stopCamera, attachStreamToVideo]);
 
