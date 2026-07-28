@@ -78,12 +78,21 @@ export function verifyHumanFacePresence(
   let sumLum = 0;
   const luminanceValues: number[] = [];
 
+  // Acumuladores de las 3 zonas anatómicas verticales (Superior: Ojos/Cejas, Media: Nariz/Mejillas, Inferior: Boca/Barbilla)
+  let upperLumSum = 0, upperCount = 0;
+  let middleLumSum = 0, middleCount = 0;
+  let lowerLumSum = 0, lowerCount = 0;
+
   const step = 4; // Muestrear cada 4 píxeles en la región central del óvalo
 
   const minX = Math.floor(width * 0.2);
   const maxX = Math.floor(width * 0.8);
   const minY = Math.floor(height * 0.15);
   const maxY = Math.floor(height * 0.85);
+  const heightRange = maxY - minY;
+
+  const band1End = minY + heightRange * 0.33; // Límite franja ojos/cejas
+  const band2End = minY + heightRange * 0.66; // Límite franja nariz/mejillas
 
   for (let y = minY; y < maxY; y += step) {
     for (let x = minX; x < maxX; x += step) {
@@ -109,10 +118,48 @@ export function verifyHumanFacePresence(
       if (isSkinTone) {
         skinPixels++;
       }
+
+      // Clasificación en franjas anatómicas
+      if (y < band1End) {
+        upperLumSum += lum;
+        upperCount++;
+      } else if (y < band2End) {
+        middleLumSum += lum;
+        middleCount++;
+      } else {
+        lowerLumSum += lum;
+        lowerCount++;
+      }
+    }
+  }
+
+  // Muestreo de bordes exteriores (Esquinas fuera del óvalo) para validar delimitación del rostro
+  let outerSkinPixels = 0;
+  let outerTotalSampled = 0;
+  for (let y = 0; y < height; y += step * 2) {
+    for (let x = 0; x < width; x += step * 2) {
+      if (x < minX || x > maxX || y < minY || y > maxY) {
+        const idx = (y * width + x) * 4;
+        const r = imgData[idx];
+        const g = imgData[idx + 1];
+        const b = imgData[idx + 2];
+
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const isSkinTone =
+          r > 35 && g > 18 && b > 10 &&
+          (maxC - minC) > 10 &&
+          Math.abs(r - g) > 8 &&
+          r > g && r > (b * 0.85);
+
+        if (isSkinTone) outerSkinPixels++;
+        outerTotalSampled++;
+      }
     }
   }
 
   const skinRatio = totalSampled > 0 ? skinPixels / totalSampled : 0;
+  const outerSkinRatio = outerTotalSampled > 0 ? outerSkinPixels / outerTotalSampled : 0;
   const meanLum = totalSampled > 0 ? sumLum / totalSampled : 0;
 
   let varianceSum = 0;
@@ -122,11 +169,31 @@ export function verifyHumanFacePresence(
   }
   const contrastVariance = totalSampled > 0 ? Math.sqrt(varianceSum / totalSampled) : 0;
 
+  // Promedios de luminancia por zonas
+  const upperLum = upperCount > 0 ? upperLumSum / upperCount : meanLum;
+  const middleLum = middleCount > 0 ? middleLumSum / middleCount : meanLum;
+  const lowerLum = lowerCount > 0 ? lowerLumSum / lowerCount : meanLum;
+
   // Criterios estrictos para validar rostro humano real:
-  // 1. Al menos 18% de píxeles con tez humana.
-  // 2. Varianza de contraste adecuada (descarta luz plana y focos).
-  // 3. Sin sobreexposición directa (meanLum < 225 y meanLum > 20).
-  const isFace = skinRatio >= 0.18 && contrastVariance >= 12 && meanLum < 225 && meanLum > 20;
+  // 1. Cobertura de piel entre 18% y 82% (un dedo/mano sobre el lente cubre >82% uniformemente).
+  // 2. No debe estar cubierto en los bordes exteriores al mismo tiempo (evita palmas/dedos pegados).
+  // 3. Varianza de contraste adecuada (descarta focos o sombras totalmente planas).
+  // 4. Gradiente topográfico anatómico (el tercio medio debe diferir de la zona ocular o barbilla).
+  // 5. Sin sobreexposición ni oscuridad extrema (20 < meanLum < 225).
+  const isNotObstructed = skinRatio <= 0.82;
+  const isNotFullHandOrFinger = !(skinRatio > 0.72 && outerSkinRatio > 0.70);
+  const hasTopographicStructure =
+    Math.max(Math.abs(middleLum - upperLum), Math.abs(middleLum - lowerLum)) >= 3.5 ||
+    contrastVariance >= 16;
+
+  const isFace =
+    skinRatio >= 0.18 &&
+    isNotObstructed &&
+    isNotFullHandOrFinger &&
+    hasTopographicStructure &&
+    contrastVariance >= 12 &&
+    meanLum < 225 &&
+    meanLum > 20;
 
   return {
     isFace,
