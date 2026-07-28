@@ -306,7 +306,17 @@ export function AsistenciasContainer() {
       return;
     }
 
-    setDraftMap(buildAttendanceDraftFromData(students, attendanceRecords));
+    setDraftMap((prevDraft) => {
+      const initial = buildAttendanceDraftFromData(students, attendanceRecords);
+      // Preservar asistencias recién escaneadas por biometría o modificadas en el estado local
+      const merged = { ...initial };
+      Object.keys(prevDraft).forEach((studentId) => {
+        if (prevDraft[studentId]?.status) {
+          merged[studentId] = prevDraft[studentId];
+        }
+      });
+      return merged;
+    });
   }, [attendanceRecords, contextKey, selectedContext, students]);
 
   const saveAttendance = useSaveStudentAttendance();
@@ -367,6 +377,21 @@ export function AsistenciasContainer() {
           justification_note: "",
           status: "present",
         };
+      });
+      return next;
+    });
+  };
+
+  const markUnmarkedAsAbsent = () => {
+    setDraftMap((previous) => {
+      const next = { ...previous };
+      students.forEach((student) => {
+        if (!next[student.id]?.status) {
+          next[student.id] = {
+            justification_note: "",
+            status: "absent",
+          };
+        }
       });
       return next;
     });
@@ -621,6 +646,16 @@ export function AsistenciasContainer() {
               >
                 <CheckCheck className="h-4 w-4" />
                 Todos presentes
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={markUnmarkedAsAbsent}
+                disabled={!canEditDate || saveAttendance.isPending}
+                className="gap-2"
+              >
+                <XCircle className="h-4 w-4 text-rose-500" />
+                Resto ausentes
               </Button>
               <Button
                 onClick={handleSave}

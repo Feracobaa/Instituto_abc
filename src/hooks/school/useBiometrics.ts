@@ -254,10 +254,9 @@ export function verifyHumanFacePresence(
       const maxC = Math.max(r, g, b);
       const minC = Math.min(r, g, b);
       const isSkinTone =
-        r > 35 && g > 18 && b > 10 &&
-        (maxC - minC) > 10 &&
-        Math.abs(r - g) > 8 &&
-        r > g && r > (b * 0.85);
+        r > 20 && g > 12 && b > 8 &&
+        (maxC - minC) > 4 &&
+        r > (b * 0.7);
 
       if (isSkinTone) {
         skinPixels++;
@@ -289,10 +288,9 @@ export function verifyHumanFacePresence(
         const maxC = Math.max(r, g, b);
         const minC = Math.min(r, g, b);
         const isSkinTone =
-          r > 35 && g > 18 && b > 10 &&
-          (maxC - minC) > 10 &&
-          Math.abs(r - g) > 8 &&
-          r > g && r > (b * 0.85);
+          r > 20 && g > 12 && b > 8 &&
+          (maxC - minC) > 4 &&
+          r > (b * 0.7);
 
         if (isSkinTone) outerSkinPixels++;
         outerTotalSampled++;
@@ -315,20 +313,20 @@ export function verifyHumanFacePresence(
   const middleLum = middleCount > 0 ? middleLumSum / middleCount : meanLum;
   const lowerLum = lowerCount > 0 ? lowerLumSum / lowerCount : meanLum;
 
-  const isNotObstructed = skinRatio <= 0.82;
-  const isNotFullHandOrFinger = !(skinRatio > 0.72 && outerSkinRatio > 0.70);
+  const isNotObstructed = skinRatio <= 0.96;
+  const isNotFullHandOrFinger = !(skinRatio > 0.85 && outerSkinRatio > 0.82);
   const hasTopographicStructure =
-    Math.max(Math.abs(middleLum - upperLum), Math.abs(middleLum - lowerLum)) >= 3.5 ||
-    contrastVariance >= 16;
+    Math.max(Math.abs(middleLum - upperLum), Math.abs(middleLum - lowerLum)) >= 2.0 ||
+    contrastVariance >= 8;
 
   const isFace =
-    skinRatio >= 0.18 &&
+    skinRatio >= 0.12 &&
     isNotObstructed &&
     isNotFullHandOrFinger &&
     hasTopographicStructure &&
-    contrastVariance >= 12 &&
-    meanLum < 225 &&
-    meanLum > 20;
+    contrastVariance >= 6 &&
+    meanLum < 245 &&
+    meanLum > 15;
 
   return {
     isFace,
@@ -518,14 +516,24 @@ export function extractEmbeddingFromVideo(
 
   const alignedImgData = ctx.getImageData(0, 0, 160, 160).data;
 
-  // Construir 128 características numéricas combinando gradientes cromáticos y derivadas de textura
+  // Construir 128 características numéricas invariantes combinando gradientes espaciales Sobel, contraste de zona y textura
   const rawEmbedding: number[] = new Array(128);
   let featureIdx = 0;
 
+  // Calcular la luminancia global de referencia
+  let globalLumSum = 0;
+  for (let i = 0; i < alignedImgData.length; i += 16) {
+    globalLumSum += 0.299 * alignedImgData[i] + 0.587 * alignedImgData[i + 1] + 0.114 * alignedImgData[i + 2];
+  }
+  const globalLumMean = (globalLumSum / (alignedImgData.length / 16)) || 128;
+
   for (let gridY = 0; gridY < 8; gridY++) {
     for (let gridX = 0; gridX < 16; gridX++) {
-      let sumR = 0, sumG = 0, sumB = 0;
-      let sumDx = 0, sumDy = 0;
+      let cellLumSum = 0;
+      let cellDxSum = 0;
+      let cellDySum = 0;
+      let cellDiagSum = 0;
+      let cellCount = 0;
 
       for (let y = gridY * 20; y < (gridY + 1) * 20; y += 4) {
         for (let x = gridX * 10; x < (gridX + 1) * 10; x += 2) {
@@ -533,26 +541,37 @@ export function extractEmbeddingFromVideo(
           const r = alignedImgData[pixelIdx];
           const g = alignedImgData[pixelIdx + 1];
           const b = alignedImgData[pixelIdx + 2];
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-          sumR += r;
-          sumG += g;
-          sumB += b;
+          cellLumSum += lum;
+          cellCount++;
 
-          // Derivadas espaciales horizontales y verticales
           if (x > 2 && x < 158 && y > 2 && y < 158) {
-            const rightLum = 0.299 * alignedImgData[pixelIdx + 4] + 0.587 * alignedImgData[pixelIdx + 5] + 0.114 * alignedImgData[pixelIdx + 6];
-            const leftLum = 0.299 * alignedImgData[pixelIdx - 4] + 0.587 * alignedImgData[pixelIdx - 3] + 0.114 * alignedImgData[pixelIdx - 2];
-            const downLum = 0.299 * alignedImgData[pixelIdx + 160 * 4] + 0.587 * alignedImgData[pixelIdx + 160 * 4 + 1] + 0.114 * alignedImgData[pixelIdx + 160 * 4 + 2];
-            const upLum = 0.299 * alignedImgData[pixelIdx - 160 * 4] + 0.587 * alignedImgData[pixelIdx - 160 * 4 + 1] + 0.114 * alignedImgData[pixelIdx - 160 * 4 + 2];
+            const rightIdx = pixelIdx + 4;
+            const leftIdx = pixelIdx - 4;
+            const downIdx = pixelIdx + 160 * 4;
+            const upIdx = pixelIdx - 160 * 4;
 
-            sumDx += Math.abs(rightLum - leftLum);
-            sumDy += Math.abs(downLum - upLum);
+            const rightLum = 0.299 * alignedImgData[rightIdx] + 0.587 * alignedImgData[rightIdx + 1] + 0.114 * alignedImgData[rightIdx + 2];
+            const leftLum = 0.299 * alignedImgData[leftIdx] + 0.587 * alignedImgData[leftIdx + 1] + 0.114 * alignedImgData[leftIdx + 2];
+            const downLum = 0.299 * alignedImgData[downIdx] + 0.587 * alignedImgData[downIdx + 1] + 0.114 * alignedImgData[downIdx + 2];
+            const upLum = 0.299 * alignedImgData[upIdx] + 0.587 * alignedImgData[upIdx + 1] + 0.114 * alignedImgData[upIdx + 2];
+
+            cellDxSum += (rightLum - leftLum);
+            cellDySum += (downLum - upLum);
+            cellDiagSum += Math.abs(rightLum - leftLum) + Math.abs(downLum - upLum);
           }
         }
       }
 
-      // Combinación de gradiente de color y micro-textura espacial
-      const featureVal = ((sumG - sumR) + sumB * 0.5 + (sumDx - sumDy) * 0.2) / 50.0;
+      const meanCellLum = cellCount > 0 ? cellLumSum / cellCount : globalLumMean;
+      const relLumContrast = (meanCellLum - globalLumMean) / 128.0;
+      const avgDx = cellCount > 0 ? cellDxSum / cellCount : 0;
+      const avgDy = cellCount > 0 ? cellDySum / cellCount : 0;
+      const avgDiag = cellCount > 0 ? cellDiagSum / cellCount : 0;
+
+      // Invariante cromático y estructural normalizado
+      const featureVal = relLumContrast * 1.5 + (avgDx * 0.3 + avgDy * 0.3 + avgDiag * 0.2) / 25.0;
       rawEmbedding[featureIdx++] = featureVal;
     }
   }
@@ -648,7 +667,7 @@ export function useBiometrics() {
   const matchBiometric = useCallback((
     scannedEmbedding: number[],
     registeredBiometrics: StudentBiometric[],
-    tolerance = 0.42
+    tolerance = 0.52
   ): MatchResult | null => {
     if (!registeredBiometrics.length || scannedEmbedding.length !== 128) return null;
 
@@ -679,8 +698,8 @@ export function useBiometrics() {
       }
     }
 
-    // Requerir evaluación dual: Distancia Euclidiana <= tolerancia (0.42) Y Similitud Coseno >= 0.91
-    if (!bestMatch || minDistance > tolerance || maxCosineSim < 0.91) {
+    // Requerir evaluación dual: Distancia Euclidiana <= tolerancia (0.52) Y Similitud Coseno >= 0.78
+    if (!bestMatch || minDistance > tolerance || maxCosineSim < 0.78) {
       return null;
     }
 
@@ -693,8 +712,8 @@ export function useBiometrics() {
     bestMatch.secondBestDistance = secondMinDistance;
     bestMatch.marginRatio = marginRatio;
 
-    // Si la ambigüedad es alta (ratio > 0.85), rechazar coincidencia por seguridad
-    if (registeredBiometrics.length > 1 && marginRatio > 0.85) {
+    // Si la ambigüedad es muy alta (ratio > 0.94), rechazar coincidencia por seguridad
+    if (registeredBiometrics.length > 1 && marginRatio > 0.94) {
       console.warn('Emparejamiento rechazado por ambigüedad biométrica:', { minDistance, secondMinDistance, marginRatio, maxCosineSim });
       return null;
     }
@@ -738,7 +757,7 @@ export function useBiometrics() {
     scannedEmbedding: number[],
     registeredBiometrics: StudentBiometric[],
     studentIds?: string[],
-    tolerance = 0.42
+    tolerance = 0.52
   ): Promise<MatchResult | null> => {
     if (!scannedEmbedding || scannedEmbedding.length !== 128) return null;
 
@@ -746,7 +765,7 @@ export function useBiometrics() {
       const vectorStr = `[${scannedEmbedding.join(',')}]`;
       const { data, error } = await supabase.rpc('match_student_biometrics' as any, {
         query_embedding: vectorStr,
-        match_threshold: 0.91,
+        match_threshold: 0.78,
         student_ids: studentIds && studentIds.length ? studentIds : null,
       });
 
@@ -755,7 +774,7 @@ export function useBiometrics() {
         return {
           student_id: top.student_id,
           distance: top.distance,
-          confidence: Math.round((top.similarity || 0.95) * 100),
+          confidence: Math.round((top.similarity || 0.85) * 100),
           cosineSimilarity: top.similarity,
         };
       }

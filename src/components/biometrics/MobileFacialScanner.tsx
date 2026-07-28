@@ -275,7 +275,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       extracted.embedding,
       registeredBiometrics,
       students.map(s => s.id),
-      0.42
+      0.52
     );
 
     if (match) {
@@ -351,7 +351,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     }
 
     setIsLowLight(extracted.quality.isLowLight);
-    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.42);
+    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.52);
 
     if (match) {
       const student = students.find(s => s.id === match.student_id);
