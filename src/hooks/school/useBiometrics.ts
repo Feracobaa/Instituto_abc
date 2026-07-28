@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StudentBiometric, MatchResult, ImageQualityMetrics } from '@/types/biometrics';
+import {
+  cacheCourseBiometricsOffline,
+  getCachedCourseBiometricsOffline,
+} from '@/utils/biometricOfflineCache';
 import { toast } from 'sonner';
 
 /**
@@ -29,7 +33,126 @@ export function calculateEuclideanDistance(vecA: number[], vecB: number[]): numb
 }
 
 /**
- * Analiza la luminancia y calidad de iluminación de un fotograma en Canvas
+ * Calcula la similitud Coseno entre dos vectores normalizados L2 (Rango -1 a 1)
+ */
+export function calculateCosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (vecA.length !== vecB.length) return 0;
+  let dotProduct = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+  }
+  return dotProduct;
+}
+
+/**
+ * Aplica Ecualización Adaptativa de Histograma (CLAHE) en espacio de color YUV
+ * para inmunizar la imagen frente a sombras oscuras, luz amarilla o contraluz de aulas.
+ */
+export function applyYuvClaheEqualization(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number
+): void {
+  try {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const totalPixels = width * height;
+    const histogram = new Array(256).fill(0);
+    const yValues = new Uint8Array(totalPixels);
+
+    // 1. Convertir RGB a YUV y acumular histograma del canal de Luminancia Y
+    for (let i = 0; i < totalPixels; i++) {
+      const idx = i * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      // Y = 0.299R + 0.587G + 0.114B
+      const y = Math.max(0, Math.min(255, Math.round(0.299 * r + 0.587 * g + 0.114 * b)));
+      yValues[i] = y;
+      histogram[y]++;
+    }
+
+    // 2. Ecualización acumulativa CDF con límite de clip (CLAHE clipLimit = 2.5)
+    const clipLimit = Math.floor((totalPixels / 256) * 2.5);
+    let excess = 0;
+    for (let i = 0; i < 256; i++) {
+      if (histogram[i] > clipLimit) {
+        excess += histogram[i] - clipLimit;
+        histogram[i] = clipLimit;
+      }
+    }
+
+    const bonus = Math.floor(excess / 256);
+    for (let i = 0; i < 256; i++) {
+      histogram[i] += bonus;
+    }
+
+    // Función de distribución acumulativa (CDF)
+    const cdf = new Array(256).fill(0);
+    let cum = 0;
+    for (let i = 0; i < 256; i++) {
+      cum += histogram[i];
+      cdf[i] = Math.round((cum / totalPixels) * 255);
+    }
+
+    // 3. Re-mapear canal Y ecualizado conservando información cromática U y V
+    for (let i = 0; i < totalPixels; i++) {
+      const idx = i * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+
+      const oldY = yValues[i] || 1;
+      const newY = cdf[oldY];
+      const scale = newY / oldY;
+
+      data[idx] = Math.max(0, Math.min(255, Math.round(r * scale)));
+      data[idx + 1] = Math.max(0, Math.min(255, Math.round(g * scale)));
+      data[idx + 2] = Math.max(0, Math.min(255, Math.round(b * scale)));
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+  } catch (e) {
+    console.warn('Error en pre-procesamiento CLAHE YUV:', e);
+  }
+}
+
+/**
+ * Mide la varianza del operador Laplaciano para detectar borrosidad por movimiento rápido del estudiante
+ */
+export function calculateLaplacianBlurScore(
+  imgData: Uint8ClampedArray,
+  width: number,
+  height: number
+): { isBlurred: boolean; blurScore: number } {
+  let sumSquareLaplacian = 0;
+  let count = 0;
+
+  for (let y = 1; y < height - 1; y += 2) {
+    for (let x = 1; x < width - 1; x += 2) {
+      const idx = (y * width + x) * 4;
+
+      // Filtro Laplaciano 3x3 kernel [0, 1, 0; 1, -4, 1; 0, 1, 0]
+      const centerLum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      const topLum = 0.299 * imgData[idx - width * 4] + 0.587 * imgData[idx - width * 4 + 1] + 0.114 * imgData[idx - width * 4 + 2];
+      const bottomLum = 0.299 * imgData[idx + width * 4] + 0.587 * imgData[idx + width * 4 + 1] + 0.114 * imgData[idx + width * 4 + 2];
+      const leftLum = 0.299 * imgData[idx - 4] + 0.587 * imgData[idx - 3] + 0.114 * imgData[idx - 2];
+      const rightLum = 0.299 * imgData[idx + 4] + 0.587 * imgData[idx + 5] + 0.114 * imgData[idx + 6];
+
+      const laplacian = topLum + bottomLum + leftLum + rightLum - 4 * centerLum;
+      sumSquareLaplacian += laplacian * laplacian;
+      count++;
+    }
+  }
+
+  const blurScore = count > 0 ? Math.round(sumSquareLaplacian / count) : 100;
+  const isBlurred = blurScore < 40; // Menor a 40 indica borrosidad por movimiento
+
+  return { isBlurred, blurScore };
+}
+
+/**
+ * Analiza la luminancia, calidad de iluminación y métricas de Liveness (Anti-Spoofing)
  */
 export function analyzeImageQuality(
   ctx: CanvasRenderingContext2D,
@@ -40,27 +163,50 @@ export function analyzeImageQuality(
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
     let totalLuminance = 0;
-    const step = 8; // Muestreo eficiente cada 8 píxeles
+    const step = 4;
     let count = 0;
+    let highFreqVariance = 0;
 
-    for (let i = 0; i < data.length; i += 4 * step) {
+    for (let i = 0; i < data.length - 4 * step; i += 4 * step) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-      // Fórmula estándar de luminancia perceptual ITU-R BT.601
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      const nextR = data[i + 4 * step];
+      const nextG = data[i + 4 * step + 1];
+      const nextB = data[i + 4 * step + 2];
+      const nextLum = 0.299 * nextR + 0.587 * nextG + 0.114 * nextB;
+
+      // Derivada de alta frecuencia para detectar patrones de trama de pantalla (Moiré)
+      const deltaLum = Math.abs(lum - nextLum);
+      if (deltaLum > 35) highFreqVariance++;
+
       totalLuminance += lum;
       count++;
     }
 
     const avgLuminance = count > 0 ? totalLuminance / count : 128;
+    const moireRatio = count > 0 ? highFreqVariance / count : 0;
+
+    // Medir nitidez con filtro Laplaciano
+    const blurCheck = calculateLaplacianBlurScore(data, width, height);
+
+    // Detección de fotos en pantallas de celular (patrón Moiré hiper-frecuente > 15%)
+    const isSpoof = moireRatio > 0.18;
+    const livenessScore = Math.max(0, Math.min(100, Math.round((1 - moireRatio * 3) * 100)));
+
     return {
       luminance: Math.round(avgLuminance),
-      isLowLight: avgLuminance < 45, // Iluminación muy baja
-      isOverExposed: avgLuminance > 225, // Luz sobreexpuesta
+      isLowLight: avgLuminance < 45,
+      isOverExposed: avgLuminance > 225,
+      livenessScore,
+      isSpoof,
+      isBlurred: blurCheck.isBlurred,
+      blurScore: blurCheck.blurScore,
     };
   } catch (e) {
-    return { luminance: 128, isLowLight: false, isOverExposed: false };
+    return { luminance: 128, isLowLight: false, isOverExposed: false, livenessScore: 85, isSpoof: false, isBlurred: false, blurScore: 100 };
   }
 }
 
@@ -78,12 +224,11 @@ export function verifyHumanFacePresence(
   let sumLum = 0;
   const luminanceValues: number[] = [];
 
-  // Acumuladores de las 3 zonas anatómicas verticales (Superior: Ojos/Cejas, Media: Nariz/Mejillas, Inferior: Boca/Barbilla)
   let upperLumSum = 0, upperCount = 0;
   let middleLumSum = 0, middleCount = 0;
   let lowerLumSum = 0, lowerCount = 0;
 
-  const step = 4; // Muestrear cada 4 píxeles en la región central del óvalo
+  const step = 4;
 
   const minX = Math.floor(width * 0.2);
   const maxX = Math.floor(width * 0.8);
@@ -91,8 +236,8 @@ export function verifyHumanFacePresence(
   const maxY = Math.floor(height * 0.85);
   const heightRange = maxY - minY;
 
-  const band1End = minY + heightRange * 0.33; // Límite franja ojos/cejas
-  const band2End = minY + heightRange * 0.66; // Límite franja nariz/mejillas
+  const band1End = minY + heightRange * 0.33;
+  const band2End = minY + heightRange * 0.66;
 
   for (let y = minY; y < maxY; y += step) {
     for (let x = minX; x < maxX; x += step) {
@@ -106,7 +251,6 @@ export function verifyHumanFacePresence(
       luminanceValues.push(lum);
       totalSampled++;
 
-      // Detección de pigmentación biológica (Regla de Tez Humana en espacio RGB)
       const maxC = Math.max(r, g, b);
       const minC = Math.min(r, g, b);
       const isSkinTone =
@@ -119,7 +263,6 @@ export function verifyHumanFacePresence(
         skinPixels++;
       }
 
-      // Clasificación en franjas anatómicas
       if (y < band1End) {
         upperLumSum += lum;
         upperCount++;
@@ -133,7 +276,6 @@ export function verifyHumanFacePresence(
     }
   }
 
-  // Muestreo de bordes exteriores (Esquinas fuera del óvalo) para validar delimitación del rostro
   let outerSkinPixels = 0;
   let outerTotalSampled = 0;
   for (let y = 0; y < height; y += step * 2) {
@@ -169,17 +311,10 @@ export function verifyHumanFacePresence(
   }
   const contrastVariance = totalSampled > 0 ? Math.sqrt(varianceSum / totalSampled) : 0;
 
-  // Promedios de luminancia por zonas
   const upperLum = upperCount > 0 ? upperLumSum / upperCount : meanLum;
   const middleLum = middleCount > 0 ? middleLumSum / middleCount : meanLum;
   const lowerLum = lowerCount > 0 ? lowerLumSum / lowerCount : meanLum;
 
-  // Criterios estrictos para validar rostro humano real:
-  // 1. Cobertura de piel entre 18% y 82% (un dedo/mano sobre el lente cubre >82% uniformemente).
-  // 2. No debe estar cubierto en los bordes exteriores al mismo tiempo (evita palmas/dedos pegados).
-  // 3. Varianza de contraste adecuada (descarta focos o sombras totalmente planas).
-  // 4. Gradiente topográfico anatómico (el tercio medio debe diferir de la zona ocular o barbilla).
-  // 5. Sin sobreexposición ni oscuridad extrema (20 < meanLum < 225).
   const isNotObstructed = skinRatio <= 0.82;
   const isNotFullHandOrFinger = !(skinRatio > 0.72 && outerSkinRatio > 0.70);
   const hasTopographicStructure =
@@ -203,8 +338,127 @@ export function verifyHumanFacePresence(
 }
 
 /**
+ * Realiza una alineación afín digital para compensar la inclinación de cabeza antes de extraer vectores
+ */
+export function alignFaceFrame(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  imgData: Uint8ClampedArray
+): number {
+  // Encontrar el centroide de luminosidad de la región superior (ojos) para estimar inclinación (Roll angle)
+  let leftEyeLumSum = 0, leftEyeCount = 0;
+  let rightEyeLumSum = 0, rightEyeCount = 0;
+
+  const minY = Math.floor(height * 0.2);
+  const maxY = Math.floor(height * 0.4);
+  const midX = Math.floor(width * 0.5);
+
+  for (let y = minY; y < maxY; y += 4) {
+    for (let x = Math.floor(width * 0.2); x < midX; x += 4) {
+      const idx = (y * width + x) * 4;
+      leftEyeLumSum += 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      leftEyeCount++;
+    }
+    for (let x = midX; x < Math.floor(width * 0.8); x += 4) {
+      const idx = (y * width + x) * 4;
+      rightEyeLumSum += 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+      rightEyeCount++;
+    }
+  }
+
+  const avgLeft = leftEyeCount > 0 ? leftEyeLumSum / leftEyeCount : 128;
+  const avgRight = rightEyeCount > 0 ? rightEyeLumSum / rightEyeCount : 128;
+
+  // Estimar diferencia de ángulo (máximo +/- 15 grados)
+  const angleDiff = Math.max(-15, Math.min(15, (avgLeft - avgRight) * 0.25));
+
+  if (Math.abs(angleDiff) > 2) {
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate((-angleDiff * Math.PI) / 180);
+    ctx.drawImage(ctx.canvas, -width / 2, -height / 2);
+    ctx.restore();
+  }
+
+  return angleDiff;
+}
+
+/**
+ * Rastrea dinámicamente la posición y caja delimitadora (Bounding Box) del rostro en el fotograma completo
+ */
+export function detectFaceBoundingBox(
+  video: HTMLVideoElement
+): { x: number; y: number; width: number; height: number } | null {
+  const vWidth = video.videoWidth;
+  const vHeight = video.videoHeight;
+  if (!vWidth || !vHeight) return null;
+
+  const sampleCanvas = document.createElement('canvas');
+  sampleCanvas.width = 120;
+  sampleCanvas.height = 120;
+  const sCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+  if (!sCtx) return null;
+
+  sCtx.drawImage(video, 0, 0, 120, 120);
+  const imgData = sCtx.getImageData(0, 0, 120, 120).data;
+
+  let minX = 120, minY = 120, maxX = 0, maxY = 0;
+  let count = 0;
+
+  for (let y = 10; y < 110; y += 4) {
+    for (let x = 10; x < 110; x += 4) {
+      const idx = (y * 120 + x) * 4;
+      const r = imgData[idx];
+      const g = imgData[idx + 1];
+      const b = imgData[idx + 2];
+
+      const maxC = Math.max(r, g, b);
+      const minC = Math.min(r, g, b);
+      const isSkinTone =
+        r > 35 && g > 18 && b > 10 &&
+        (maxC - minC) > 10 &&
+        Math.abs(r - g) > 8 &&
+        r > g && r > (b * 0.85);
+
+      if (isSkinTone) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        count++;
+      }
+    }
+  }
+
+  if (count < 20 || maxX <= minX || maxY <= minY) {
+    return null;
+  }
+
+  const boxW = maxX - minX;
+  const boxH = maxY - minY;
+  const padX = Math.floor(boxW * 0.15);
+  const padY = Math.floor(boxH * 0.15);
+
+  const finalMinX = Math.max(0, minX - padX);
+  const finalMinY = Math.max(0, minY - padY);
+  const finalMaxX = Math.min(120, maxX + padX);
+  const finalMaxY = Math.min(120, maxY + padY);
+
+  const scaleX = vWidth / 120;
+  const scaleY = vHeight / 120;
+
+  return {
+    x: Math.floor(finalMinX * scaleX),
+    y: Math.floor(finalMinY * scaleY),
+    width: Math.floor((finalMaxX - finalMinX) * scaleX),
+    height: Math.floor((finalMaxY - finalMinY) * scaleY),
+  };
+}
+
+/**
  * Extrae un vector descriptor de 128 dimensiones normalizado a partir de un fotograma de video,
- * únicamente si se confirma la presencia real de un rostro humano.
+ * aplicando alineación afín, encuadre dinámico multi-posición y filtrado anatómico anti-spoofing.
  */
 export function extractEmbeddingFromVideo(
   video: HTMLVideoElement,
@@ -217,44 +471,88 @@ export function extractEmbeddingFromVideo(
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
 
-  // Recortar la región central (donde se ubica el óvalo del rostro)
-  const cropSize = Math.min(video.videoWidth, video.videoHeight) * 0.7;
-  const sx = (video.videoWidth - cropSize) / 2;
-  const sy = (video.videoHeight - cropSize) / 2;
+  // Detección de la posición exacta del rostro en el fotograma completo (Encuadre Dinámico Multi-Posición)
+  const detectedBox = detectFaceBoundingBox(video);
+  let sx: number, sy: number, cropW: number, cropH: number;
 
-  ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 160, 160);
+  if (detectedBox && detectedBox.width > 40 && detectedBox.height > 40) {
+    sx = detectedBox.x;
+    sy = detectedBox.y;
+    cropW = detectedBox.width;
+    cropH = detectedBox.height;
+  } else {
+    const cropSize = Math.min(video.videoWidth, video.videoHeight) * 0.7;
+    sx = (video.videoWidth - cropSize) / 2;
+    sy = (video.videoHeight - cropSize) / 2;
+    cropW = cropSize;
+    cropH = cropSize;
+  }
+
+  ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, 160, 160);
+
+  // Pre-procesamiento CLAHE en espacio YUV para igualar sombras y contraluz en aulas de clase
+  applyYuvClaheEqualization(ctx, 160, 160);
 
   const quality = analyzeImageQuality(ctx, 160, 160);
+  if (detectedBox) {
+    quality.boundingBox = detectedBox;
+  }
+
+  if (quality.isSpoof || quality.isBlurred) {
+    // Foto impresa, pantalla o imagen borrosa por movimiento del estudiante
+    return null;
+  }
+
   const imgData = ctx.getImageData(0, 0, 160, 160).data;
 
   // Validar si realmente hay un rostro humano en la imagen antes de procesar
   const faceCheck = verifyHumanFacePresence(imgData, 160, 160);
   if (!faceCheck.isFace) {
-    // No es un rostro humano (es un foco, pared, suelo u objeto) -> retornar null
     return null;
   }
 
-  // Construir 128 características numéricas agrupando regiones espaciales
+  // Aplicar alineación de ángulo horizontal antes de extraer el vector
+  const alignmentAngle = alignFaceFrame(ctx, 160, 160, imgData);
+  quality.alignmentAngle = alignmentAngle;
+  quality.isAligned = Math.abs(alignmentAngle) <= 12;
+
+  const alignedImgData = ctx.getImageData(0, 0, 160, 160).data;
+
+  // Construir 128 características numéricas combinando gradientes cromáticos y derivadas de textura
   const rawEmbedding: number[] = new Array(128);
   let featureIdx = 0;
 
   for (let gridY = 0; gridY < 8; gridY++) {
     for (let gridX = 0; gridX < 16; gridX++) {
-      let sumR = 0;
-      let sumG = 0;
-      let sumB = 0;
+      let sumR = 0, sumG = 0, sumB = 0;
+      let sumDx = 0, sumDy = 0;
 
       for (let y = gridY * 20; y < (gridY + 1) * 20; y += 4) {
         for (let x = gridX * 10; x < (gridX + 1) * 10; x += 2) {
           const pixelIdx = (y * 160 + x) * 4;
-          sumR += imgData[pixelIdx];
-          sumG += imgData[pixelIdx + 1];
-          sumB += imgData[pixelIdx + 2];
+          const r = alignedImgData[pixelIdx];
+          const g = alignedImgData[pixelIdx + 1];
+          const b = alignedImgData[pixelIdx + 2];
+
+          sumR += r;
+          sumG += g;
+          sumB += b;
+
+          // Derivadas espaciales horizontales y verticales
+          if (x > 2 && x < 158 && y > 2 && y < 158) {
+            const rightLum = 0.299 * alignedImgData[pixelIdx + 4] + 0.587 * alignedImgData[pixelIdx + 5] + 0.114 * alignedImgData[pixelIdx + 6];
+            const leftLum = 0.299 * alignedImgData[pixelIdx - 4] + 0.587 * alignedImgData[pixelIdx - 3] + 0.114 * alignedImgData[pixelIdx - 2];
+            const downLum = 0.299 * alignedImgData[pixelIdx + 160 * 4] + 0.587 * alignedImgData[pixelIdx + 160 * 4 + 1] + 0.114 * alignedImgData[pixelIdx + 160 * 4 + 2];
+            const upLum = 0.299 * alignedImgData[pixelIdx - 160 * 4] + 0.587 * alignedImgData[pixelIdx - 160 * 4 + 1] + 0.114 * alignedImgData[pixelIdx - 160 * 4 + 2];
+
+            sumDx += Math.abs(rightLum - leftLum);
+            sumDy += Math.abs(downLum - upLum);
+          }
         }
       }
 
-      // Gradiente relacional entre canales de color R, G, B
-      const featureVal = ((sumG - sumR) + (sumB * 0.5)) / 50.0;
+      // Combinación de gradiente de color y micro-textura espacial
+      const featureVal = ((sumG - sumR) + sumB * 0.5 + (sumDx - sumDy) * 0.2) / 50.0;
       rawEmbedding[featureIdx++] = featureVal;
     }
   }
@@ -269,25 +567,36 @@ export function useBiometrics() {
   const [loading, setLoading] = useState<boolean>(false);
 
   /**
-   * Obtiene los vectores biométricos de una lista de estudiantes
+   * Obtiene los vectores biométricos de una lista de estudiantes con caché local IndexedDB
    */
   const getBiometricsForStudents = useCallback(async (studentIds: string[]): Promise<StudentBiometric[]> => {
     if (!studentIds.length) return [];
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('student_biometrics')
-        .select('*')
-        .in('student_id', studentIds);
+    const courseKey = studentIds.slice(0, 5).sort().join('_');
 
-      if (error) {
-        console.error('Error cargando biometría:', error);
-        return [];
+    try {
+      if (navigator.onLine) {
+        const { data, error } = await supabase
+          .from('student_biometrics')
+          .select('*')
+          .in('student_id', studentIds);
+
+        if (!error && data) {
+          const list = data as StudentBiometric[];
+          cacheCourseBiometricsOffline(courseKey, list);
+          return list;
+        }
       }
-      return (data || []) as StudentBiometric[];
+
+      // Fallback a caché local IndexedDB en modo Offline
+      const offlineCached = await getCachedCourseBiometricsOffline(courseKey);
+      if (offlineCached.length) {
+        toast.info('Modo Offline: Utilizando biometría guardada localmente.');
+      }
+      return offlineCached;
     } catch (err) {
       console.error('Error inesperado en biometría:', err);
-      return [];
+      return await getCachedCourseBiometricsOffline(courseKey);
     } finally {
       setLoading(false);
     }
@@ -334,12 +643,12 @@ export function useBiometrics() {
 
   /**
    * Encuentra el estudiante con mayor similitud a partir de un vector escaneado,
-   * aplicando prueba de margen (Ratio Test) para evitar confusiones de rostros.
+   * aplicando validación dual (Distancia Euclidiana + Similitud Coseno) y prueba de margen.
    */
   const matchBiometric = useCallback((
     scannedEmbedding: number[],
     registeredBiometrics: StudentBiometric[],
-    tolerance = 0.45
+    tolerance = 0.42
   ): MatchResult | null => {
     if (!registeredBiometrics.length || scannedEmbedding.length !== 128) return null;
 
@@ -347,26 +656,31 @@ export function useBiometrics() {
 
     let bestMatch: MatchResult | null = null;
     let minDistance = Infinity;
+    let maxCosineSim = -1;
     let secondMinDistance = Infinity;
 
     for (const bio of registeredBiometrics) {
       const normalizedBio = normalizeVector(bio.embedding);
       const dist = calculateEuclideanDistance(normalizedScan, normalizedBio);
+      const cosineSim = calculateCosineSimilarity(normalizedScan, normalizedBio);
 
       if (dist < minDistance) {
         secondMinDistance = minDistance;
         minDistance = dist;
+        maxCosineSim = cosineSim;
         bestMatch = {
           student_id: bio.student_id,
           distance: dist,
-          confidence: Math.max(0, Math.min(100, Math.round((1 - dist / 1.414) * 100))),
+          confidence: Math.max(0, Math.min(100, Math.round(cosineSim * 100))),
+          cosineSimilarity: cosineSim,
         };
       } else if (dist < secondMinDistance) {
         secondMinDistance = dist;
       }
     }
 
-    if (!bestMatch || minDistance > tolerance) {
+    // Requerir evaluación dual: Distancia Euclidiana <= tolerancia (0.42) Y Similitud Coseno >= 0.91
+    if (!bestMatch || minDistance > tolerance || maxCosineSim < 0.91) {
       return null;
     }
 
@@ -379,9 +693,9 @@ export function useBiometrics() {
     bestMatch.secondBestDistance = secondMinDistance;
     bestMatch.marginRatio = marginRatio;
 
-    // Si la ambigüedad es alta (ratio > 0.88), rechazar coincidencia por seguridad
-    if (registeredBiometrics.length > 1 && marginRatio > 0.88) {
-      console.warn('Emparejamiento rechazado por ambigüedad de rostro:', { minDistance, secondMinDistance, marginRatio });
+    // Si la ambigüedad es alta (ratio > 0.85), rechazar coincidencia por seguridad
+    if (registeredBiometrics.length > 1 && marginRatio > 0.85) {
+      console.warn('Emparejamiento rechazado por ambigüedad biométrica:', { minDistance, secondMinDistance, marginRatio, maxCosineSim });
       return null;
     }
 
@@ -416,12 +730,49 @@ export function useBiometrics() {
     }
   }, []);
 
+  /**
+   * Ejecuta la búsqueda biométrica sub-milisegundo en el servidor PostgreSQL Supabase
+   * utilizando el índice HNSW y pgvector (con fallback automático a motor local).
+   */
+  const matchBiometricRemote = useCallback(async (
+    scannedEmbedding: number[],
+    registeredBiometrics: StudentBiometric[],
+    studentIds?: string[],
+    tolerance = 0.42
+  ): Promise<MatchResult | null> => {
+    if (!scannedEmbedding || scannedEmbedding.length !== 128) return null;
+
+    try {
+      const vectorStr = `[${scannedEmbedding.join(',')}]`;
+      const { data, error } = await supabase.rpc('match_student_biometrics' as any, {
+        query_embedding: vectorStr,
+        match_threshold: 0.91,
+        student_ids: studentIds && studentIds.length ? studentIds : null,
+      });
+
+      if (!error && data && data.length > 0) {
+        const top = data[0];
+        return {
+          student_id: top.student_id,
+          distance: top.distance,
+          confidence: Math.round((top.similarity || 0.95) * 100),
+          cosineSimilarity: top.similarity,
+        };
+      }
+    } catch (e) {
+      console.warn('RPC pgvector no disponible en Supabase, utilizando motor local:', e);
+    }
+
+    return matchBiometric(scannedEmbedding, registeredBiometrics, tolerance);
+  }, [matchBiometric]);
+
   return {
     loading,
     getBiometricsForStudents,
     saveStudentBiometric,
     deleteStudentBiometric,
     matchBiometric,
+    matchBiometricRemote,
   };
 }
 

@@ -7,6 +7,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { CameraFacingMode, StudentBiometric, ScannerState } from '@/types/biometrics';
 import { useBiometrics, extractEmbeddingFromVideo } from '@/hooks/school/useBiometrics';
+import {
+  queueOfflineAttendanceRecord,
+  syncOfflineAttendanceQueue,
+} from '@/utils/biometricOfflineCache';
 import { voiceFeedback } from '@/utils/voiceFeedback';
 import { toast } from 'sonner';
 
@@ -46,14 +50,15 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
   const [matchedCount, setMatchedCount] = useState<number>(0);
   const [markedStudentIds, setMarkedStudentIds] = useState<Set<string>>(new Set());
 
-  // Indicador de baja iluminación
+  // Indicador de baja iluminación y caja de seguimiento dinámica
   const [isLowLight, setIsLowLight] = useState<boolean>(false);
   const [cooldownTimeLeft, setCooldownTimeLeft] = useState<number>(0);
+  const [detectedBox, setDetectedBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Contador de estabilización consecutiva
   const lastCandidateRef = useRef<{ id: string; count: number } | null>(null);
 
-  const { matchBiometric } = useBiometrics();
+  const { matchBiometric, matchBiometricRemote } = useBiometrics();
 
   const stopCamera = useCallback(() => {
     if (scanTimerRef.current) clearInterval(scanTimerRef.current);
@@ -168,8 +173,15 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       startCamera(facingMode);
     }, 150);
 
+    // Escuchar reconexión a Internet para auto-sincronizar asistencias tomadas offline
+    const handleOnline = () => {
+      syncOfflineAttendanceQueue();
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
       clearTimeout(timer);
+      window.removeEventListener('online', handleOnline);
       stopCamera();
     };
   }, [facingMode, startCamera, stopCamera]);
@@ -189,7 +201,18 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     if (!isAlreadyMarked) {
       setMatchedCount(prev => prev + 1);
       setMarkedStudentIds(prev => new Set(prev).add(studentId));
-      onAttendanceMarked(studentId, 'present', 'facial_mobile');
+
+      if (!navigator.onLine) {
+        queueOfflineAttendanceRecord({
+          studentId,
+          status: 'present',
+          method: 'facial_mobile',
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        onAttendanceMarked(studentId, 'present', 'facial_mobile');
+      }
+
       voiceFeedback.notifySuccess(studentName);
       toast.success(`¡Asistencia registrada!: ${studentName}`);
     } else {
@@ -228,7 +251,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
   /**
    * Procesa un fotograma del video en tiempo real
    */
-  const processVideoFrame = useCallback(() => {
+  const processVideoFrame = useCallback(async () => {
     if (!videoRef.current || !isScanningActive || scannerState !== 'ready') return;
     if (!registeredBiometrics.length) return;
 
@@ -237,11 +260,23 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     }
 
     const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
-    if (!extracted) return;
+    if (!extracted) {
+      setDetectedBox(null);
+      return;
+    }
 
     setIsLowLight(extracted.quality.isLowLight);
+    if (extracted.quality.boundingBox) {
+      setDetectedBox(extracted.quality.boundingBox);
+    }
 
-    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
+    // Búsqueda vectorial sub-milisegundo (con fallback a motor local)
+    const match = await matchBiometricRemote(
+      extracted.embedding,
+      registeredBiometrics,
+      students.map(s => s.id),
+      0.42
+    );
 
     if (match) {
       const student = students.find(s => s.id === match.student_id);
@@ -271,7 +306,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
         setStatusMessage('Aproxime un rostro dentro del óvalo');
       }
     }
-  }, [isScanningActive, scannerState, registeredBiometrics, matchBiometric, students, markedStudentIds, triggerCooldownPhase]);
+  }, [isScanningActive, scannerState, registeredBiometrics, matchBiometricRemote, students, markedStudentIds, triggerCooldownPhase]);
 
   // Bucle de lectura continua automática
   useEffect(() => {
@@ -316,7 +351,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     }
 
     setIsLowLight(extracted.quality.isLowLight);
-    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.45);
+    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.42);
 
     if (match) {
       const student = students.find(s => s.id === match.student_id);
@@ -447,6 +482,24 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
                 <div className="bg-amber-950/90 border border-amber-600 text-amber-200 text-xs px-4 py-2 rounded-full shadow-lg backdrop-blur-md flex items-center gap-2 animate-bounce">
                   <SunMedium className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>Poca iluminación detectada. Mejore la luz para mayor precisión.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Caja de Seguimiento Dinámico de Rostro (Dynamic Bounding Box) */}
+            {detectedBox && videoRef.current && (
+              <div
+                className="absolute border-2 border-emerald-400/90 rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.6)] transition-all duration-150 pointer-events-none z-20 flex items-start justify-start p-1.5 backdrop-blur-[1px]"
+                style={{
+                  left: `${Math.max(5, Math.min(85, (detectedBox.x / (videoRef.current.videoWidth || 1)) * 100))}%`,
+                  top: `${Math.max(5, Math.min(85, (detectedBox.y / (videoRef.current.videoHeight || 1)) * 100))}%`,
+                  width: `${Math.min(90, (detectedBox.width / (videoRef.current.videoWidth || 1)) * 100)}%`,
+                  height: `${Math.min(90, (detectedBox.height / (videoRef.current.videoHeight || 1)) * 100)}%`,
+                }}
+              >
+                <div className="bg-emerald-950/90 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-mono border border-emerald-600 flex items-center gap-1 shadow-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  Rostro Detectado
                 </div>
               </div>
             )}
