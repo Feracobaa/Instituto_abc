@@ -252,7 +252,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
    * Procesa un fotograma del video en tiempo real
    */
   const processVideoFrame = useCallback(async () => {
-    if (!videoRef.current || !isScanningActive || scannerState !== 'ready') return;
+    if (!videoRef.current || !isScanningActive || scannerState === 'cooldown_success' || scannerState === 'cooldown_error') return;
     if (!registeredBiometrics.length) return;
 
     if (!canvasRef.current) {
@@ -262,6 +262,11 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     const extracted = await extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
     if (!extracted) {
       setDetectedBox(null);
+      if (scannerState === 'analyzing') {
+        lastCandidateRef.current = null;
+        setScannerState('ready');
+        setStatusMessage('Buscando rostros en cámara...');
+      }
       return;
     }
 
@@ -275,15 +280,17 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       extracted.embedding,
       registeredBiometrics,
       students.map(s => s.id),
-      0.48
+      0.52
     );
 
     if (match) {
       const student = students.find(s => s.id === match.student_id);
       if (student) {
         // Transición a estado analizando (Amarillo) sólo al detectar un candidato potencial
-        setScannerState('analyzing');
-        setStatusMessage(`Analizando coincidencia: ${student.name}...`);
+        if (scannerState !== 'analyzing') {
+          setScannerState('analyzing');
+          setStatusMessage(`Analizando coincidencia: ${student.name}...`);
+        }
 
         // Estabilización de 2 lecturas consecutivas para evitar falsos positivos de movimiento
         if (lastCandidateRef.current?.id === student.id) {
@@ -310,10 +317,10 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
 
   // Bucle de lectura continua automática
   useEffect(() => {
-    if (isScanningActive && isAutoMode && scannerState === 'ready') {
+    if (isScanningActive && isAutoMode && scannerState !== 'cooldown_success' && scannerState !== 'cooldown_error') {
       scanTimerRef.current = setInterval(() => {
         processVideoFrame();
-      }, 250);
+      }, 200);
     } else if (scanTimerRef.current) {
       clearInterval(scanTimerRef.current);
     }
