@@ -198,14 +198,14 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
   /**
    * Captura manual o automática de una muestra facial con cooldown de seguridad
    */
-  const handleTakeSample = useCallback(() => {
+  const handleTakeSample = useCallback(async () => {
     if (!studentId || !videoRef.current || hasSavedRef.current) return;
 
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
     }
 
-    const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+    const extracted = await extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
     if (!extracted || !extracted.embedding) {
       return;
     }
@@ -242,13 +242,13 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       return;
     }
 
-    autoScanIntervalRef.current = setInterval(() => {
+    autoScanIntervalRef.current = setInterval(async () => {
       if (!videoRef.current || hasSavedRef.current) return;
       if (Date.now() < sampleCooldownUntilRef.current) return;
 
       if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
 
-      const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+      const extracted = await extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
       if (extracted && extracted.embedding) {
         consecutiveStabilityRef.current += 1;
         const progress = Math.min(100, consecutiveStabilityRef.current * 25);
@@ -339,54 +339,22 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
                 className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
               />
 
-              {/* Óvalo Guía Inteligente con Barra de Progreso de Estabilidad */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                <div className={`relative w-44 h-56 rounded-[50%] border-4 transition-all duration-300 flex items-center justify-center ${
-                  stabilityProgress > 50
-                    ? 'border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.7)] scale-105'
-                    : capturedSamples.length === 1
-                    ? 'border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.5)]'
-                    : 'border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse'
-                }`}>
-
-                  {/* Icono e Indicaciones Animadas por Muestra */}
-                  <div className="text-center p-3 bg-black/60 rounded-full backdrop-blur-md flex flex-col items-center gap-1">
-                    {capturedSamples.length === 0 && (
-                      <>
-                        <div className="w-8 h-8 rounded-full border-2 border-emerald-400 flex items-center justify-center animate-bounce">
-                          <span className="text-emerald-300 font-bold text-sm">1️⃣</span>
-                        </div>
-                        <span className="text-[11px] font-semibold text-emerald-300">Paso 1: Frente</span>
-                      </>
-                    )}
-
-                    {capturedSamples.length === 1 && (
-                      <>
-                        <div className="w-8 h-8 rounded-full border-2 border-amber-400 flex items-center justify-center animate-spin">
-                          <span className="text-amber-300 font-bold text-sm">2️⃣</span>
-                        </div>
-                        <span className="text-[11px] font-semibold text-amber-300">Paso 2: Giro Leve</span>
-                      </>
-                    )}
-
-                    {capturedSamples.length === 2 && (
-                      <>
-                        <div className="w-8 h-8 rounded-full border-2 border-cyan-400 flex items-center justify-center animate-pulse">
-                          <span className="text-cyan-300 font-bold text-sm">3️⃣</span>
-                        </div>
-                        <span className="text-[11px] font-semibold text-cyan-300">Paso 3: Centro</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Banner Flotante de Instrucción y Animación Auto */}
-                <div className="mt-3 px-3.5 py-1.5 bg-slate-900/90 text-white text-xs rounded-full border border-slate-700 shadow-md backdrop-blur-sm flex items-center gap-2">
-                  <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+              {/* Indicaciones Flotantes de Enrolamiento Automático */}
+              <div className="absolute bottom-4 left-0 right-0 pointer-events-none flex flex-col items-center justify-center gap-2 z-20 px-3">
+                <div className="px-3.5 py-1.5 bg-slate-900/90 text-white text-xs rounded-full border border-slate-700 shadow-lg backdrop-blur-sm flex items-center gap-2">
+                  {capturedSamples.length === 0 && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  )}
+                  {capturedSamples.length === 1 && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  )}
+                  {capturedSamples.length >= 2 && (
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  )}
                   <span className="font-medium">
-                    {capturedSamples.length === 0 && '👤 Mire de frente. Tomando foto automáticamente...'}
-                    {capturedSamples.length === 1 && '↗️ Gire levemente el rostro 15°...'}
-                    {capturedSamples.length === 2 && '🎯 Mire al centro para guardar...'}
+                    {capturedSamples.length === 0 && '👤 Paso 1: Mire de frente (auto-captura)'}
+                    {capturedSamples.length === 1 && '↗️ Paso 2: Gire levemente el rostro 15°'}
+                    {capturedSamples.length === 2 && '🎯 Paso 3: Mire al centro para finalizar'}
                     {capturedSamples.length >= 3 && '✅ ¡Muestras completadas! Guardando...'}
                   </span>
                 </div>

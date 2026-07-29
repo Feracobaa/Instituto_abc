@@ -95,12 +95,12 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
         video.play()
           .then(() => {
             setIsScanningActive(true);
-            setStatusMessage('Aproxime un rostro dentro del óvalo');
+            setStatusMessage('Buscando rostros en cámara...');
           })
           .catch((playErr) => {
             console.warn('Playback manual iniciado tras fallo en play() en scanner:', playErr);
             setIsScanningActive(true);
-            setStatusMessage('Aproxime un rostro dentro del óvalo');
+            setStatusMessage('Buscando rostros en cámara...');
           });
       };
 
@@ -241,7 +241,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
 
         setTimeout(() => {
           setScannerState('ready');
-          setStatusMessage('Aproxime un rostro dentro del óvalo');
+          setStatusMessage('Buscando rostros en cámara...');
           lastCandidateRef.current = null;
         }, 300);
       }
@@ -259,7 +259,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       canvasRef.current = document.createElement('canvas');
     }
 
-    const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+    const extracted = await extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
     if (!extracted) {
       setDetectedBox(null);
       return;
@@ -275,7 +275,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       extracted.embedding,
       registeredBiometrics,
       students.map(s => s.id),
-      0.52
+      0.48
     );
 
     if (match) {
@@ -303,7 +303,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
       lastCandidateRef.current = null;
       if (scannerState !== 'ready') {
         setScannerState('ready');
-        setStatusMessage('Aproxime un rostro dentro del óvalo');
+        setStatusMessage('Buscando rostros en cámara...');
       }
     }
   }, [isScanningActive, scannerState, registeredBiometrics, matchBiometricRemote, students, markedStudentIds, triggerCooldownPhase]);
@@ -326,7 +326,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
   /**
    * Manejador para escaneo manual por botón
    */
-  const handleManualScan = () => {
+  const handleManualScan = async () => {
     if (!registeredBiometrics.length) {
       toast.warning('No hay estudiantes con huella facial registrada en este curso.');
       return;
@@ -341,17 +341,17 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     setScannerState('analyzing');
     setStatusMessage('Analizando captura manual...');
 
-    const extracted = extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
+    const extracted = await extractEmbeddingFromVideo(videoRef.current, canvasRef.current);
     if (!extracted) {
       voiceFeedback.notifyUnrecognized();
       toast.error('No se detectó un rostro claro. Centrarse bien frente a la cámara.');
       setScannerState('ready');
-      setStatusMessage('Aproxime un rostro dentro del óvalo');
+      setStatusMessage('Buscando rostros en cámara...');
       return;
     }
 
     setIsLowLight(extracted.quality.isLowLight);
-    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.52);
+    const match = matchBiometric(extracted.embedding, registeredBiometrics, 0.48);
 
     if (match) {
       const student = students.find(s => s.id === match.student_id);
@@ -366,7 +366,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     voiceFeedback.notifyUnrecognized();
     toast.error('Rostro no reconocido o no registrado en este curso.');
     setScannerState('ready');
-    setStatusMessage('Aproxime un rostro dentro del óvalo');
+    setStatusMessage('Buscando rostros en cámara...');
   };
 
   // Clases y colores del semáforo visual
@@ -504,28 +504,24 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
               </div>
             )}
 
-            {/* Capa Guía del Óvalo Facial con Semáforo Interactivo */}
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-              <div className={`relative w-64 h-80 rounded-[50%] border-4 transition-all duration-300 flex items-center justify-center ${hudStyles.borderColor} ${hudStyles.glowColor}`}>
-                
-                {/* Animación de Cooldown / Progreso Circular */}
-                {scannerState === 'cooldown_success' && (
-                  <div className="absolute inset-0 rounded-[50%] border-4 border-dashed border-rose-400 animate-spin opacity-80" />
-                )}
-
-                <div className="text-center p-4 bg-black/50 rounded-full backdrop-blur-sm">
-                  {scannerState === 'cooldown_success' ? (
-                    <CheckCircle2 className="w-12 h-12 text-rose-400 mx-auto animate-bounce" />
-                  ) : scannerState === 'analyzing' ? (
-                    <RefreshCw className="w-10 h-10 text-amber-400 mx-auto animate-spin" />
-                  ) : (
-                    <Camera className={`w-8 h-8 ${hudStyles.iconColor} mx-auto opacity-80`} />
-                  )}
+            {/* Capa de Semáforo e Indicador Flotante (Reconocimiento Automático) */}
+            <div className="absolute bottom-6 left-0 right-0 pointer-events-none flex flex-col items-center justify-center gap-2 z-30 px-4">
+              {scannerState === 'cooldown_success' && (
+                <div className="bg-rose-950/90 border border-rose-500 text-rose-200 px-4 py-2 rounded-full backdrop-blur-md shadow-2xl flex items-center gap-2 animate-bounce">
+                  <CheckCircle2 className="w-5 h-5 text-rose-400" />
+                  <span className="font-bold text-sm">¡Asistencia Verificada!</span>
                 </div>
-              </div>
+              )}
 
-              {/* Placa del Semáforo */}
-              <div className={`mt-6 px-5 py-2.5 rounded-full border text-sm font-semibold backdrop-blur-md flex items-center gap-2 shadow-xl transition-all duration-300 ${hudStyles.badgeBg}`}>
+              {scannerState === 'analyzing' && (
+                <div className="bg-amber-950/90 border border-amber-500 text-amber-200 px-4 py-2 rounded-full backdrop-blur-md shadow-2xl flex items-center gap-2 animate-pulse">
+                  <RefreshCw className="w-4 h-4 text-amber-400 animate-spin" />
+                  <span className="font-semibold text-xs">Identificando rostro...</span>
+                </div>
+              )}
+
+              {/* Placa Principal del Semáforo */}
+              <div className={`px-5 py-2.5 rounded-full border text-sm font-semibold backdrop-blur-md flex items-center gap-2 shadow-xl transition-all duration-300 ${hudStyles.badgeBg}`}>
                 <Volume2 className="w-4 h-4 text-slate-300 animate-pulse" />
                 <span>{statusMessage}</span>
               </div>

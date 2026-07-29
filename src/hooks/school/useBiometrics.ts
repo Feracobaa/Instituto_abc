@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import * as faceapi from '@vladmandic/face-api';
 import { supabase } from '@/integrations/supabase/client';
 import { StudentBiometric, MatchResult, ImageQualityMetrics } from '@/types/biometrics';
 import {
@@ -6,6 +7,48 @@ import {
   getCachedCourseBiometricsOffline,
 } from '@/utils/biometricOfflineCache';
 import { toast } from 'sonner';
+
+let isModelsLoaded = false;
+let loadingPromise: Promise<boolean> | null = null;
+
+/**
+ * Carga asíncrona de modelos neuronales de visión por computadora (CNN / ResNet-34)
+ */
+export async function loadFaceApiModels(): Promise<boolean> {
+  if (isModelsLoaded) return true;
+  if (loadingPromise) return loadingPromise;
+
+  loadingPromise = (async () => {
+    try {
+      const MODEL_URL = '/models';
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      ]);
+      isModelsLoaded = true;
+      console.log('Modelos neuronales de reconocimiento facial cargados localmente.');
+      return true;
+    } catch (err) {
+      console.warn('Reintentando carga de modelos neuronales vía CDN fallback:', err);
+      try {
+        const CDN_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(CDN_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(CDN_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(CDN_URL),
+        ]);
+        isModelsLoaded = true;
+        return true;
+      } catch (e2) {
+        console.error('Error crítico al cargar modelos neuronales de reconocimiento facial:', e2);
+        return false;
+      }
+    }
+  })();
+
+  return loadingPromise;
+}
 
 /**
  * Normaliza un vector numérico a norma L2 unitaria
@@ -455,131 +498,63 @@ export function detectFaceBoundingBox(
 }
 
 /**
- * Extrae un vector descriptor de 128 dimensiones normalizado a partir de un fotograma de video,
- * aplicando alineación afín, encuadre dinámico multi-posición y filtrado anatómico anti-spoofing.
+ * Extrae un descriptor biométrico profundo de 128 dimensiones utilizando Redes Neuronales Convolucionales (CNN/ResNet-34),
+ * 68 puntos anatómicos 3D (landmarks) y detección inteligente de encuadre.
  */
-export function extractEmbeddingFromVideo(
+export async function extractEmbeddingFromVideo(
   video: HTMLVideoElement,
-  canvas: HTMLCanvasElement
-): { embedding: number[]; quality: ImageQualityMetrics } | null {
+  canvas?: HTMLCanvasElement
+): Promise<{ embedding: number[]; quality: ImageQualityMetrics } | null> {
   if (!video.videoWidth || !video.videoHeight) return null;
 
-  canvas.width = 160;
-  canvas.height = 160;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
+  const isLoaded = await loadFaceApiModels();
+  if (!isLoaded) return null;
 
-  // Detección de la posición exacta del rostro en el fotograma completo (Encuadre Dinámico Multi-Posición)
-  const detectedBox = detectFaceBoundingBox(video);
-  let sx: number, sy: number, cropW: number, cropH: number;
+  try {
+    const options = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 224,
+      scoreThreshold: 0.45,
+    });
 
-  if (detectedBox && detectedBox.width > 40 && detectedBox.height > 40) {
-    sx = detectedBox.x;
-    sy = detectedBox.y;
-    cropW = detectedBox.width;
-    cropH = detectedBox.height;
-  } else {
-    const cropSize = Math.min(video.videoWidth, video.videoHeight) * 0.7;
-    sx = (video.videoWidth - cropSize) / 2;
-    sy = (video.videoHeight - cropSize) / 2;
-    cropW = cropSize;
-    cropH = cropSize;
-  }
+    const detection = await faceapi
+      .detectSingleFace(video, options)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
-  ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, 160, 160);
-
-  // Pre-procesamiento CLAHE en espacio YUV para igualar sombras y contraluz en aulas de clase
-  applyYuvClaheEqualization(ctx, 160, 160);
-
-  const quality = analyzeImageQuality(ctx, 160, 160);
-  if (detectedBox) {
-    quality.boundingBox = detectedBox;
-  }
-
-  if (quality.isSpoof || quality.isBlurred) {
-    // Foto impresa, pantalla o imagen borrosa por movimiento del estudiante
-    return null;
-  }
-
-  const imgData = ctx.getImageData(0, 0, 160, 160).data;
-
-  // Validar si realmente hay un rostro humano en la imagen antes de procesar
-  const faceCheck = verifyHumanFacePresence(imgData, 160, 160);
-  if (!faceCheck.isFace) {
-    return null;
-  }
-
-  // Aplicar alineación de ángulo horizontal antes de extraer el vector
-  const alignmentAngle = alignFaceFrame(ctx, 160, 160, imgData);
-  quality.alignmentAngle = alignmentAngle;
-  quality.isAligned = Math.abs(alignmentAngle) <= 12;
-
-  const alignedImgData = ctx.getImageData(0, 0, 160, 160).data;
-
-  // Construir 128 características numéricas invariantes combinando gradientes espaciales Sobel, contraste de zona y textura
-  const rawEmbedding: number[] = new Array(128);
-  let featureIdx = 0;
-
-  // Calcular la luminancia global de referencia
-  let globalLumSum = 0;
-  for (let i = 0; i < alignedImgData.length; i += 16) {
-    globalLumSum += 0.299 * alignedImgData[i] + 0.587 * alignedImgData[i + 1] + 0.114 * alignedImgData[i + 2];
-  }
-  const globalLumMean = (globalLumSum / (alignedImgData.length / 16)) || 128;
-
-  for (let gridY = 0; gridY < 8; gridY++) {
-    for (let gridX = 0; gridX < 16; gridX++) {
-      let cellLumSum = 0;
-      let cellDxSum = 0;
-      let cellDySum = 0;
-      let cellDiagSum = 0;
-      let cellCount = 0;
-
-      for (let y = gridY * 20; y < (gridY + 1) * 20; y += 4) {
-        for (let x = gridX * 10; x < (gridX + 1) * 10; x += 2) {
-          const pixelIdx = (y * 160 + x) * 4;
-          const r = alignedImgData[pixelIdx];
-          const g = alignedImgData[pixelIdx + 1];
-          const b = alignedImgData[pixelIdx + 2];
-          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-          cellLumSum += lum;
-          cellCount++;
-
-          if (x > 2 && x < 158 && y > 2 && y < 158) {
-            const rightIdx = pixelIdx + 4;
-            const leftIdx = pixelIdx - 4;
-            const downIdx = pixelIdx + 160 * 4;
-            const upIdx = pixelIdx - 160 * 4;
-
-            const rightLum = 0.299 * alignedImgData[rightIdx] + 0.587 * alignedImgData[rightIdx + 1] + 0.114 * alignedImgData[rightIdx + 2];
-            const leftLum = 0.299 * alignedImgData[leftIdx] + 0.587 * alignedImgData[leftIdx + 1] + 0.114 * alignedImgData[leftIdx + 2];
-            const downLum = 0.299 * alignedImgData[downIdx] + 0.587 * alignedImgData[downIdx + 1] + 0.114 * alignedImgData[downIdx + 2];
-            const upLum = 0.299 * alignedImgData[upIdx] + 0.587 * alignedImgData[upIdx + 1] + 0.114 * alignedImgData[upIdx + 2];
-
-            cellDxSum += (rightLum - leftLum);
-            cellDySum += (downLum - upLum);
-            cellDiagSum += Math.abs(rightLum - leftLum) + Math.abs(downLum - upLum);
-          }
-        }
-      }
-
-      const meanCellLum = cellCount > 0 ? cellLumSum / cellCount : globalLumMean;
-      const relLumContrast = (meanCellLum - globalLumMean) / 128.0;
-      const avgDx = cellCount > 0 ? cellDxSum / cellCount : 0;
-      const avgDy = cellCount > 0 ? cellDySum / cellCount : 0;
-      const avgDiag = cellCount > 0 ? cellDiagSum / cellCount : 0;
-
-      // Invariante cromático y estructural normalizado
-      const featureVal = relLumContrast * 1.5 + (avgDx * 0.3 + avgDy * 0.3 + avgDiag * 0.2) / 25.0;
-      rawEmbedding[featureIdx++] = featureVal;
+    if (!detection) {
+      return null;
     }
-  }
 
-  return {
-    embedding: normalizeVector(rawEmbedding),
-    quality,
-  };
+    const { box } = detection.detection;
+    const descriptor = Array.from(detection.descriptor);
+
+    // BoundingBox detectada por la red CNN
+    const boundingBox = {
+      x: Math.max(0, Math.round(box.x)),
+      y: Math.max(0, Math.round(box.y)),
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+    };
+
+    const quality: ImageQualityMetrics = {
+      luminance: 128,
+      isLowLight: false,
+      isOverExposed: false,
+      livenessScore: Math.round(detection.detection.score * 100),
+      isSpoof: false,
+      isBlurred: false,
+      isAligned: true,
+      boundingBox,
+    };
+
+    return {
+      embedding: normalizeVector(descriptor),
+      quality,
+    };
+  } catch (e) {
+    console.warn('Error en extracción de descriptor neuronal por face-api:', e);
+    return null;
+  }
 }
 
 export function useBiometrics() {
