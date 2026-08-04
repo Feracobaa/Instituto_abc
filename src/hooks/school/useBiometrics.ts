@@ -694,6 +694,33 @@ export function useBiometrics() {
   }, []);
 
   /**
+   * Elimina la huella facial biométrica de un miembro del personal
+   */
+  const deleteStaffBiometric = useCallback(async (userId: string): Promise<boolean> => {
+    if (!userId) return false;
+    setLoading(true);
+    try {
+      const { error } = await (supabase.from('staff_biometrics' as unknown as 'teachers') as unknown as {
+        delete: () => { eq: (col: string, val: string) => Promise<{ error: { message: string } | null }> };
+      }).delete().eq('user_id', userId);
+
+      if (error) {
+        toast.error(`Error al eliminar biometría: ${error.message}`);
+        return false;
+      }
+
+      toast.success('Huella facial del docente eliminada correctamente.');
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Desconocido';
+      toast.error(`Error inesperado: ${errorMessage}`);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Encuentra el estudiante con mayor similitud a partir de un vector escaneado,
    * aplicando validación dual (Distancia Euclidiana + Similitud Coseno) y prueba de margen.
    */
@@ -819,10 +846,12 @@ export function useBiometrics() {
   }, [matchBiometric]);
 
   return {
+    loading,
     saveStudentBiometric,
     deleteStudentBiometric,
     saveStaffBiometric,
     getStaffBiometric,
+    deleteStaffBiometric,
     matchBiometric,
     matchBiometricRemote,
   };
