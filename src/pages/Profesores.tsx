@@ -5,9 +5,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, Phone, Plus, Pencil, Trash2, Loader2, Search, LayoutGrid, List } from "lucide-react";
+import { Mail, Phone, Plus, Pencil, Trash2, Loader2, Search, LayoutGrid, List, Camera } from "lucide-react";
 import { useState, useMemo } from "react";
 import { TeacherFormDialog } from "@/components/teachers/TeacherFormDialog";
+import { StaffBiometricEnrollmentModal } from "@/components/teachers/StaffBiometricEnrollmentModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   AlertDialog,
@@ -50,11 +51,21 @@ const Profesores = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<typeof teachers extends (infer T)[] ? T : never | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState<string | null>(null);
+  const [biometricModalOpen, setBiometricModalOpen] = useState(false);
+  const [teacherForBiometrics, setTeacherForBiometrics] = useState<{ userId: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const handleEnrollBiometrics = (teacher: { user_id?: string | null; full_name: string }) => {
+    if (!teacher.user_id) {
+      return;
+    }
+    setTeacherForBiometrics({ userId: teacher.user_id, name: teacher.full_name });
+    setBiometricModalOpen(true);
+  };
 
   const handleEdit = (teacher: NonNullable<typeof selectedTeacher>) => {
     setSelectedTeacher(teacher);
@@ -187,6 +198,17 @@ const Profesores = () => {
                   </div>
                   {isRector && (
                     <div className="flex gap-0.5">
+                      {teacher.user_id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-cyan-600 hover:text-cyan-500 hover:bg-cyan-500/10"
+                          title="Enrolar Rostro Biométrico"
+                          onClick={() => handleEnrollBiometrics(teacher)}
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(teacher)}>
                         <Pencil className="w-3.5 h-3.5" />
                       </Button>
@@ -268,6 +290,17 @@ const Profesores = () => {
                 </div>
                 {isRector && (
                   <div className="flex gap-0.5">
+                    {teacher.user_id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-cyan-600 hover:text-cyan-500 hover:bg-cyan-500/10"
+                        title="Enrolar Rostro Biométrico"
+                        onClick={() => handleEnrollBiometrics(teacher)}
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(teacher)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -283,6 +316,15 @@ const Profesores = () => {
       </div>
 
       <TeacherFormDialog open={formOpen} onOpenChange={setFormOpen} teacher={selectedTeacher} />
+
+      {teacherForBiometrics && (
+        <StaffBiometricEnrollmentModal
+          userId={teacherForBiometrics.userId}
+          staffName={teacherForBiometrics.name}
+          isOpen={biometricModalOpen}
+          onClose={() => setBiometricModalOpen(false)}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

@@ -638,6 +638,62 @@ export function useBiometrics() {
   }, []);
 
   /**
+   * Guarda o actualiza la biometría facial de un miembro del personal (profesor, rector, contable)
+   */
+  const saveStaffBiometric = useCallback(async (userId: string, embedding: number[]): Promise<boolean> => {
+    if (embedding.length !== 128) {
+      toast.error('El vector facial debe contener exactamente 128 valores.');
+      return false;
+    }
+    const normalized = normalizeVector(embedding);
+    const vectorStr = `[${normalized.join(',')}]`;
+    setLoading(true);
+    try {
+      const { error } = await (supabase.from('staff_biometrics' as unknown as 'teachers') as unknown as {
+        upsert: (values: Record<string, unknown>, options?: { onConflict?: string }) => Promise<{ error: { message: string } | null }>;
+      }).upsert(
+        {
+          user_id: userId,
+          vec_embedding: vectorStr,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+
+      if (error) {
+        toast.error(`Error al guardar biometría del personal: ${error.message}`);
+        return false;
+      }
+
+      toast.success('Rostro del docente registrado correctamente.');
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Desconocido';
+      toast.error(`Error inesperado: ${errorMessage}`);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
+   * Obtiene la información biométrica del personal por user_id
+   */
+  const getStaffBiometric = useCallback(async (userId: string): Promise<boolean> => {
+    if (!userId) return false;
+    try {
+      const { data, error } = await (supabase.from('staff_biometrics' as unknown as 'teachers') as unknown as {
+        select: (cols: string) => { eq: (col: string, val: string) => { maybeSingle: () => Promise<{ data: unknown; error: unknown }> } };
+      }).select('id').eq('user_id', userId).maybeSingle();
+
+      if (!error && data) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /**
    * Encuentra el estudiante con mayor similitud a partir de un vector escaneado,
    * aplicando validación dual (Distancia Euclidiana + Similitud Coseno) y prueba de margen.
    */
@@ -763,10 +819,10 @@ export function useBiometrics() {
   }, [matchBiometric]);
 
   return {
-    loading,
-    getBiometricsForStudents,
     saveStudentBiometric,
     deleteStudentBiometric,
+    saveStaffBiometric,
+    getStaffBiometric,
     matchBiometric,
     matchBiometricRemote,
   };

@@ -13,7 +13,7 @@ interface Teacher {
   id: string;
   full_name: string;
   email: string;
-  phone: string | null;
+  phone?: string | null;
   teacher_subjects?: { subject_id: string; subjects: { id: string; name: string } }[];
   teacher_grade_assignments?: {
     grade_id: string;
