@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Command } from "lucide-react";
+import { Eye, EyeOff, Loader2, Command, Camera } from "lucide-react";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { InteractiveBackground } from "@/components/ui/InteractiveBackground";
 import { InteractiveLogoVideo } from "@/components/ui/InteractiveLogoVideo";
+import { BiometricLoginModal } from "@/components/biometrics/BiometricLoginModal";
 
 const loginSchema = z.object({
   identifier: z.string().min(3, "Ingresa un usuario o correo válido"),
@@ -26,6 +27,7 @@ export default function Auth() {
   const [loginMode, setLoginMode] = useState<LoginMode>("staff");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isBiometricModalOpen, setIsBiometricModalOpen] = useState(false);
   const [loginData, setLoginData] = useState({ identifier: "", password: "" });
 
   const [branding, setBranding] = useState<{
@@ -225,6 +227,25 @@ export default function Auth() {
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Iniciar Sesión"}
               </Button>
             </form>
+
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10" />
+              </div>
+              <div className="relative bg-[#0f0f0f] px-3 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+                o acceso rápido
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBiometricModalOpen(true)}
+              className="h-12 w-full border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200 transition-all font-semibold flex items-center justify-center gap-2"
+            >
+              <Camera className="h-5 w-5 text-cyan-400" />
+              Ingresar con mi Rostro
+            </Button>
           </div>
 
           <div className="mt-8 text-center text-xs text-white/30">
@@ -232,6 +253,14 @@ export default function Auth() {
           </div>
         </div>
       </div>
+
+      <BiometricLoginModal
+        isOpen={isBiometricModalOpen}
+        onClose={() => setIsBiometricModalOpen(false)}
+        onSuccess={() => {
+          navigate(isProviderOwner ? "/etymon" : "/");
+        }}
+      />
     </div>
   );
 }
