@@ -93,7 +93,8 @@ export function useBiometricLogin() {
         };
       }
 
-      setStatusText(`¡Hola, ${data.student_name}! Autenticando...`);
+      const displayName = data.user_name || data.student_name || 'Usuario';
+      setStatusText(`¡Hola, ${displayName}! Autenticando...`);
 
       // 6. Verificar OTP token_hash y establecer sesión nativa en Supabase Auth
       const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -105,13 +106,13 @@ export function useBiometricLogin() {
         throw verifyError;
       }
 
-      toast.success(`¡Bienvenido/a, ${data.student_name}!`, {
+      toast.success(`¡Bienvenido/a, ${displayName}!`, {
         description: 'Inicio de sesión biométrico completado con éxito.',
       });
 
       return {
         success: true,
-        studentName: data.student_name,
+        studentName: displayName,
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error inesperado durante la verificación.';

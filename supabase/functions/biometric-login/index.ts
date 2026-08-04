@@ -77,21 +77,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const match = matchData[0];
-    const username = match.username;
+    const targetEmail = match.email;
 
-    if (!username) {
-      return new Response(JSON.stringify({ error: "El usuario biométrico no tiene cuenta de acceso vinculada." }), {
+    if (!targetEmail) {
+      return new Response(JSON.stringify({ error: "El usuario biométrico no tiene correo registrado." }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const syntheticEmail = buildGuardianAuthEmail(username);
-
     // 2. Generar link/OTP de inicio de sesión de un solo uso vía Auth Admin
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
-      email: syntheticEmail,
+      email: targetEmail,
     });
 
     if (linkError || !linkData.properties?.hashed_token) {
@@ -104,9 +102,11 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: "success",
-        student_id: match.student_id,
-        student_name: match.student_name,
-        username: match.username,
+        user_id: match.target_user_id,
+        user_name: match.full_name,
+        email: match.email,
+        user_type: match.user_type,
+        student_name: match.full_name,
         similarity: match.similarity,
         hashed_token: linkData.properties.hashed_token,
       }),
