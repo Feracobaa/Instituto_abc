@@ -1,7 +1,7 @@
 // @ts-expect-error: Deno HTTP imports are not resolved in Node/Browser environment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 // @ts-expect-error: Deno imports are not resolved in Node/Browser environment
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 // @ts-expect-error: Deno imports are not resolved in Node/Browser environment
 import webpush from "npm:web-push";
 
@@ -16,6 +16,7 @@ declare const Deno: {
 let isVapidInitialized = false;
 
 Deno.serve(async (request: Request) => {
+  const corsHeaders = getCorsHeaders(request);
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

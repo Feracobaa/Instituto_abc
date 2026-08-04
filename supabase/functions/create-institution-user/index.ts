@@ -5,7 +5,7 @@
 // @ts-expect-error: Deno HTTP imports are not resolved in Node/Browser environment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 // @ts-expect-error: Deno imports are not resolved in Node/Browser environment
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // Workaround for IDE using Node.js/Browser tsconfig instead of Deno
 declare const Deno: {
@@ -35,7 +35,7 @@ function generatePassword(): string {
   return `${a}${n}${num}${s}`;
 }
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, corsHeaders = getCorsHeaders()): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -44,8 +44,9 @@ function json(body: unknown, status = 200): Response {
 
 // Handler
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
+  if (req.method !== "POST") return json({ error: "Method not allowed." }, 405, corsHeaders);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");

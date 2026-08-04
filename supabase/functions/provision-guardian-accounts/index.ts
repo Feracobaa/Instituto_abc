@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 // @ts-expect-error: Deno imports are not resolved in Node/Browser environment
 import { buildGuardianAuthEmail, buildGuardianUsernameBase, buildInitialGuardianPassword } from "../_shared/guardianAccounts.ts";
 // @ts-expect-error: Deno imports are not resolved in Node/Browser environment
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // Workaround for IDE using Node.js/Browser tsconfig instead of Deno
 declare const Deno: {
@@ -37,6 +37,7 @@ interface GuardianAccountRow {
 }
 
 Deno.serve(async (request: Request) => {
+  const corsHeaders = getCorsHeaders(request);
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

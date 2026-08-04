@@ -15,17 +15,30 @@ declare const Deno: {
 
 // CORS — uses origin-aware helper for security
 const ALLOWED_ORIGINS = [
-  "https://instituto-abc.vercel.app",    // TODO: Replace with your actual production domain
+  "https://plataforma-etymon.vercel.app",
+  "https://instituto-abc.vercel.app",
   "http://localhost:5173",
   "http://localhost:8080",
+  "http://localhost:3000",
 ];
 
 function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const origin = req.headers.get("Origin") || req.headers.get("origin") || "";
+  let allowedOrigin = ALLOWED_ORIGINS[0];
+
+  if (origin) {
+    const isAllowed = ALLOWED_ORIGINS.includes(origin) || 
+                      origin.endsWith(".vercel.app") || 
+                      origin.startsWith("http://localhost:") ||
+                      origin.startsWith("http://127.0.0.1:");
+    if (isAllowed) {
+      allowedOrigin = origin;
+    }
+  }
+
   return {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Origin": allowedOrigin,
   };
 }
