@@ -105,8 +105,7 @@ export function useInstitutionStatus(options?: { enabled?: boolean }) {
     enabled: options?.enabled ?? true,
     queryKey: ['school', 'institution', 'status'],
     queryFn: async (): Promise<InstitutionStatusData> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await supabase.rpc("get_current_institution_status" as any);
+      const { data, error } = await supabase.rpc("get_current_institution_status");
 
       if (error) {
         throw error;

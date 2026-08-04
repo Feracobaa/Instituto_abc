@@ -27,7 +27,9 @@ export async function loadFaceApiModels(): Promise<boolean> {
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       ]);
       isModelsLoaded = true;
-      console.log('Modelos neuronales de reconocimiento facial cargados localmente.');
+      if (import.meta.env.DEV) {
+        console.log('Modelos neuronales de reconocimiento facial cargados localmente.');
+      }
       return true;
     } catch (err) {
       console.warn('Reintentando carga de modelos neuronales vía CDN fallback:', err);
@@ -738,7 +740,7 @@ export function useBiometrics() {
 
     try {
       const vectorStr = `[${scannedEmbedding.join(',')}]`;
-      const { data, error } = await supabase.rpc('match_student_biometrics' as any, {
+      const { data, error } = await supabase.rpc('match_student_biometrics', {
         query_embedding: vectorStr,
         match_threshold: 0.78,
         student_ids: studentIds && studentIds.length ? studentIds : null,

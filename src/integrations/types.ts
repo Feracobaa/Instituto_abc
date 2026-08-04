@@ -2228,6 +2228,27 @@ export type Database = {
         }
         Returns: number
       }
+      get_current_institution_status: {
+        Args: Record<string, never>
+        Returns: {
+          institution_id: string
+          institution_name: string
+          subscription_status: string
+          is_active: boolean
+        }
+      }
+      match_student_biometrics: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          student_ids?: string[] | null
+        }
+        Returns: {
+          student_id: string
+          distance: number
+          similarity: number
+        }[]
+      }
       update_guardian_profile: {
         Args: {
           p_address: string

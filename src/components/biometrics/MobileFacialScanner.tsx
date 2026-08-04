@@ -132,8 +132,9 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
           video: { facingMode: { ideal: mode } },
           audio: false,
         });
-      } catch (e1: any) {
-        if (e1?.name === 'NotAllowedError' || e1?.name === 'SecurityError') {
+      } catch (e1: unknown) {
+        const errObj1 = e1 as Error;
+        if (errObj1?.name === 'NotAllowedError' || errObj1?.name === 'SecurityError') {
           throw e1;
         }
         console.warn('Falló restricción ideal en scanner:', e1);
@@ -142,8 +143,9 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
             video: { facingMode: mode },
             audio: false,
           });
-        } catch (e2: any) {
-          if (e2?.name === 'NotAllowedError' || e2?.name === 'SecurityError') {
+        } catch (e2: unknown) {
+          const errObj2 = e2 as Error;
+          if (errObj2?.name === 'NotAllowedError' || errObj2?.name === 'SecurityError') {
             throw e2;
           }
           console.warn('Falló restricción directa en scanner, fallback a video estándar:', e2);
@@ -158,9 +160,10 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
         streamRef.current = stream;
         attachStreamToVideo(stream);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al acceder a la cámara:', err);
-      const msg = err?.name === 'NotAllowedError' || err?.name === 'SecurityError'
+      const errObj = err as Error;
+      const msg = errObj?.name === 'NotAllowedError' || errObj?.name === 'SecurityError'
         ? 'Permiso de cámara denegado o bloqueado por directiva de seguridad.'
         : (err instanceof Error ? err.message : 'Permiso denegado o cámara no soportada');
       toast.error(`No se pudo iniciar la cámara: ${msg}`);

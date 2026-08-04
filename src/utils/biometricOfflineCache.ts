@@ -145,18 +145,21 @@ export async function syncOfflineAttendanceQueue(): Promise<number> {
 
     let syncedCount = 0;
     for (const item of records) {
-      const { error } = await supabase
-        .from('student_attendance')
-        .upsert(
-          {
-            student_id: item.studentId,
-            attendance_date: item.timestamp.split('T')[0],
-            status: item.status,
-            capture_method: item.method,
-            liveness_verified: true,
-          } as any,
-          { onConflict: 'student_id,attendance_date' }
-        );
+      const { error } = await (supabase.from('student_attendance') as unknown as {
+        upsert: (
+          values: Record<string, unknown>,
+          options?: { onConflict?: string }
+        ) => Promise<{ error: unknown }>;
+      }).upsert(
+        {
+          student_id: item.studentId,
+          attendance_date: item.timestamp.split('T')[0],
+          status: item.status,
+          capture_method: item.method,
+          liveness_verified: true,
+        },
+        { onConflict: 'student_id,attendance_date' }
+      );
 
       if (!error && item.id) {
         syncedCount++;

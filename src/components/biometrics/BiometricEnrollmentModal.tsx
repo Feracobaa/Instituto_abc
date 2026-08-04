@@ -136,8 +136,9 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
           video: { facingMode: { ideal: mode } },
           audio: false,
         });
-      } catch (e1: any) {
-        if (e1?.name === 'NotAllowedError' || e1?.name === 'SecurityError') throw e1;
+      } catch (e1: unknown) {
+        const errObj = e1 as Error;
+        if (errObj?.name === 'NotAllowedError' || errObj?.name === 'SecurityError') throw e1;
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -148,7 +149,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
         streamRef.current = stream;
         attachStreamToVideo(stream);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error abriendo la cámara:', err);
       toast.error('No se pudo acceder a la cámara. Verifique los permisos del navegador.');
     }
