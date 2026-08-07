@@ -60,6 +60,19 @@ export const schoolQueryKeys = {
     list: (filters?: PreescolarEvaluationFilters) =>
       ["preescolar_evaluations", filters?.studentId ?? null, filters?.periodId ?? null] as const,
   },
+  assignments: {
+    all: ["assignments"] as const,
+    list: (gradeId?: string, teacherId?: string, periodId?: string) =>
+      ["assignments", gradeId ?? "all", teacherId ?? "all", periodId ?? "all"] as const,
+    detail: (id: string) => ["assignments", "detail", id] as const,
+  },
+  assignmentSubmissions: {
+    all: ["assignment_submissions"] as const,
+    listByAssignment: (assignmentId: string) =>
+      ["assignment_submissions", "assignment", assignmentId] as const,
+    listByStudent: (studentId: string) =>
+      ["assignment_submissions", "student", studentId] as const,
+  },
   attendance: {
     all: ["student_attendance"] as const,
     list: (filters?: StudentAttendanceFilters) =>

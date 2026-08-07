@@ -847,6 +847,7 @@ export function useBiometrics() {
 
   return {
     loading,
+    getBiometricsForStudents,
     saveStudentBiometric,
     deleteStudentBiometric,
     saveStaffBiometric,

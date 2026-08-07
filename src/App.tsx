@@ -22,6 +22,7 @@ const Grados = lazy(() => import("./pages/Grados"));
 const Materias = lazy(() => import("./pages/Materias"));
 const Calificaciones = lazy(() => import("./pages/Calificaciones"));
 const Asistencias = lazy(() => import("./pages/Asistencias"));
+const Tareas = lazy(() => import("./pages/Tareas"));
 const PortalEstudiantil = lazy(() => import("./pages/PortalEstudiantil"));
 const EtymonDashboard = lazy(() => import("./pages/etymon/EtymonDashboard"));
 const EtymonInstituciones = lazy(() => import("./pages/etymon/EtymonInstituciones"));
@@ -159,6 +160,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["rector", "profesor"]} requiredModule="asistencias">
                     <Asistencias />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tareas"
+                element={
+                  <ProtectedRoute allowedRoles={["rector", "profesor"]}>
+                    <Tareas />
                   </ProtectedRoute>
                 }
               />

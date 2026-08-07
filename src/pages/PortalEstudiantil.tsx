@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { ClipboardList, Calendar, User, CheckSquare, DollarSign } from "lucide-react";
+import { ClipboardList, Calendar, User, CheckSquare, DollarSign, BookOpen } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MisNotasTab from "@/features/portal/MisNotasTab";
@@ -7,6 +7,7 @@ import MiHorarioTab from "@/features/portal/MiHorarioTab";
 import MiPerfilTab from "@/features/portal/MiPerfilTab";
 import MisAsistenciasTab from "@/features/portal/MisAsistenciasTab";
 import MisPensionesTab from "@/features/portal/MisPensionesTab";
+import MisTareasEstudianteTab from "@/features/tareas/MisTareasEstudianteTab";
 
 export default function PortalEstudiantil() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,7 +24,7 @@ export default function PortalEstudiantil() {
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">Portal del Acudiente</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Consulta notas, asistencias, pensiones y horario de tu estudiante.
+            Consulta notas, tareas, asistencias, pensiones y horario de tu estudiante.
           </p>
         </div>
 
@@ -31,6 +32,9 @@ export default function PortalEstudiantil() {
           <TabsList className="h-10 w-full flex-wrap sm:w-auto">
             <TabsTrigger value="notas" className="gap-1.5">
               <ClipboardList className="h-4 w-4" /> Notas
+            </TabsTrigger>
+            <TabsTrigger value="tareas" className="gap-1.5">
+              <BookOpen className="h-4 w-4" /> Tareas
             </TabsTrigger>
             <TabsTrigger value="asistencias" className="gap-1.5">
               <CheckSquare className="h-4 w-4" /> Asistencias
@@ -48,6 +52,9 @@ export default function PortalEstudiantil() {
 
           <TabsContent value="notas" className="mt-6">
             <MisNotasTab />
+          </TabsContent>
+          <TabsContent value="tareas" className="mt-6">
+            <MisTareasEstudianteTab />
           </TabsContent>
           <TabsContent value="asistencias" className="mt-6">
             <MisAsistenciasTab />

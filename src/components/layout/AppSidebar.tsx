@@ -52,6 +52,7 @@ const menuItems: Array<{
     { title: "Grados", url: "/grados", icon: GraduationCap, moduleCode: "grados" },
     { title: "Materias", url: "/materias", icon: BookOpen, moduleCode: "materias" },
     { title: "Calificaciones", url: "/calificaciones", icon: ClipboardList, moduleCode: "calificaciones" },
+    { title: "Tareas", url: "/tareas", icon: BookOpen, moduleCode: "calificaciones" },
     { title: "Asistencias", url: "/asistencias", icon: ClipboardCheck, moduleCode: "asistencias" },
     { title: "Mi Portal", url: "/portal", icon: BookOpen, moduleCode: "mis_notas" },
   ];

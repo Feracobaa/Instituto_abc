@@ -31,6 +31,7 @@ const pageTitles: Record<string, string> = {
   "/grados": "Grados",
   "/materias": "Materias",
   "/calificaciones": "Calificaciones",
+  "/tareas": "Gestión de Tareas",
   "/mis-notas": "Mis Notas",
   "/mi-horario": "Mi Horario",
   "/mi-perfil": "Mi Perfil",
