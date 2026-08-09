@@ -180,26 +180,25 @@ export function useSubmitAssignment() {
         toast.info("Optimizando y escaneando evidencia...");
         const optimized = await optimizeHomeworkImage(payload.file, { mode: "scanner" });
 
-        const fileName = `${instId}/${payload.assignment_id}/${payload.student_id}_${Date.now()}.webp`;
+        const fileName = `assignments/${instId}/${payload.assignment_id}/${payload.student_id}_${Date.now()}.webp`;
 
-        const { data: uploadData, error: uploadErr } = await supabase.storage
-          .from("assignment-files")
-          .upload(fileName, optimized.file, {
-            contentType: "image/webp",
-            upsert: true,
-          });
+        try {
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from("institution_assets")
+            .upload(fileName, optimized.file, {
+              contentType: "image/webp",
+              upsert: true,
+            });
 
-        if (uploadErr) {
-          // Si el bucket público falla o no está creado aún, usar DataURL optimizado o manejar error
-          console.warn("Storage upload warn, falling back to data URL if needed", uploadErr);
-        }
-
-        if (uploadData?.path) {
-          const { data: publicUrlData } = supabase.storage
-            .from("assignment-files")
-            .getPublicUrl(uploadData.path);
-          uploadedFileUrl = publicUrlData.publicUrl;
-        } else {
+          if (!uploadErr && uploadData?.path) {
+            const { data: publicUrlData } = supabase.storage
+              .from("institution_assets")
+              .getPublicUrl(uploadData.path);
+            uploadedFileUrl = publicUrlData.publicUrl;
+          } else {
+            uploadedFileUrl = optimized.dataUrl;
+          }
+        } catch {
           uploadedFileUrl = optimized.dataUrl;
         }
 

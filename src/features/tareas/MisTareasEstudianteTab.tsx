@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
   BookOpen,
   Calendar,
@@ -17,10 +17,13 @@ import {
   MessageSquareQuote,
   Check,
   Eye,
+  Trash2,
+  Image as ImageIcon,
+  PenTool,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,9 +57,11 @@ export default function MisTareasEstudianteTab() {
   const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
 
   // Formulario de Entrega
+  const [submissionMode, setSubmissionMode] = useState<"photo" | "text">("photo");
   const [submissionText, setSubmissionText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filtros de asignaturas únicas
   const subjects = useMemo(() => {
@@ -100,7 +105,6 @@ export default function MisTareasEstudianteTab() {
       const matchSubject = selectedSubject === "all" || a.subject_id === selectedSubject;
       const isSubmitted = Boolean(a.user_submission?.submitted_at);
       const isEvaluated = a.user_submission?.status === "evaluated";
-      const isPastDue = new Date(a.due_date) < new Date();
 
       let matchTab = true;
       if (selectedTab === "pending") {
@@ -125,6 +129,7 @@ export default function MisTareasEstudianteTab() {
     setSubmissionText(assignment.user_submission?.submission_text || "");
     setSelectedFile(null);
     setFilePreview(assignment.user_submission?.file_url || null);
+    setSubmissionMode(assignment.user_submission?.file_url ? "photo" : "photo");
     setSubmissionModalOpen(true);
   };
 
@@ -136,10 +141,19 @@ export default function MisTareasEstudianteTab() {
     }
   };
 
+  const handleRemoveFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSendSubmission = async () => {
     if (!student || !activeAssignment) return;
     if (!submissionText.trim() && !selectedFile && !filePreview) {
-      toast.error("Ingresa una respuesta escrita o adjunta una foto de tu cuaderno escolar.");
+      toast.error("Por favor adjunta una foto de tu cuaderno o escribe tu respuesta.");
       return;
     }
 
@@ -195,7 +209,7 @@ export default function MisTareasEstudianteTab() {
       return { text: "Plazo vencido", isLate: true, isNear: false };
     }
     if (diffDays === 0 || diffDays === 1) {
-      return { text: "¡Vence hoy o mañana!", isLate: false, isNear: true };
+      return { text: "¡Vence pronto!", isLate: false, isNear: true };
     }
     return { text: `Quedan ${diffDays} días`, isLate: false, isNear: false };
   };
@@ -492,6 +506,9 @@ export default function MisTareasEstudianteTab() {
               <DialogTitle className="text-xl font-bold text-foreground mt-2">
                 {activeAssignment.title}
               </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Consulta las instrucciones oficiales y fecha límite de la tarea.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-2 text-xs">
@@ -538,94 +555,199 @@ export default function MisTareasEstudianteTab() {
         </Dialog>
       )}
 
-      {/* Modal de Entrega con Dropzone Táctil y Cámara */}
+      {/* Modal de Entrega Ultra-Limpio y Premium */}
       {activeAssignment && (
         <Dialog open={submissionModalOpen} onOpenChange={setSubmissionModalOpen}>
-          <DialogContent className="max-w-lg rounded-2xl">
+          <DialogContent className="max-w-lg rounded-3xl p-6 shadow-2xl border bg-card">
+            {/* Cabecera del Modal */}
             <DialogHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-primary/10 rounded-xl text-primary">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-primary/10 text-primary rounded-2xl shrink-0 mt-0.5">
                   <Upload className="h-5 w-5" />
                 </div>
-                <div>
-                  <DialogTitle className="text-lg font-bold text-foreground">
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <DialogTitle className="text-lg font-bold text-foreground truncate">
                     Entrega: {activeAssignment.title}
                   </DialogTitle>
-                  <p className="text-xs text-muted-foreground">
+                  <DialogDescription className="text-xs text-muted-foreground truncate">
                     {activeAssignment.subjects?.name} • Docente: {activeAssignment.teachers?.full_name}
-                  </p>
+                  </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
 
-            <div className="space-y-4 py-2 text-xs">
-              <div>
-                <Label htmlFor="submission_text" className="text-xs font-semibold">
-                  Respuesta o Comentarios de tu Entrega:
-                </Label>
-                <Textarea
-                  id="submission_text"
-                  placeholder="Escribe aquí tu solución, enlaces a documentos o comentarios para el docente..."
-                  value={submissionText}
-                  onChange={(e) => setSubmissionText(e.target.value)}
-                  className="mt-1 min-h-[90px] rounded-xl text-sm leading-relaxed"
-                />
+            <div className="space-y-4 py-3">
+              {/* Segmented Tabs: Modo de Entrega */}
+              <div className="grid grid-cols-2 gap-1.5 bg-muted/60 p-1.5 rounded-2xl border">
+                <button
+                  type="button"
+                  onClick={() => setSubmissionMode("photo")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all",
+                    submissionMode === "photo"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Camera className="h-3.5 w-3.5 text-primary" />
+                  Foto del Cuaderno
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSubmissionMode("text")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all",
+                    submissionMode === "text"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <PenTool className="h-3.5 w-3.5 text-primary" />
+                  Texto / Enlace
+                </button>
               </div>
 
-              <div>
-                <Label className="text-xs font-semibold">
-                  Adjuntar Foto del Cuaderno (Optimizador de Escáner B/N):
-                </Label>
-                <div className="mt-1.5 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-5 text-center hover:bg-secondary/40 transition-colors">
+              {/* Input file nativo completamente oculto */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {/* MODO FOTO DEL CUADERNO */}
+              {submissionMode === "photo" && (
+                <div className="space-y-3 animate-fade-in">
+                  <Label className="text-xs font-semibold text-foreground">
+                    Evidencia fotográfica:
+                  </Label>
+
                   {filePreview ? (
-                    <div className="space-y-2.5 w-full">
-                      <img
-                        src={filePreview}
-                        alt="Evidencia seleccionada"
-                        className="max-h-48 mx-auto rounded-xl border object-contain shadow-sm"
-                      />
-                      <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 font-semibold">
-                        <Check className="h-4 w-4" /> Foto lista para enviar y optimizar
+                    <div className="relative rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/5 p-4 flex flex-col items-center gap-3">
+                      <div className="relative group max-h-56 overflow-hidden rounded-xl border bg-background shadow-sm">
+                        <img
+                          src={filePreview}
+                          alt="Evidencia del cuaderno"
+                          className="max-h-52 w-auto object-contain rounded-xl"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between w-full pt-1 border-t border-emerald-500/20">
+                        <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-0 text-xs gap-1 font-semibold">
+                          <Check className="h-3 w-3" /> Foto adjuntada con éxito
+                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="h-7 text-[11px] rounded-lg gap-1"
+                          >
+                            <Camera className="h-3 w-3 text-primary" /> Cambiar foto
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveFile}
+                            className="h-7 text-[11px] text-destructive hover:bg-destructive/10 rounded-lg gap-1"
+                          >
+                            <Trash2 className="h-3 w-3" /> Quitar
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="p-3 bg-primary/10 rounded-2xl text-primary mb-2">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => fileInputRef.current?.click()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                      className="group flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 p-6 text-center hover:border-primary hover:bg-primary/5 transition-all cursor-pointer select-none"
+                    >
+                      <div className="p-3.5 bg-primary/10 rounded-2xl text-primary group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all mb-2.5">
                         <Camera className="h-6 w-6" />
                       </div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Toma una foto con tu celular o arrastra la imagen del cuaderno
+                      <p className="text-xs font-bold text-foreground">
+                        Tomar foto o elegir imagen del cuaderno
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        El sistema reducirá el peso de ~5 MB a ~30 KB conservando legibilidad
+                        Toca aquí para abrir la cámara o seleccionar de la galería
                       </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="mt-3.5 text-xs font-semibold rounded-xl pointer-events-none group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                      >
+                        Elegir foto del cuaderno
+                      </Button>
                     </div>
                   )}
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="mt-3 text-xs max-w-xs rounded-xl"
-                  />
-                </div>
-              </div>
 
+                  {/* Campo opcional de notas rápidas */}
+                  <div className="pt-1">
+                    <Label htmlFor="quick_note" className="text-[11px] font-medium text-muted-foreground">
+                      Nota o comentario adicional (opcional):
+                    </Label>
+                    <Input
+                      id="quick_note"
+                      placeholder="Ej. Profesor, el punto 4 está en la parte posterior..."
+                      value={submissionText}
+                      onChange={(e) => setSubmissionText(e.target.value)}
+                      className="mt-1 text-xs rounded-xl h-8.5"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* MODO TEXTO / ENLACE */}
+              {submissionMode === "text" && (
+                <div className="space-y-2 animate-fade-in">
+                  <Label htmlFor="submission_full_text" className="text-xs font-semibold text-foreground">
+                    Respuesta, desarrollo o enlaces:
+                  </Label>
+                  <Textarea
+                    id="submission_full_text"
+                    placeholder="Escribe aquí tu solución completa, resumen, conclusiones o pega enlaces a tus documentos..."
+                    value={submissionText}
+                    onChange={(e) => setSubmissionText(e.target.value)}
+                    className="min-h-[140px] rounded-2xl text-xs leading-relaxed"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Puedes incluir texto formateado o enlaces a Google Docs, Drive o YouTube si el profesor lo solicitó.
+                  </p>
+                </div>
+              )}
+
+              {/* Retroalimentación previa si ya estaba evaluada */}
               {activeAssignment.user_submission?.feedback && (
-                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-900 dark:text-emerald-200">
-                  <span className="font-bold">Retroalimentación actual del profesor:</span>{" "}
+                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3.5 text-xs text-emerald-900 dark:text-emerald-200">
+                  <span className="font-bold">Retroalimentación del docente:</span>{" "}
                   {activeAssignment.user_submission.feedback}
                 </div>
               )}
             </div>
 
-            <DialogFooter className="gap-2">
-              <Button variant="ghost" onClick={() => setSubmissionModalOpen(false)} className="rounded-xl">
+            {/* Footer de Acciones */}
+            <DialogFooter className="gap-2 pt-2 border-t">
+              <Button
+                variant="ghost"
+                onClick={() => setSubmissionModalOpen(false)}
+                className="rounded-xl text-xs"
+              >
                 Cancelar
               </Button>
               <Button
                 onClick={() => void handleSendSubmission()}
                 disabled={submitMutation.isPending}
-                className="gap-2 rounded-xl shadow-soft font-semibold"
+                className="gap-2 rounded-xl shadow-soft font-semibold text-xs"
               >
                 {submitMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Confirmar y Enviar Tarea

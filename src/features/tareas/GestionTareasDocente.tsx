@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -436,9 +436,9 @@ export function GestionTareasDocente() {
                 <DialogTitle className="text-lg font-bold text-foreground">
                   Publicar Nueva Tarea
                 </DialogTitle>
-                <p className="text-xs text-muted-foreground">
+                <DialogDescription className="text-xs text-muted-foreground">
                   Asigna instrucciones, plazo y genera automáticamente la guía PDF institucional.
-                </p>
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -614,14 +614,12 @@ function SubmissionsReviewDialog({
               <DialogTitle className="text-lg font-bold text-foreground">
                 Entregas: {assignment.title}
               </DialogTitle>
-              <div className="flex items-center gap-2 mt-1">
+              <DialogDescription className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="text-xs">
                   {assignment.grades?.name}
                 </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {submissions.length} evidencias recibidas
-                </span>
-              </div>
+                <span>{submissions.length} evidencias recibidas</span>
+              </DialogDescription>
             </div>
 
             {/* Badges de balance */}
@@ -733,9 +731,9 @@ function SubmissionsReviewDialog({
                     <DialogTitle className="text-base font-bold text-foreground">
                       Calificar a {activeSubmission.students?.full_name}
                     </DialogTitle>
-                    <p className="text-xs text-muted-foreground">
+                    <DialogDescription className="text-xs text-muted-foreground">
                       Asigna la nota institucional y envía una retroalimentación motivadora.
-                    </p>
+                    </DialogDescription>
                   </div>
                 </div>
               </DialogHeader>

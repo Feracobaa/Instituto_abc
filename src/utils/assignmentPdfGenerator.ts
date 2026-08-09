@@ -23,16 +23,16 @@ export interface AssignmentPdfData {
   attachmentUrl?: string | null;
 }
 
-interface AutoTableCapableDoc extends jsPDF {
+type AutoTableCapableDoc = jsPDF & {
   lastAutoTable?: {
     finalY: number;
   };
-}
+};
 
-interface GStateCapableDoc extends jsPDF {
-  GState: new (options: { opacity: number }) => unknown;
-  setGState: (state: unknown) => void;
-}
+type GStateCapableDoc = {
+  GState?: new (options: { opacity: number }) => unknown;
+  setGState?: (state: unknown) => unknown;
+};
 
 /**
  * Carga el logotipo institucional en Base64 para el documento
@@ -55,7 +55,7 @@ async function loadLogoBase64(url?: string): Promise<string | null> {
 }
 
 function setDocumentOpacity(doc: jsPDF, opacity: number) {
-  const pdf = doc as Partial<GStateCapableDoc>;
+  const pdf = doc as unknown as GStateCapableDoc;
   if (pdf.GState && pdf.setGState) {
     pdf.setGState(new pdf.GState({ opacity }));
   }
