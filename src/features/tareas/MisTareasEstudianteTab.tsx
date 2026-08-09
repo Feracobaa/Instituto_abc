@@ -6,11 +6,17 @@ import {
   Clock,
   Download,
   FileText,
-  Filter,
   Loader2,
   Upload,
   AlertCircle,
   Camera,
+  Sparkles,
+  Award,
+  TrendingUp,
+  GraduationCap,
+  MessageSquareQuote,
+  Check,
+  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useGuardianAccount } from "@/hooks/useSchoolData";
 import { useAssignmentsList, useSubmitAssignment } from "@/hooks/school/useAssignments";
+import { useInstitutionSettings } from "@/hooks/school/useInstitution";
 import type { Assignment } from "@/types/assignments";
 import { downloadAssignmentPDF } from "@/utils/assignmentPdfGenerator";
 import { cn } from "@/lib/utils";
@@ -29,6 +36,7 @@ import { toast } from "@/components/ui/sonner";
 
 export default function MisTareasEstudianteTab() {
   const guardianQuery = useGuardianAccount();
+  const { data: settings } = useInstitutionSettings();
   const student = guardianQuery.data?.students ?? null;
   const gradeId = student?.grade_id ?? undefined;
 
@@ -40,7 +48,7 @@ export default function MisTareasEstudianteTab() {
   const submitMutation = useSubmitAssignment();
 
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedTab, setSelectedTab] = useState<"all" | "pending" | "submitted" | "evaluated">("all");
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
@@ -61,25 +69,51 @@ export default function MisTareasEstudianteTab() {
     return Array.from(map.entries());
   }, [assignments]);
 
-  // Tareas filtradas
+  // Estadísticas del Estudiante
+  const metrics = useMemo(() => {
+    const total = assignments.length;
+    const submitted = assignments.filter((a) => Boolean(a.user_submission?.submitted_at)).length;
+    const evaluated = assignments.filter((a) => a.user_submission?.status === "evaluated");
+    const evaluatedCount = evaluated.length;
+
+    const scores = evaluated
+      .map((a) => a.user_submission?.score)
+      .filter((s): s is number => typeof s === "number");
+    const avgScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
+
+    const pending = assignments.filter(
+      (a) => !a.user_submission?.submitted_at && new Date(a.due_date) >= new Date()
+    ).length;
+
+    const late = assignments.filter(
+      (a) => !a.user_submission?.submitted_at && new Date(a.due_date) < new Date()
+    ).length;
+
+    const complianceRate = total > 0 ? Math.round((submitted / total) * 100) : 100;
+
+    return { total, submitted, evaluatedCount, pending, late, avgScore, complianceRate };
+  }, [assignments]);
+
+  // Tareas filtradas por pestaña y materia
   const filteredAssignments = useMemo(() => {
     return assignments.filter((a) => {
       const matchSubject = selectedSubject === "all" || a.subject_id === selectedSubject;
       const isSubmitted = Boolean(a.user_submission?.submitted_at);
+      const isEvaluated = a.user_submission?.status === "evaluated";
       const isPastDue = new Date(a.due_date) < new Date();
 
-      let matchStatus = true;
-      if (selectedStatus === "pending") {
-        matchStatus = !isSubmitted && !isPastDue;
-      } else if (selectedStatus === "submitted") {
-        matchStatus = isSubmitted;
-      } else if (selectedStatus === "late") {
-        matchStatus = !isSubmitted && isPastDue;
+      let matchTab = true;
+      if (selectedTab === "pending") {
+        matchTab = !isSubmitted;
+      } else if (selectedTab === "submitted") {
+        matchTab = isSubmitted;
+      } else if (selectedTab === "evaluated") {
+        matchTab = isEvaluated;
       }
 
-      return matchSubject && matchStatus;
+      return matchSubject && matchTab;
     });
-  }, [assignments, selectedSubject, selectedStatus]);
+  }, [assignments, selectedSubject, selectedTab]);
 
   const handleOpenDetail = (assignment: Assignment) => {
     setActiveAssignment(assignment);
@@ -105,7 +139,7 @@ export default function MisTareasEstudianteTab() {
   const handleSendSubmission = async () => {
     if (!student || !activeAssignment) return;
     if (!submissionText.trim() && !selectedFile && !filePreview) {
-      toast.error("Ingresa una respuesta en texto o adjunta una foto de tu cuaderno.");
+      toast.error("Ingresa una respuesta escrita o adjunta una foto de tu cuaderno escolar.");
       return;
     }
 
@@ -121,21 +155,58 @@ export default function MisTareasEstudianteTab() {
   };
 
   const handleDownloadPdf = async (assignment: Assignment) => {
-    toast.info("Generando reconstrucción virtual del PDF...");
-    await downloadAssignmentPDF({
-      title: assignment.title,
-      subjectName: assignment.subjects?.name || "Asignatura",
-      gradeName: assignment.grades?.name || "Grado",
-      teacherName: assignment.teachers?.full_name || "Docente",
-      dueDate: assignment.due_date,
-      description: assignment.description_json || "Sin descripción",
-    });
+    toast.info("Generando guía oficial en PDF con membrete institucional...");
+    const instData = settings
+      ? {
+          name: settings.legal_name || settings.display_name || "",
+          nit: settings.nit || undefined,
+          address: settings.address || undefined,
+          phone: settings.phone || undefined,
+          rectorName: settings.rector_name || undefined,
+          logoUrl: settings.logo_url || undefined,
+        }
+      : undefined;
+
+    await downloadAssignmentPDF(
+      {
+        title: assignment.title,
+        subjectName: assignment.subjects?.name || "Asignatura",
+        gradeName: assignment.grades?.name || "Grado",
+        teacherName: assignment.teachers?.full_name || "Docente Titular",
+        teacherEmail: assignment.teachers?.email || null,
+        studentName: student?.full_name || undefined,
+        periodName: assignment.academic_periods?.name || undefined,
+        dueDate: assignment.due_date,
+        createdDate: assignment.created_at,
+        description: assignment.description_json || "Sin descripción",
+        attachmentUrl: assignment.attachment_url,
+      },
+      instData
+    );
+  };
+
+  const formatCountdown = (dateStr: string) => {
+    const due = new Date(dateStr);
+    const now = new Date();
+    const diffMs = due.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMs < 0) {
+      return { text: "Plazo vencido", isLate: true, isNear: false };
+    }
+    if (diffDays === 0 || diffDays === 1) {
+      return { text: "¡Vence hoy o mañana!", isLate: false, isNear: true };
+    }
+    return { text: `Quedan ${diffDays} días`, isLate: false, isNear: false };
   };
 
   if (isLoading || guardianQuery.isLoading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-56 items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground font-medium">Cargando cuaderno y tareas...</span>
+        </div>
       </div>
     );
   }
@@ -145,129 +216,254 @@ export default function MisTareasEstudianteTab() {
       <EmptyState
         icon={BookOpen}
         title="Sin estudiante vinculado"
-        description="Rectoría debe verificar la vinculación del estudiante a este usuario."
+        description="Rectoría debe verificar la vinculación del estudiante a este usuario para habilitar las tareas."
       />
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Controles de Filtros */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-lg font-bold text-foreground">Tareas Asignadas</h2>
-          <p className="text-sm text-muted-foreground">
-            Consulta tus deberes, descarga guías e integra evidencias en blanco y negro de tus cuadernos.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Materia" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las Materias</SelectItem>
-              {subjects.map(([id, name]) => (
-                <SelectItem key={id} value={id}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-6 animate-fade-in">
+      {/* Banner de Bienvenida y Rendimiento Académico */}
+      <div className="rounded-3xl border bg-gradient-to-r from-primary/10 via-card to-emerald-500/10 p-5 sm:p-6 shadow-card">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-primary text-primary-foreground text-xs font-semibold px-2.5 py-0.5 rounded-lg shadow-sm">
+                Estudiante Titular
+              </Badge>
+              {metrics.avgScore && (
+                <Badge variant="outline" className="border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold text-xs gap-1">
+                  <Award className="h-3 w-3" /> Promedio Tareas: {metrics.avgScore}
+                </Badge>
+              )}
+            </div>
+            <h1 className="font-heading text-xl sm:text-2xl font-extrabold text-foreground">
+              ¡Hola, {student.full_name}! 👋
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
+              Aquí puedes consultar tus compromisos académicos, descargar las guías oficiales en PDF y subir fotos del cuaderno.
+            </p>
+          </div>
 
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los Estados</SelectItem>
-              <SelectItem value="pending">Pendientes</SelectItem>
-              <SelectItem value="submitted">Entregadas</SelectItem>
-              <SelectItem value="late">Vencidas</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Medidor de Cumplimiento */}
+          <div className="flex items-center gap-3 bg-card/80 backdrop-blur rounded-2xl p-3.5 border shadow-sm self-start md:self-center">
+            <div className="h-11 w-11 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">
+              {metrics.complianceRate}%
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">Tasa de Cumplimiento</p>
+              <p className="text-[11px] text-muted-foreground">
+                {metrics.submitted} de {metrics.total} tareas entregadas
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Lista de Tareas */}
+      {/* Barra de Filtros y Tabs de Navegación */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        {/* Pestañas de Estado */}
+        <div className="flex items-center gap-1.5 bg-muted/50 p-1.5 rounded-2xl border">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedTab("all")}
+            className={cn(
+              "text-xs font-semibold rounded-xl h-8 px-3 transition-all",
+              selectedTab === "all" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Todas ({metrics.total})
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedTab("pending")}
+            className={cn(
+              "text-xs font-semibold rounded-xl h-8 px-3 transition-all",
+              selectedTab === "pending" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Pendientes ({metrics.pending + metrics.late})
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedTab("submitted")}
+            className={cn(
+              "text-xs font-semibold rounded-xl h-8 px-3 transition-all",
+              selectedTab === "submitted" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Entregadas ({metrics.submitted})
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedTab("evaluated")}
+            className={cn(
+              "text-xs font-semibold rounded-xl h-8 px-3 transition-all",
+              selectedTab === "evaluated" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Calificadas ({metrics.evaluatedCount})
+          </Button>
+        </div>
+
+        {/* Filtro por Materia */}
+        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+          <SelectTrigger className="w-48 text-xs h-9 rounded-xl">
+            <SelectValue placeholder="Filtrar por Materia" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las Materias</SelectItem>
+            {subjects.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Grid de Tareas Estudiantiles */}
       {filteredAssignments.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="Sin tareas registradas"
-          description="No se encontraron tareas asignadas para el filtro seleccionado."
+          title="Sin tareas en esta categoría"
+          description="¡Buen trabajo! No tienes tareas pendientes bajo este filtro actualmente."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAssignments.map((assignment) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
+          {filteredAssignments.map((assignment, idx) => {
             const isSubmitted = Boolean(assignment.user_submission?.submitted_at);
             const isEvaluated = assignment.user_submission?.status === "evaluated";
             const dueDateObj = new Date(assignment.due_date);
-            const isPastDue = dueDateObj < new Date();
+            const countdown = formatCountdown(assignment.due_date);
 
             return (
               <div
                 key={assignment.id}
-                className="group relative flex flex-col justify-between rounded-xl border bg-card p-5 shadow-card hover-lift transition-all"
+                className={cn(
+                  "group relative flex flex-col justify-between rounded-2xl border bg-card p-5 shadow-card hover-lift transition-all animate-slide-up",
+                  isEvaluated
+                    ? "border-emerald-500/40 hover:border-emerald-500"
+                    : isSubmitted
+                    ? "border-primary/40 hover:border-primary"
+                    : countdown.isNear
+                    ? "border-amber-500/40 hover:border-amber-500"
+                    : "hover:border-primary/30"
+                )}
+                style={{ animationDelay: `${idx * 0.05}s` }}
               >
                 <div>
+                  {/* Header de la Tarjeta */}
                   <div className="flex items-start justify-between gap-2">
-                    <Badge className={cn("text-white border-0 text-xs", assignment.subjects?.color || "bg-primary")}>
-                      {assignment.subjects?.name || "Materia"}
+                    <Badge
+                      className={cn(
+                        "text-white border-0 text-xs font-semibold px-2.5 py-0.5 rounded-lg shadow-sm",
+                        assignment.subjects?.color || "bg-primary"
+                      )}
+                    >
+                      {assignment.subjects?.name || "Asignatura"}
                     </Badge>
+
                     {isEvaluated ? (
-                      <Badge variant="outline" className="border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                        Nota: {assignment.user_submission?.score ?? "Evaluada"}
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold text-xs gap-1">
+                        <Award className="h-3 w-3" /> Nota: {assignment.user_submission?.score ?? "5.0"}
                       </Badge>
                     ) : isSubmitted ? (
-                      <Badge variant="outline" className="border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300 gap-1">
+                      <Badge className="bg-primary/10 text-primary border-primary/20 font-semibold text-xs gap-1">
                         <CheckCircle2 className="h-3 w-3" /> Entregada
                       </Badge>
-                    ) : isPastDue ? (
-                      <Badge variant="destructive" className="gap-1">
-                        <AlertCircle className="h-3 w-3" /> Vencida
+                    ) : countdown.isLate ? (
+                      <Badge variant="destructive" className="font-semibold text-xs gap-1">
+                        <AlertCircle className="h-3 w-3" /> Plazo Vencido
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" className="gap-1">
-                        <Clock className="h-3 w-3" /> Pendiente
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[11px] font-semibold",
+                          countdown.isNear && "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        )}
+                      >
+                        <Clock className="h-3 w-3 mr-1" /> {countdown.text}
                       </Badge>
                     )}
                   </div>
 
-                  <h3 className="mt-3 font-bold text-foreground text-base group-hover:text-primary transition-colors">
+                  <h3 className="mt-3.5 font-bold text-foreground text-base group-hover:text-primary transition-colors leading-snug line-clamp-2">
                     {assignment.title}
                   </h3>
 
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                    {assignment.description_json?.replace(/<[^>]*>?/gm, "") || "Sin descripción."}
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                    {assignment.description_json?.replace(/<[^>]*>?/gm, "") || "Sin instrucciones detalladas."}
                   </p>
+
+                  {/* Burbuja de Retroalimentación del Docente */}
+                  {isEvaluated && assignment.user_submission?.feedback && (
+                    <div className="mt-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-2">
+                      <MessageSquareQuote className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-bold text-[11px] uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                          Mensaje del Docente:
+                        </p>
+                        <p className="italic leading-relaxed">{assignment.user_submission.feedback}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-border space-y-3">
+                {/* Footer de la Tarjeta */}
+                <div className="mt-5 pt-3.5 border-t border-border space-y-3.5">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5 font-medium">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
                       Límite: {dueDateObj.toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
                     </span>
-                    <span className="truncate max-w-[120px]">{assignment.teachers?.full_name}</span>
+                    <span className="truncate max-w-[130px] font-medium text-foreground">
+                      {assignment.teachers?.full_name || "Docente"}
+                    </span>
                   </div>
 
-                  <div className="flex gap-2">
+                  {/* Acciones */}
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 text-xs gap-1.5"
+                      className="flex-1 text-xs gap-1.5 rounded-xl font-semibold hover:border-primary/40"
                       onClick={() => handleOpenDetail(assignment)}
                     >
-                      <FileText className="h-3.5 w-3.5" /> Ver Guía
+                      <FileText className="h-3.5 w-3.5 text-primary" /> Ver Guía
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 text-primary hover:bg-primary/10 hover:border-primary/40 shrink-0 rounded-xl"
+                      title="Descargar Guía Oficial en PDF con Escudo"
+                      onClick={() => void handleDownloadPdf(assignment)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
                     </Button>
 
                     <Button
                       size="sm"
-                      className={cn("flex-1 text-xs gap-1.5", isSubmitted && "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
+                      className={cn(
+                        "flex-1 text-xs gap-1.5 rounded-xl font-semibold shadow-soft",
+                        isSubmitted
+                          ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                          : "bg-primary text-primary-foreground"
+                      )}
                       onClick={() => handleOpenSubmission(assignment)}
                     >
                       <Upload className="h-3.5 w-3.5" />
-                      {isSubmitted ? "Editar Entrega" : "Entregar"}
+                      {isSubmitted ? "Editar Entrega" : "Entregar Tarea"}
                     </Button>
                   </div>
                 </div>
@@ -277,13 +473,18 @@ export default function MisTareasEstudianteTab() {
         </div>
       )}
 
-      {/* Modal de Detalle de Tarea & Reconstrucción Virtual PDF */}
+      {/* Modal de Detalle de Guía Oficial */}
       {activeAssignment && (
         <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl">
             <DialogHeader>
               <div className="flex items-center gap-2">
-                <Badge className={cn("text-white border-0 text-xs", activeAssignment.subjects?.color || "bg-primary")}>
+                <Badge
+                  className={cn(
+                    "text-white border-0 text-xs font-semibold px-2.5 py-0.5 rounded-lg",
+                    activeAssignment.subjects?.color || "bg-primary"
+                  )}
+                >
                   {activeAssignment.subjects?.name}
                 </Badge>
                 <span className="text-xs text-muted-foreground">• {activeAssignment.grades?.name}</span>
@@ -293,10 +494,11 @@ export default function MisTareasEstudianteTab() {
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 py-2 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/50 p-3 text-xs">
+            <div className="space-y-4 py-2 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/50 p-3.5 text-xs">
                 <div>
-                  <span className="font-semibold text-foreground">Docente:</span> {activeAssignment.teachers?.full_name}
+                  <span className="font-semibold text-foreground">Docente Titular:</span>{" "}
+                  {activeAssignment.teachers?.full_name || "Docente"}
                 </div>
                 <div>
                   <span className="font-semibold text-foreground">Fecha Límite:</span>{" "}
@@ -305,11 +507,11 @@ export default function MisTareasEstudianteTab() {
               </div>
 
               <div>
-                <h4 className="font-semibold text-foreground mb-1.5 uppercase text-xs tracking-wider">
-                  Instrucciones de la Actividad:
+                <h4 className="font-semibold text-foreground mb-1.5 uppercase text-[11px] tracking-wider">
+                  Instrucciones y Desarrollo de la Guía:
                 </h4>
-                <div className="rounded-lg border bg-card p-4 text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                  {activeAssignment.description_json || "Sin instrucciones adicionadas."}
+                <div className="rounded-xl border bg-card p-4 text-muted-foreground leading-relaxed whitespace-pre-wrap text-sm">
+                  {activeAssignment.description_json || "Sin instrucciones detalladas."}
                 </div>
               </div>
             </div>
@@ -318,11 +520,17 @@ export default function MisTareasEstudianteTab() {
               <Button
                 variant="outline"
                 onClick={() => void handleDownloadPdf(activeAssignment)}
-                className="gap-2 text-xs"
+                className="gap-2 text-xs rounded-xl"
               >
-                <Download className="h-4 w-4" /> Reconstruir y Exportar PDF Virtual
+                <Download className="h-4 w-4 text-primary" /> Descargar Guía Oficial en PDF
               </Button>
-              <Button onClick={() => { setDetailModalOpen(false); handleOpenSubmission(activeAssignment); }} className="gap-2 text-xs">
+              <Button
+                onClick={() => {
+                  setDetailModalOpen(false);
+                  handleOpenSubmission(activeAssignment);
+                }}
+                className="gap-2 text-xs rounded-xl shadow-soft font-semibold"
+              >
                 <Upload className="h-4 w-4" /> Ir a Entregar Tarea
               </Button>
             </DialogFooter>
@@ -330,64 +538,95 @@ export default function MisTareasEstudianteTab() {
         </Dialog>
       )}
 
-      {/* Modal de Entrega con Optimizador de Escáner */}
+      {/* Modal de Entrega con Dropzone Táctil y Cámara */}
       {activeAssignment && (
         <Dialog open={submissionModalOpen} onOpenChange={setSubmissionModalOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg rounded-2xl">
             <DialogHeader>
-              <DialogTitle className="text-lg font-bold">Entrega de Tarea: {activeAssignment.title}</DialogTitle>
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                  <Upload className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold text-foreground">
+                    Entrega: {activeAssignment.title}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {activeAssignment.subjects?.name} • Docente: {activeAssignment.teachers?.full_name}
+                  </p>
+                </div>
+              </div>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
+            <div className="space-y-4 py-2 text-xs">
               <div>
                 <Label htmlFor="submission_text" className="text-xs font-semibold">
-                  Respuesta o Comentarios de Entrega:
+                  Respuesta o Comentarios de tu Entrega:
                 </Label>
                 <Textarea
                   id="submission_text"
-                  placeholder="Escribe aquí tu respuesta, enlace o comentarios para el profesor..."
+                  placeholder="Escribe aquí tu solución, enlaces a documentos o comentarios para el docente..."
                   value={submissionText}
                   onChange={(e) => setSubmissionText(e.target.value)}
-                  className="mt-1 min-h-[100px]"
+                  className="mt-1 min-h-[90px] rounded-xl text-sm leading-relaxed"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Adjuntar Evidencia de Cuaderno (Optimizador de Escáner):</Label>
-                <div className="mt-1.5 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-4 text-center hover:bg-secondary/40 transition-colors">
+                <Label className="text-xs font-semibold">
+                  Adjuntar Foto del Cuaderno (Optimizador de Escáner B/N):
+                </Label>
+                <div className="mt-1.5 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-5 text-center hover:bg-secondary/40 transition-colors">
                   {filePreview ? (
-                    <div className="space-y-2 w-full">
-                      <img src={filePreview} alt="Evidencia previa" className="max-h-48 mx-auto rounded border object-contain" />
-                      <p className="text-xs text-muted-foreground">Foto seleccionada (se aplicará binarización B/N al enviar)</p>
+                    <div className="space-y-2.5 w-full">
+                      <img
+                        src={filePreview}
+                        alt="Evidencia seleccionada"
+                        className="max-h-48 mx-auto rounded-xl border object-contain shadow-sm"
+                      />
+                      <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 font-semibold">
+                        <Check className="h-4 w-4" /> Foto lista para enviar y optimizar
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center">
-                      <Camera className="h-8 w-8 text-primary mb-2" />
-                      <p className="text-xs font-medium text-foreground">Toma una foto o selecciona la imagen del cuaderno</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Se reducirá automáticamente de 5 MB a ~30 KB</p>
+                      <div className="p-3 bg-primary/10 rounded-2xl text-primary mb-2">
+                        <Camera className="h-6 w-6" />
+                      </div>
+                      <p className="text-xs font-semibold text-foreground">
+                        Toma una foto con tu celular o arrastra la imagen del cuaderno
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        El sistema reducirá el peso de ~5 MB a ~30 KB conservando legibilidad
+                      </p>
                     </div>
                   )}
                   <Input
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="mt-3 text-xs max-w-xs"
+                    className="mt-3 text-xs max-w-xs rounded-xl"
                   />
                 </div>
               </div>
 
               {activeAssignment.user_submission?.feedback && (
-                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-800 dark:text-emerald-300">
-                  <span className="font-bold">Retroalimentación del Docente:</span> {activeAssignment.user_submission.feedback}
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-900 dark:text-emerald-200">
+                  <span className="font-bold">Retroalimentación actual del profesor:</span>{" "}
+                  {activeAssignment.user_submission.feedback}
                 </div>
               )}
             </div>
 
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setSubmissionModalOpen(false)}>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setSubmissionModalOpen(false)} className="rounded-xl">
                 Cancelar
               </Button>
-              <Button onClick={() => void handleSendSubmission()} disabled={submitMutation.isPending} className="gap-2">
+              <Button
+                onClick={() => void handleSendSubmission()}
+                disabled={submitMutation.isPending}
+                className="gap-2 rounded-xl shadow-soft font-semibold"
+              >
                 {submitMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Confirmar y Enviar Tarea
               </Button>
