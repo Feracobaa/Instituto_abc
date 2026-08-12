@@ -141,6 +141,18 @@ export async function syncOfflineAttendanceQueue(): Promise<number> {
 
     let syncedCount = 0;
     for (const item of records) {
+      // Las capturas faciales offline no tienen evidencia PAD verificable y no
+      // pueden convertirse en asistencia oficial mientras el scanner está
+      // suspendido. Se descartan al reconectar; la asistencia manual continúa.
+      if (item.method === 'facial_mobile') {
+        if (item.id) {
+          const txDiscard = db.transaction(STORE_ATTENDANCE_QUEUE, 'readwrite');
+          txDiscard.objectStore(STORE_ATTENDANCE_QUEUE).delete(item.id);
+        }
+        console.warn('Asistencia facial offline descartada: biometría suspendida por seguridad.');
+        continue;
+      }
+
       const { error } = await supabase.rpc('sync_biometric_attendance_offline', {
         p_student_id: item.studentId,
         p_attendance_date: item.timestamp.split('T')[0],

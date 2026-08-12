@@ -152,32 +152,11 @@ export async function deleteStaffBiometric(
  * Ejecuta búsqueda biométrica sub-milisegundo en servidor PostgreSQL pgvector HNSW
  */
 export async function matchStudentBiometricsRemote(
-  scannedEmbedding: number[],
-  studentIds?: string[],
-  matchThreshold = 0.78
+  _scannedEmbedding: number[],
+  _studentIds?: string[],
+  _matchThreshold = 0.78
 ): Promise<MatchResult | null> {
-  if (!scannedEmbedding || scannedEmbedding.length !== 128) return null;
-
-  try {
-    const vectorStr = `[${scannedEmbedding.join(',')}]`;
-    const { data, error } = await supabase.rpc('match_student_biometrics', {
-      query_embedding: vectorStr,
-      match_threshold: matchThreshold,
-      student_ids: studentIds && studentIds.length ? studentIds : null,
-    });
-
-    if (!error && data && data.length > 0) {
-      const top = data[0];
-      return {
-        student_id: top.student_id,
-        distance: top.distance,
-        confidence: Math.round((top.similarity || 0.85) * 100),
-        cosineSimilarity: top.similarity,
-      };
-    }
-  } catch (e) {
-    console.warn('Error en RPC match_student_biometrics de pgvector:', e);
-  }
-
+  // The attendance scanner is disabled until PAD is server-verifiable. Do not
+  // expose a generic client-to-vector matching route in the meantime.
   return null;
 }

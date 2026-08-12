@@ -7,6 +7,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 import {
+  matchStudentBiometricsRemote,
   upsertStaffBiometric,
 } from '@/features/biometrics/services/biometricRepository';
 import {
@@ -41,7 +42,15 @@ describe('Fase 1 — contratos cliente/backend biométricos', () => {
     const source = syncOfflineAttendanceQueue.toString();
 
     expect(source).toContain("sync_biometric_attendance_offline");
+    expect(source).toContain("item.method === 'facial_mobile'");
     expect(source).not.toContain('liveness_verified: true');
     expect(source).not.toContain('liveness_status:');
+  });
+
+  it('no invoca matching biométrico remoto mientras PAD no sea verificable en servidor', async () => {
+    const result = await matchStudentBiometricsRemote(Array(128).fill(0), ['student-id']);
+
+    expect(result).toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
