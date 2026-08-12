@@ -76,16 +76,19 @@ Deno.serve(async (req: Request) => {
   // one-time nonce and validated capture evidence) is deployed.  This check is
   // deliberately before parsing the biometric vector or issuing a magic link so
   // direct API calls cannot bypass the UI challenge.
-  return new Response(
-    JSON.stringify({
-      error: "El inicio de sesión facial está temporalmente deshabilitado hasta completar la verificación de vida en servidor.",
-      code: "BIOMETRIC_LOGIN_REQUIRES_SERVER_PAD",
-    }),
-    {
-      status: 503,
-      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
-    }
-  );
+  const REQUIRE_SERVER_PAD = true;
+  if (REQUIRE_SERVER_PAD) {
+    return new Response(
+      JSON.stringify({
+        error: "El inicio de sesión facial está temporalmente deshabilitado hasta completar la verificación de vida en servidor.",
+        code: "BIOMETRIC_LOGIN_REQUIRES_SERVER_PAD",
+      }),
+      {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+      }
+    );
+  }
 
   const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
   const userAgent = req.headers.get("user-agent") || "unknown";
@@ -106,7 +109,7 @@ Deno.serve(async (req: Request) => {
 
     // 1. Validación estricta de institución (Aislamiento Multi-Tenant)
     const institutionId = body.institution_id;
-    if (!institutionId || typeof institutionId !== "string" || !UUID_REGEX.test(institutionId)) {
+    if (typeof institutionId !== "string" || !UUID_REGEX.test(institutionId)) {
       return new Response(
         JSON.stringify({ error: "Identificador institucional inválido o ausente (institution_id requerido)." }),
         {

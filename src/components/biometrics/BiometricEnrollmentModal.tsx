@@ -172,7 +172,7 @@ export const BiometricEnrollmentModal: React.FC<BiometricEnrollmentModalProps> =
       if (videoRef.current.readyState >= 2 && !videoRef.current.paused) {
         await processFrame(videoRef.current, handleSaveCentroid);
       }
-      if (isSubscribed && step !== 'complete') {
+      if (isSubscribed) {
         animFrameRef.current = requestAnimationFrame(() => void loop());
       }
     };

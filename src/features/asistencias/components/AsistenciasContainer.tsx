@@ -47,6 +47,9 @@ import {
   isDateWithinPeriod,
   type AttendanceDraftMap,
 } from "@/features/asistencias/helpers";
+import { MobileFacialScanner } from "@/components/biometrics/MobileFacialScanner";
+import { useBiometrics } from "@/hooks/school/useBiometrics";
+import type { StudentBiometric } from "@/types/biometrics";
 
 const STATUS_OPTIONS: Array<{ label: string; value: AttendanceStatus }> = [
   { label: "Presente", value: "present" },
@@ -101,6 +104,10 @@ export function AsistenciasContainer() {
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [draftMap, setDraftMap] = useState<AttendanceDraftMap>({});
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [registeredBiometrics, setRegisteredBiometrics] = useState<StudentBiometric[]>([]);
+
+  const { getBiometricsForStudents, loading: isLoadingBiometrics } = useBiometrics();
 
   const periodsQuery = useAcademicPeriods();
   const classContextsQuery = useAttendanceClassContexts({
@@ -327,6 +334,23 @@ export function AsistenciasContainer() {
         status: previous[studentId]?.status ?? "",
       },
     }));
+  };
+
+  const handleOpenScanner = async () => {
+    if (!students.length) {
+      toast.warning("No hay estudiantes en la lista para escanear.");
+      return;
+    }
+    try {
+      const biometrics = await getBiometricsForStudents(students.map((s) => s.id));
+      if (!biometrics.length) {
+        toast.info("Ningún estudiante de este grado tiene huella facial registrada aún.");
+      }
+      setRegisteredBiometrics(biometrics);
+      setIsScannerOpen(true);
+    } catch {
+      toast.error("Error al cargar las huellas faciales del curso.");
+    }
   };
 
   const getStatusLabel = (status: AttendanceStatus | "") => {
@@ -603,6 +627,26 @@ export function AsistenciasContainer() {
               <Button
                 type="button"
                 variant="outline"
+                onClick={handleOpenScanner}
+                disabled={
+                  !canEditDate
+                  || saveAttendance.isPending
+                  || isLoadingBiometrics
+                  || !selectedContext
+                  || students.length === 0
+                }
+                className="gap-2 border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
+              >
+                {isLoadingBiometrics ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
+                Escanear con cámara
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 onClick={markAllPresent}
                 disabled={!canEditDate || saveAttendance.isPending}
                 className="gap-2"
@@ -764,6 +808,22 @@ export function AsistenciasContainer() {
             </div>
           )}
         </div>
+      )}
+
+      {isScannerOpen && selectedContext && (
+        <MobileFacialScanner
+          students={students.map((s) => ({ id: s.id, name: s.full_name }))}
+          registeredBiometrics={registeredBiometrics}
+          offlineContext={{
+            gradeId: selectedContext.grade_id,
+            subjectId: selectedContext.subject_id,
+            teacherId: selectedContext.teacher_id,
+          }}
+          onAttendanceMarked={(studentId, status) => {
+            setDraftStatus(studentId, status);
+          }}
+          onClose={() => setIsScannerOpen(false)}
+        />
       )}
     </div>
   );
