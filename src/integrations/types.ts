@@ -256,6 +256,60 @@ export type Database = {
           },
         ]
       }
+      biometric_audit_logs: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          institution_id: string
+          ip_address: string | null
+          metadata: Json
+          similarity_score: number | null
+          student_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          institution_id: string
+          ip_address?: string | null
+          metadata?: Json
+          similarity_score?: number | null
+          student_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          institution_id?: string
+          ip_address?: string | null
+          metadata?: Json
+          similarity_score?: number | null
+          student_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biometric_audit_logs_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biometric_audit_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_transactions: {
         Row: {
           amount: number
@@ -1228,6 +1282,33 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedules: {
         Row: {
           created_at: string
@@ -1358,6 +1439,8 @@ export type Database = {
           id: string
           institution_id: string
           justification_note: string | null
+          liveness_status: string
+          liveness_verified: boolean
           period_id: string
           status: Database["public"]["Enums"]["attendance_status_enum"]
           student_id: string
@@ -1372,6 +1455,8 @@ export type Database = {
           id?: string
           institution_id?: string
           justification_note?: string | null
+          liveness_status?: string
+          liveness_verified?: boolean
           period_id: string
           status: Database["public"]["Enums"]["attendance_status_enum"]
           student_id: string
@@ -1386,6 +1471,8 @@ export type Database = {
           id?: string
           institution_id?: string
           justification_note?: string | null
+          liveness_status?: string
+          liveness_verified?: boolean
           period_id?: string
           status?: Database["public"]["Enums"]["attendance_status_enum"]
           student_id?: string
@@ -1448,6 +1535,41 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_biometrics: {
+        Row: {
+          created_at: string
+          id: string
+          institution_id: string | null
+          updated_at: string
+          user_id: string
+          vec_embedding: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          institution_id?: string | null
+          updated_at?: string
+          user_id: string
+          vec_embedding?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          institution_id?: string | null
+          updated_at?: string
+          user_id?: string
+          vec_embedding?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_biometrics_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
             referencedColumns: ["id"]
           },
         ]
@@ -2399,6 +2521,25 @@ export type Database = {
           distance: number
           similarity: number
         }[]
+      }
+      sync_biometric_attendance_offline: {
+        Args: {
+          p_attendance_date: string
+          p_grade_id: string
+          p_status: Database["public"]["Enums"]["attendance_status_enum"]
+          p_student_id: string
+          p_subject_id: string
+          p_teacher_id: string
+        }
+        Returns: string
+      }
+      upsert_staff_biometric: {
+        Args: {
+          p_embedding: string
+          p_institution_id: string
+          p_user_id: string
+        }
+        Returns: string
       }
       update_guardian_profile: {
         Args: {

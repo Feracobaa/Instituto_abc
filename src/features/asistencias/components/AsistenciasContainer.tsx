@@ -630,12 +630,12 @@ export function AsistenciasContainer() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsScannerOpen(true)}
-                disabled={!canEditDate || students.length === 0}
-                className="gap-2 border-emerald-600 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
+                disabled
+                title="Disponible cuando la verificación de vida del escáner esté implementada"
+                className="gap-2 border-emerald-200 bg-emerald-50 text-emerald-700/50 cursor-not-allowed"
               >
                 <ScanFace className="h-4 w-4 text-emerald-600" />
-                Escanear Cámara (Facial)
+                Escáner facial temporalmente no disponible
               </Button>
               <Button
                 type="button"
@@ -807,6 +807,11 @@ export function AsistenciasContainer() {
         <MobileFacialScanner
           students={students.map((s) => ({ id: s.id, name: s.full_name }))}
           registeredBiometrics={registeredBiometrics}
+          offlineContext={{
+            gradeId: selectedContext.grade_id,
+            subjectId: selectedContext.subject_id,
+            teacherId: selectedContext.teacher_id,
+          }}
           onAttendanceMarked={handleFacialAttendanceMarked}
           onClose={() => setIsScannerOpen(false)}
         />

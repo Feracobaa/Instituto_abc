@@ -44,7 +44,7 @@ const getDirectorGrades = (
 const Profesores = () => {
   const { data: teachers, isLoading } = useTeachers();
   const deleteTeacher = useDeleteTeacher();
-  const { userRole } = useAuth();
+  const { userRole, effectiveInstitutionId } = useAuth();
   const isRector = userRole === 'rector';
 
   const [formOpen, setFormOpen] = useState(false);
@@ -61,6 +61,9 @@ const Profesores = () => {
 
   const handleEnrollBiometrics = (teacher: { user_id?: string | null; full_name: string }) => {
     if (!teacher.user_id) {
+      return;
+    }
+    if (!effectiveInstitutionId) {
       return;
     }
     setTeacherForBiometrics({ userId: teacher.user_id, name: teacher.full_name });
@@ -321,6 +324,7 @@ const Profesores = () => {
         <StaffBiometricEnrollmentModal
           userId={teacherForBiometrics.userId}
           staffName={teacherForBiometrics.name}
+          institutionId={effectiveInstitutionId ?? ''}
           isOpen={biometricModalOpen}
           onClose={() => setBiometricModalOpen(false)}
         />

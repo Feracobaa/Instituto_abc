@@ -22,6 +22,11 @@ interface StudentInfo {
 interface MobileFacialScannerProps {
   students: StudentInfo[];
   registeredBiometrics: StudentBiometric[];
+  offlineContext: {
+    gradeId: string;
+    subjectId: string;
+    teacherId: string;
+  };
   onAttendanceMarked: (studentId: string, status: 'present' | 'absent' | 'justified', method: 'facial_mobile') => void;
   onClose: () => void;
 }
@@ -29,6 +34,7 @@ interface MobileFacialScannerProps {
 export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
   students,
   registeredBiometrics,
+  offlineContext,
   onAttendanceMarked,
   onClose,
 }) => {
@@ -211,6 +217,9 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
           status: 'present',
           method: 'facial_mobile',
           timestamp: new Date().toISOString(),
+          gradeId: offlineContext.gradeId,
+          subjectId: offlineContext.subjectId,
+          teacherId: offlineContext.teacherId,
         });
       } else {
         onAttendanceMarked(studentId, 'present', 'facial_mobile');
@@ -249,7 +258,7 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
         }, 300);
       }
     }, 100);
-  }, [onAttendanceMarked]);
+  }, [onAttendanceMarked, offlineContext]);
 
   /**
    * Procesa un fotograma del video en tiempo real
@@ -584,5 +593,4 @@ export const MobileFacialScanner: React.FC<MobileFacialScannerProps> = ({
     </div>
   );
 };
-
 

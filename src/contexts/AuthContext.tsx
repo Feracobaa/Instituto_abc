@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/types';
 import { buildGuardianAuthEmail, isLikelyEmailLogin } from '@/lib/guardianAuth';
 import { PresenceTracker } from '@/components/presence/PresenceTracker';
+import { purgeBiometricsOfflineCache } from '@/utils/biometricOfflineCache';
 
 type SupportedUserRole = 'rector' | 'profesor' | 'parent' | 'contable';
 type UserRole = SupportedUserRole | null;
@@ -297,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    await purgeBiometricsOfflineCache();
     await supabase.auth.signOut();
     supabase.functions.setAuth('');
     hydratedUserIdRef.current = null;

@@ -13,6 +13,9 @@ export interface OfflineAttendanceRecord {
   status: 'present' | 'absent' | 'justified';
   method: string;
   timestamp: string;
+  gradeId: string;
+  subjectId: string;
+  teacherId: string;
 }
 
 /**
@@ -48,55 +51,48 @@ export function openBiometricsDB(): Promise<IDBDatabase> {
 }
 
 /**
- * Almacena las huellas biométricas de un curso en IndexedDB para funcionamiento Offline
+ * No se persisten templates faciales en el navegador. IndexedDB no protege los
+ * embeddings frente a XSS ni frente a un perfil local comprometido.
  */
 export async function cacheCourseBiometricsOffline(
-  courseKey: string,
-  biometrics: StudentBiometric[]
+  _courseKey: string,
+  _biometrics: StudentBiometric[]
 ): Promise<boolean> {
+  await purgeBiometricsOfflineCache();
+  return false;
+}
+
+/**
+ * Retira cualquier caché heredada y nunca devuelve embeddings desde el navegador.
+ */
+export async function getCachedCourseBiometricsOffline(
+  _courseKey: string
+): Promise<StudentBiometric[]> {
+  await purgeBiometricsOfflineCache();
+  return [];
+}
+
+/**
+ * Purga completamente los templates biométricos almacenados en IndexedDB
+ * (ejecutado al cerrar sesión para evitar retención en dispositivos compartidos)
+ */
+export async function purgeBiometricsOfflineCache(): Promise<boolean> {
   try {
     const db = await openBiometricsDB();
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_BIOMETRICS, 'readwrite');
       const store = tx.objectStore(STORE_BIOMETRICS);
-      store.put({
-        courseKey,
-        biometrics,
-        updatedAt: new Date().toISOString(),
-      });
-
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
-    });
-  } catch (e) {
-    console.warn('Error al guardar caché biométrica local:', e);
-    return false;
-  }
-}
-
-/**
- * Recupera las huellas biométricas de un curso guardadas localmente en IndexedDB
- */
-export async function getCachedCourseBiometricsOffline(
-  courseKey: string
-): Promise<StudentBiometric[]> {
-  try {
-    const db = await openBiometricsDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_BIOMETRICS, 'readonly');
-      const store = tx.objectStore(STORE_BIOMETRICS);
-      const request = store.get(courseKey);
+      const request = store.clear();
 
       request.onsuccess = () => {
-        const result = request.result;
-        resolve(result && result.biometrics ? result.biometrics : []);
+        console.info('Caché biométrica local purgada con éxito por seguridad.');
+        resolve(true);
       };
-
-      request.onerror = () => resolve([]);
+      request.onerror = () => resolve(false);
     });
   } catch (e) {
-    console.warn('Error recuperando caché biométrica local:', e);
-    return [];
+    console.warn('Error al purgar caché biométrica local:', e);
+    return false;
   }
 }
 
@@ -145,21 +141,14 @@ export async function syncOfflineAttendanceQueue(): Promise<number> {
 
     let syncedCount = 0;
     for (const item of records) {
-      const { error } = await (supabase.from('student_attendance') as unknown as {
-        upsert: (
-          values: Record<string, unknown>,
-          options?: { onConflict?: string }
-        ) => Promise<{ error: unknown }>;
-      }).upsert(
-        {
-          student_id: item.studentId,
-          attendance_date: item.timestamp.split('T')[0],
-          status: item.status,
-          capture_method: item.method,
-          liveness_verified: true,
-        },
-        { onConflict: 'student_id,attendance_date' }
-      );
+      const { error } = await supabase.rpc('sync_biometric_attendance_offline', {
+        p_student_id: item.studentId,
+        p_attendance_date: item.timestamp.split('T')[0],
+        p_status: item.status,
+        p_grade_id: item.gradeId,
+        p_subject_id: item.subjectId,
+        p_teacher_id: item.teacherId,
+      });
 
       if (!error && item.id) {
         syncedCount++;

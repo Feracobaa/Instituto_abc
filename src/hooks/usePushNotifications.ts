@@ -53,8 +53,7 @@ export function usePushNotifications() {
       
       if (subscription) {
         // Double check in database that this subscription exists
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("push_subscriptions")
           .select("id")
           .eq("user_id", user.id)
@@ -100,8 +99,7 @@ export function usePushNotifications() {
         : "";
 
       // Insert subscription record into database
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from("push_subscriptions").insert({
+      const { error } = await supabase.from("push_subscriptions").insert({
         user_id: userId,
         endpoint: subscription.endpoint,
         p256dh,
@@ -221,8 +219,7 @@ export function usePushNotifications() {
         await subscription.unsubscribe();
 
         // 2. Remove from DB
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from("push_subscriptions")
           .delete()
           .eq("user_id", user.id)

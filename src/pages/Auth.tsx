@@ -31,6 +31,7 @@ export default function Auth() {
   const [loginData, setLoginData] = useState({ identifier: "", password: "" });
 
   const [branding, setBranding] = useState<{
+    id?: string;
     accent_color?: string;
     cover_image_url?: string;
     name?: string;
@@ -240,11 +241,12 @@ export default function Auth() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsBiometricModalOpen(true)}
-              className="h-12 w-full border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200 transition-all font-semibold flex items-center justify-center gap-2"
+              disabled
+              title="Disponible cuando la verificación de vida en servidor esté implementada"
+              className="h-12 w-full border-cyan-500/20 bg-cyan-500/5 text-cyan-300/50 font-semibold flex items-center justify-center gap-2 cursor-not-allowed"
             >
               <Camera className="h-5 w-5 text-cyan-400" />
-              Ingresar con mi Rostro
+              Acceso facial temporalmente no disponible
             </Button>
           </div>
 
@@ -256,6 +258,7 @@ export default function Auth() {
 
       <BiometricLoginModal
         isOpen={isBiometricModalOpen}
+        institutionId={branding.id}
         onClose={() => setIsBiometricModalOpen(false)}
         onSuccess={() => {
           navigate(isProviderOwner ? "/etymon" : "/");
