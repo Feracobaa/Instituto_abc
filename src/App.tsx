@@ -60,8 +60,12 @@ const App = () => (
     <TooltipProvider>
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Analytics />
-        <SpeedInsights />
+        {import.meta.env.PROD && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
         <AuthProvider>
           <Suspense fallback={<AppFallback />}>
             <Routes>

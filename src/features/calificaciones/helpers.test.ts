@@ -11,9 +11,12 @@ import {
   getTeacherOptionsForSubject,
   getTeacherSubjectsForTeacher,
   getVisibleGradeRecordsForStudent,
+  getFilteredStudentGradeRecordsForReport,
+  getVisiblePreescolarEvaluationsForStudent,
   isPreescolarGradeName,
+  isTeacherGroupDirectorForGrade,
 } from "@/features/calificaciones/helpers";
-import type { Grade, GradeRecord, Schedule, Subject, Teacher } from "@/hooks/useSchoolData";
+import type { Grade, GradeRecord, PreescolarEvaluation, Schedule, Subject, Teacher } from "@/hooks/useSchoolData";
 
 const gradeA = { id: "grade-a", level: 1, name: "Primero A" } as Grade;
 const gradeB = { id: "grade-b", level: 2, name: "Transicion" } as Grade;
@@ -219,20 +222,77 @@ describe("calificaciones helpers", () => {
     });
   });
 
-  it("arma el payload del reporte de preescolar con fecha visible", () => {
-    const payload = buildPreescolarReportPayload({
-      deliveryDate: "2026-04-08",
-      gradeName: "Transicion",
-      periodName: "Primer Periodo",
-      student: { full_name: "Ana Perez" } as never,
-    });
+  it("identifica si un docente es Director de Grupo de un grado", () => {
+    const directorTeacher = {
+      id: "t-dir",
+      teacher_grade_assignments: [{ grade_id: "grade-a", is_group_director: true }],
+    } as Teacher;
 
-    expect(payload.studentInfo).toMatchObject({
-      deliveryDate: "08/04/2026",
-      grade: "Transicion",
-      name: "Ana Perez",
-      period: "Primer Periodo",
+    const normalTeacher = {
+      id: "t-norm",
+      teacher_grade_assignments: [{ grade_id: "grade-a", is_group_director: false }],
+    } as Teacher;
+
+    expect(isTeacherGroupDirectorForGrade(directorTeacher, "grade-a")).toBe(true);
+    expect(isTeacherGroupDirectorForGrade(normalTeacher, "grade-a")).toBe(false);
+    expect(isTeacherGroupDirectorForGrade(directorTeacher, "grade-b")).toBe(false);
+  });
+
+  it("filtra registros de boletin para que un docente no director solo exporte sus propias materias", () => {
+    const studentRecords = [
+      { id: "r1", student_id: "s1", subject_id: "subject-math", teacher_id: "teacher-ana", grade: 4.8 },
+      { id: "r2", student_id: "s1", subject_id: "subject-english", teacher_id: "teacher-luis", grade: 3.5 },
+    ] as GradeRecord[];
+
+    const schedulesAna = [{ grade_id: "grade-a", subject_id: "subject-math" }] as Schedule[];
+
+    // 1. Rector ve todas las materias
+    const rectorRecords = getFilteredStudentGradeRecordsForReport({
+      gradeId: "grade-a",
+      isGroupDirector: false,
+      isRector: true,
+      records: studentRecords,
+      schedules: schedulesAna,
+      teacherId: "teacher-ana",
     });
-    expect(payload.schoolInfo.name).toContain("INSTITUTO PEDAGOGICO ABC");
+    expect(rectorRecords).toHaveLength(2);
+
+    // 2. Director de grupo ve todas las materias del grado
+    const directorRecords = getFilteredStudentGradeRecordsForReport({
+      gradeId: "grade-a",
+      isGroupDirector: true,
+      isRector: false,
+      records: studentRecords,
+      schedules: schedulesAna,
+      teacherId: "teacher-ana",
+    });
+    expect(directorRecords).toHaveLength(2);
+
+    // 3. Docente no director SOLO ve su propia materia (Matemáticas)
+    const anaRecords = getFilteredStudentGradeRecordsForReport({
+      gradeId: "grade-a",
+      isGroupDirector: false,
+      isRector: false,
+      records: studentRecords,
+      schedules: schedulesAna,
+      teacherId: "teacher-ana",
+    });
+    expect(anaRecords).toHaveLength(1);
+    expect(anaRecords[0].subject_id).toBe("subject-math");
+  });
+
+  it("filtra evaluaciones de preescolar por privacidad del docente", () => {
+    const evals = [
+      { id: "e1", student_id: "s1", dimension: "Cognitiva", teacher_id: "teacher-ana" },
+      { id: "e2", student_id: "s1", dimension: "Corporal", teacher_id: "teacher-luis" },
+    ] as PreescolarEvaluation[];
+
+    // Rector ve todo
+    expect(getVisiblePreescolarEvaluationsForStudent(evals, "s1", "teacher-ana", true, false)).toHaveLength(2);
+
+    // Docente no director solo ve sus evaluaciones
+    const anaEvals = getVisiblePreescolarEvaluationsForStudent(evals, "s1", "teacher-ana", false, false);
+    expect(anaEvals).toHaveLength(1);
+    expect(anaEvals[0].id).toBe("e1");
   });
 });

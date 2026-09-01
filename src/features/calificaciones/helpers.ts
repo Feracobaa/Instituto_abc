@@ -263,6 +263,21 @@ export function isTeacherAssignedToSubject(
   return teacher.teacher_subjects?.some((assignment) => assignment.subject_id === subjectId) ?? false;
 }
 
+export function isTeacherGroupDirectorForGrade(
+  teacher?: Pick<Teacher, "teacher_grade_assignments"> | null,
+  gradeId?: string,
+): boolean {
+  if (!teacher || !gradeId) {
+    return false;
+  }
+
+  return (
+    teacher.teacher_grade_assignments?.some(
+      (assignment) => assignment.grade_id === gradeId && assignment.is_group_director,
+    ) ?? false
+  );
+}
+
 export function getVisibleGradeRecordsForStudent({
   gradeId,
   gradeRecords,
@@ -292,15 +307,69 @@ export function getVisibleGradeRecordsForStudent({
   });
 }
 
+export function getFilteredStudentGradeRecordsForReport<
+  T extends { subjects?: { id: string } | null; subject_id?: string; teacher_id?: string | null }
+>({
+  gradeId,
+  isGroupDirector = false,
+  isRector = false,
+  records,
+  schedules,
+  teacherId,
+}: {
+  gradeId?: string;
+  isGroupDirector?: boolean;
+  isRector?: boolean;
+  records: T[];
+  schedules?: Schedule[] | null;
+  teacherId?: string | null;
+}): T[] {
+  if (isRector || isGroupDirector) {
+    return records;
+  }
+
+  return records.filter((record) => {
+    const subjectId = record.subjects?.id || record.subject_id;
+    if (teacherId && "teacher_id" in record && record.teacher_id === teacherId) {
+      return true;
+    }
+
+    return (
+      schedules?.some(
+        (schedule) =>
+          (!gradeId || schedule.grade_id === gradeId) &&
+          schedule.subject_id === subjectId,
+      ) ?? false
+    );
+  });
+}
+
 export function getVisiblePreescolarEvaluationsForStudent(
   evaluations?: PreescolarEvaluation[] | null,
   studentId?: string,
+  teacherId?: string | null,
+  isRector = false,
+  isGroupDirector = false,
 ) {
   if (!studentId) {
     return [];
   }
 
-  return (evaluations ?? []).filter((evaluation) => evaluation.student_id === studentId);
+  return (evaluations ?? []).filter((evaluation) => {
+    if (evaluation.student_id !== studentId) {
+      return false;
+    }
+
+    if (isRector || isGroupDirector) {
+      return true;
+    }
+
+    if (teacherId && evaluation.teacher_id) {
+      return evaluation.teacher_id === teacherId;
+    }
+
+    return !teacherId;
+  });
 }
 
 export function isPreescolarEvaluationRecord(
