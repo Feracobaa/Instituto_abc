@@ -8,11 +8,8 @@ import {
 import { calculateEyeAspectRatio } from "@/features/biometrics/services/livenessDetector";
 import { matchBiometricLocal } from "@/features/biometrics/services/biometricMatcher";
 
-const EAR_BLINK_THRESHOLD = 0.23;
-const MIN_CLOSED_FRAMES = 1;
-const MIN_OPEN_FRAMES = 1;
-
 interface UseClassLivenessScannerProps {
+  alreadyRegisteredIds?: Set<string>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   isActive: boolean;
   onMatch: (studentId: string) => void;
@@ -22,6 +19,7 @@ interface UseClassLivenessScannerProps {
 }
 
 export function useClassLivenessScanner({
+  alreadyRegisteredIds,
   canvasRef,
   isActive,
   onMatch,
@@ -35,20 +33,27 @@ export function useClassLivenessScanner({
   const [lastMatch, setLastMatch] = useState<MatchEvent | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [earValue, setEarValue] = useState<number>(0.3);
 
   const streamRef = useRef<MediaStream | null>(null);
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const inCooldownRef = useRef(false);
 
-  // Estados del detector de parpadeo (EAR)
-  const blinkStateRef = useRef<"OPEN" | "CLOSED">("OPEN");
-  const closedCountRef = useRef(0);
-  const openCountRef = useRef(0);
+  // Detector adaptativo de parpadeo (EAR)
+  const baselineEarRef = useRef<number>(0.30);
+  const blinkDipDetectedRef = useRef(false);
+  const blinkDipTimestampRef = useRef(0);
   const livenessPassedRef = useRef(false);
 
-  // Estabilización de candidato consecutivo
+  // Estabilización de candidato
   const candidateRef = useRef<{ count: number; id: string } | null>(null);
+
+  // Registro en memoria de estudiantes que ya tienen asistencia tomada
+  const alreadyRegisteredRef = useRef<Set<string>>(alreadyRegisteredIds || new Set());
+  useEffect(() => {
+    alreadyRegisteredRef.current = alreadyRegisteredIds || new Set();
+  }, [alreadyRegisteredIds]);
 
   const stopCamera = useCallback(() => {
     if (scanTimerRef.current) {
@@ -100,14 +105,12 @@ export function useClassLivenessScanner({
   };
 
   const resetBlinkTracker = () => {
-    blinkStateRef.current = "OPEN";
-    closedCountRef.current = 0;
-    openCountRef.current = 0;
+    blinkDipDetectedRef.current = false;
+    blinkDipTimestampRef.current = 0;
     livenessPassedRef.current = false;
     candidateRef.current = null;
   };
 
-  // Ciclo principal de detección e inferencia de visión
   const processFrame = useCallback(async () => {
     if (
       !videoRef.current ||
@@ -133,16 +136,19 @@ export function useClassLivenessScanner({
       }
 
       const { box, embedding, landmarks } = result;
+      const vHeight = videoRef.current.videoHeight || 720;
 
-      // 1. Evaluación de distancia (ancho del rostro)
-      if (box.width < 140) {
+      // 1. Evaluación de distancia proporcional a la resolución de video (18% a 82%)
+      const heightRatio = box.height / vHeight;
+
+      if (heightRatio < 0.18) {
         setDistanceStatus("too_far");
         setScannerState("analyzing");
         setInstructionText("Acérquese un poco a la cámara");
         return;
       }
 
-      if (box.width > 340) {
+      if (heightRatio > 0.82) {
         setDistanceStatus("too_close");
         setScannerState("analyzing");
         setInstructionText("Aléjese un poco de la cámara");
@@ -151,35 +157,38 @@ export function useClassLivenessScanner({
 
       setDistanceStatus("centered");
 
-      // 2. Detección de parpadeo activo (EAR)
+      // 2. Detección adaptativa de parpadeo humano (EAR)
       const { earAvg } = calculateEyeAspectRatio(landmarks);
+      setEarValue(earAvg);
+
+      // Actualizar línea base de ojos abiertos
+      if (earAvg > 0.22) {
+        baselineEarRef.current = baselineEarRef.current * 0.85 + earAvg * 0.15;
+      }
 
       if (!livenessPassedRef.current) {
         setScannerState("blink_required");
-        setInstructionText("Por favor parpadee para confirmar asistencia");
+        setInstructionText("Parpadee frente a la cámara");
 
-        if (blinkStateRef.current === "OPEN") {
-          if (earAvg < EAR_BLINK_THRESHOLD) {
-            closedCountRef.current += 1;
-            if (closedCountRef.current >= MIN_CLOSED_FRAMES) {
-              blinkStateRef.current = "CLOSED";
-              closedCountRef.current = 0;
-            }
-          }
-        } else if (blinkStateRef.current === "CLOSED") {
-          if (earAvg >= EAR_BLINK_THRESHOLD) {
-            openCountRef.current += 1;
-            if (openCountRef.current >= MIN_OPEN_FRAMES) {
-              livenessPassedRef.current = true;
-              blinkStateRef.current = "OPEN";
-              openCountRef.current = 0;
-            }
-          }
+        // Detección de caída (ojos cerrándose: < 0.25 o 24% menor a su línea base)
+        const isEyeClosed = earAvg < 0.25 || earAvg < baselineEarRef.current * 0.76;
+
+        if (isEyeClosed) {
+          blinkDipDetectedRef.current = true;
+          blinkDipTimestampRef.current = Date.now();
+        } else if (
+          blinkDipDetectedRef.current &&
+          Date.now() - blinkDipTimestampRef.current < 1800 &&
+          (earAvg >= 0.22 || earAvg >= baselineEarRef.current * 0.85)
+        ) {
+          // Re-apertura detectada tras el cierre: ¡Parpadeo válido comprobado!
+          livenessPassedRef.current = true;
         }
+
         return;
       }
 
-      // 3. Comparación Biométrica con los estudiantes matriculados en la materia
+      // 3. Emparejamiento biométrico estricto (tolerancia 0.48)
       const match = matchBiometricLocal(
         embedding,
         registeredBiometrics.map((b) => ({
@@ -187,7 +196,7 @@ export function useClassLivenessScanner({
           id: b.id,
           student_id: b.student_id,
         })),
-        0.52
+        0.48
       );
 
       if (!match) {
@@ -196,7 +205,7 @@ export function useClassLivenessScanner({
         return;
       }
 
-      // Estabilización: Requerir 2 lecturas consecutivas para el mismo estudiante
+      // Estabilización de candidato
       if (!candidateRef.current || candidateRef.current.id !== match.student_id) {
         candidateRef.current = { count: 1, id: match.student_id };
         return;
@@ -207,22 +216,35 @@ export function useClassLivenessScanner({
         return;
       }
 
-      // 4. Registro exitoso y entrada en Cooldown para el siguiente estudiante
+      // 4. Confirmación exitosa o detección de estudiante ya registrado
       const student = students.find((s) => s.id === match.student_id);
       const studentName = student ? student.name : "Estudiante";
+      const isAlready = alreadyRegisteredRef.current.has(match.student_id);
 
-      setScannerState("matched");
-      setInstructionText(`¡Asistencia registrada: ${studentName}!`);
-      setLastMatch({
-        score: match.confidence,
-        status: "present",
-        studentId: match.student_id,
-        studentName,
-      });
+      if (isAlready) {
+        setScannerState("already_marked");
+        setInstructionText(`${studentName} ya tiene asistencia registrada`);
+        setLastMatch({
+          isAlreadyRegistered: true,
+          score: match.confidence,
+          status: "present",
+          studentId: match.student_id,
+          studentName,
+        });
+      } else {
+        setScannerState("matched");
+        setInstructionText(`¡Asistencia registrada: ${studentName}!`);
+        setLastMatch({
+          isAlreadyRegistered: false,
+          score: match.confidence,
+          status: "present",
+          studentId: match.student_id,
+          studentName,
+        });
 
-      onMatch(match.student_id);
+        onMatch(match.student_id);
+      }
 
-      // Entrar en periodo de enfriamiento de 1.4s para que pase el siguiente estudiante
       inCooldownRef.current = true;
       setScannerState("cooldown");
 
@@ -231,7 +253,7 @@ export function useClassLivenessScanner({
         resetBlinkTracker();
         setScannerState("ready");
         setInstructionText("Colóquese frente a la cámara");
-      }, 1400);
+      }, 1600);
     } catch (e) {
       console.warn("Error en escaneo de clase:", e);
     } finally {
@@ -252,7 +274,7 @@ export function useClassLivenessScanner({
 
   useEffect(() => {
     if (!isCameraReady || !isActive) return;
-    scanTimerRef.current = setInterval(processFrame, 140);
+    scanTimerRef.current = setInterval(processFrame, 110);
     return () => {
       if (scanTimerRef.current) clearInterval(scanTimerRef.current);
     };
@@ -260,6 +282,7 @@ export function useClassLivenessScanner({
 
   return {
     distanceStatus,
+    earValue,
     facingMode,
     instructionText,
     isCameraReady,

@@ -142,7 +142,7 @@ class VoiceFeedbackService {
    */
   public notifyAlreadyMarked(studentName: string) {
     this.playSound('already');
-    this.speak(`${studentName}, ya posees asistencia registrada hoy`, 'high');
+    this.speak(`${studentName}, ya tienes asistencia registrada`, 'high');
   }
 
   /**

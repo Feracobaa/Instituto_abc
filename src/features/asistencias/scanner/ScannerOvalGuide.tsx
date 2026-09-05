@@ -1,6 +1,6 @@
 import React from "react";
 import type { ClassScannerState, DistanceStatus } from "./types";
-import { Sparkles, Eye, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Sparkles, Eye, CheckCircle2, AlertTriangle, UserCheck } from "lucide-react";
 
 interface ScannerOvalGuideProps {
   distanceStatus: DistanceStatus;
@@ -14,7 +14,6 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
   instructionText,
   state,
 }) => {
-  // Configuración de estilo según el estado del semáforo
   let borderColor = "border-sky-400/60";
   let glowEffect = "shadow-[0_0_20px_rgba(56,189,248,0.3)]";
   let badgeColor = "bg-sky-500/20 text-sky-200 border-sky-400/40";
@@ -25,6 +24,11 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
     glowEffect = "shadow-[0_0_35px_rgba(52,211,153,0.7)]";
     badgeColor = "bg-emerald-500/30 text-emerald-200 border-emerald-400";
     Icon = CheckCircle2;
+  } else if (state === "already_marked") {
+    borderColor = "border-sky-400";
+    glowEffect = "shadow-[0_0_35px_rgba(56,189,248,0.7)]";
+    badgeColor = "bg-sky-500/30 text-sky-200 border-sky-400";
+    Icon = UserCheck;
   } else if (state === "blink_required") {
     borderColor = "border-amber-400 animate-pulse";
     glowEffect = "shadow-[0_0_30px_rgba(251,191,36,0.6)]";
@@ -47,13 +51,10 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
       <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
         <defs>
           <mask id="oval-cutout">
-            {/* Fondo blanco: todo opaco */}
             <rect width="100%" height="100%" fill="white" />
-            {/* Elipse negra: zona transparente para ver el rostro */}
             <ellipse cx="50%" cy="46%" rx="140" ry="180" fill="black" />
           </mask>
         </defs>
-        {/* Capa oscura exterior con recorte */}
         <rect
           width="100%"
           height="100%"
@@ -72,6 +73,7 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
           {state === "analyzing" && "Enfocando rostro"}
           {state === "blink_required" && "Parpadee para verificar"}
           {state === "matched" && "¡Asistencia confirmada!"}
+          {state === "already_marked" && "Asistencia ya registrada"}
           {state === "cooldown" && "Siguiente estudiante..."}
           {state === "unrecognized" && "Rostro no registrado"}
         </span>
@@ -85,7 +87,6 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
           width: "280px",
         }}
       >
-        {/* Esquinas guía estilo visor de alta precisión */}
         <div className="absolute -left-2 -top-2 h-5 w-5 border-l-2 border-t-2 border-current opacity-80" />
         <div className="absolute -right-2 -top-2 h-5 w-5 border-r-2 border-t-2 border-current opacity-80" />
         <div className="absolute -bottom-2 -left-2 h-5 w-5 border-b-2 border-l-2 border-current opacity-80" />
@@ -98,6 +99,11 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
           <p className="text-sm font-medium text-white/90 drop-shadow">
             {instructionText}
           </p>
+          {state === "blink_required" && (
+            <p className="mt-1 text-xs text-amber-300/90 animate-pulse">
+              Cierre y abra los ojos de forma natural
+            </p>
+          )}
         </div>
       </div>
     </div>

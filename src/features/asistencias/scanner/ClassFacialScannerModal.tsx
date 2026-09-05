@@ -54,14 +54,25 @@ export const ClassFacialScannerModal: React.FC<ClassFacialScannerModalProps> = (
     [students]
   );
 
+  const alreadyRegisteredIds = useMemo(
+    () =>
+      new Set(
+        students
+          .filter((s) => draftMap[s.id]?.status === "present")
+          .map((s) => s.id)
+      ),
+    [students, draftMap]
+  );
+
   const {
     distanceStatus,
+    earValue,
     instructionText,
-    isCameraReady,
     lastMatch,
     scannerState,
     toggleFacingMode,
   } = useClassLivenessScanner({
+    alreadyRegisteredIds,
     canvasRef,
     isActive: true,
     onMatch: (studentId) => onMarkStudent(studentId, "present"),
@@ -161,6 +172,7 @@ export const ClassFacialScannerModal: React.FC<ClassFacialScannerModalProps> = (
               state={scannerState}
               distanceStatus={distanceStatus}
               instructionText={instructionText}
+              earValue={earValue}
             />
 
             {/* Notificación emergente al detectar un alumno */}

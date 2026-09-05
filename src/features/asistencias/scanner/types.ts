@@ -4,7 +4,8 @@ export type ClassScannerState =
   | "ready"           // Esperando a que un estudiante se acerque
   | "analyzing"       // Rostro detectado, validando distancia y posición
   | "blink_required"  // Rostro centrado, exigiendo parpadeo activo (EAR)
-  | "matched"         // Reconocido con éxito
+  | "matched"         // Reconocido con éxito por primera vez
+  | "already_marked"  // Reconocido pero ya tenía asistencia previa
   | "cooldown"        // Breve pausa para dar paso al siguiente estudiante
   | "unrecognized"    // Rostro detectado pero no pertenece a la clase
   | "error";
@@ -20,6 +21,7 @@ export interface ClassStudentItem {
 }
 
 export interface MatchEvent {
+  isAlreadyRegistered?: boolean;
   score: number;
   status: AttendanceStatus;
   studentId: string;
