@@ -5,11 +5,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, Phone, Plus, Pencil, Trash2, Loader2, Search, LayoutGrid, List, Camera } from "lucide-react";
+import { Mail, Phone, Plus, Pencil, Trash2, Loader2, Search, LayoutGrid, List, Camera, UserPlus, ShieldCheck } from "lucide-react";
 import { useState, useMemo } from "react";
 import { TeacherFormDialog } from "@/components/teachers/TeacherFormDialog";
+import { TeacherCredentialsModal } from "@/components/teachers/TeacherCredentialsModal";
 import { StaffBiometricEnrollmentModal } from "@/components/teachers/StaffBiometricEnrollmentModal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +58,8 @@ const Profesores = () => {
   const [teacherForBiometrics, setTeacherForBiometrics] = useState<{ userId: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [generatingAccessFor, setGeneratingAccessFor] = useState<string | null>(null);
+  const [credentialsData, setCredentialsData] = useState<{ email: string; fullName: string; temporaryPassword?: string } | null>(null);
 
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -85,6 +90,36 @@ const Profesores = () => {
       await deleteTeacher.mutateAsync(teacherToDelete);
       setDeleteDialogOpen(false);
       setTeacherToDelete(null);
+    }
+  };
+
+  const handleGenerateAccess = async (teacher: { id: string; full_name: string; email: string }) => {
+    setGeneratingAccessFor(teacher.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-institution-user", {
+        body: {
+          email: teacher.email.trim().toLowerCase(),
+          full_name: teacher.full_name.trim(),
+          role: "profesor",
+        },
+      });
+
+      if (error || data?.error) {
+        const msg = data?.error || error?.message || "Error al generar la cuenta de acceso.";
+        toast.error("No se pudo generar el acceso", { description: msg });
+        return;
+      }
+
+      setCredentialsData({
+        email: data.email,
+        fullName: data.full_name,
+        temporaryPassword: data.temporary_password,
+      });
+      toast.success("Cuenta de acceso generada exitosamente");
+    } catch {
+      toast.error("Error inesperado al generar la cuenta.");
+    } finally {
+      setGeneratingAccessFor(null);
     }
   };
 
@@ -201,7 +236,7 @@ const Profesores = () => {
                   </div>
                   {isRector && (
                     <div className="flex gap-0.5">
-                      {teacher.user_id && (
+                      {teacher.user_id ? (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -210,6 +245,21 @@ const Profesores = () => {
                           onClick={() => handleEnrollBiometrics(teacher)}
                         >
                           <Camera className="w-3.5 h-3.5" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-amber-600 hover:text-amber-500 hover:bg-amber-500/10"
+                          title="Generar Acceso al Sistema"
+                          onClick={() => handleGenerateAccess(teacher)}
+                          disabled={generatingAccessFor === teacher.id}
+                        >
+                          {generatingAccessFor === teacher.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <UserPlus className="w-3.5 h-3.5" />
+                          )}
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(teacher)}>
@@ -222,15 +272,24 @@ const Profesores = () => {
                   )}
                 </div>
 
-                {getDirectorGrades(teacher.teacher_grade_assignments).length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {getDirectorGrades(teacher.teacher_grade_assignments).map((grade) => (
-                      <Badge key={`${teacher.id}-${grade.grade_id}`} variant="secondary" className="text-xs">
-                        Director de grupo: {grade.name}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                {/* Badge de estado de cuenta */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {teacher.user_id ? (
+                    <Badge variant="outline" className="text-xs gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
+                      <ShieldCheck className="w-3 h-3" />
+                      Acceso Activo
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs gap-1 border-amber-500/30 text-amber-700 dark:text-amber-400 bg-amber-500/10">
+                      Sin cuenta de acceso
+                    </Badge>
+                  )}
+                  {getDirectorGrades(teacher.teacher_grade_assignments).map((grade) => (
+                    <Badge key={`${teacher.id}-${grade.grade_id}`} variant="secondary" className="text-xs">
+                      Director de grupo: {grade.name}
+                    </Badge>
+                  ))}
+                </div>
 
                 {/* Materias */}
                 <div className="mt-4 pt-3 border-t border-border">
@@ -273,7 +332,19 @@ const Profesores = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-foreground">{teacher.full_name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-sm text-foreground">{teacher.full_name}</p>
+                    {teacher.user_id ? (
+                      <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                        <ShieldCheck className="w-2.5 h-2.5" />
+                        Activo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                        Sin acceso
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{teacher.email}</p>
                   {getDirectorGrades(teacher.teacher_grade_assignments).length > 0 && (
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -293,7 +364,7 @@ const Profesores = () => {
                 </div>
                 {isRector && (
                   <div className="flex gap-0.5">
-                    {teacher.user_id && (
+                    {teacher.user_id ? (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -302,6 +373,21 @@ const Profesores = () => {
                         onClick={() => handleEnrollBiometrics(teacher)}
                       >
                         <Camera className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-amber-600 hover:text-amber-500 hover:bg-amber-500/10"
+                        title="Generar Acceso al Sistema"
+                        onClick={() => handleGenerateAccess(teacher)}
+                        disabled={generatingAccessFor === teacher.id}
+                      >
+                        {generatingAccessFor === teacher.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <UserPlus className="w-3.5 h-3.5" />
+                        )}
                       </Button>
                     )}
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(teacher)}>
@@ -346,6 +432,13 @@ const Profesores = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de entrega segura de credenciales */}
+      <TeacherCredentialsModal
+        open={credentialsData !== null}
+        onOpenChange={() => setCredentialsData(null)}
+        credentials={credentialsData}
+      />
     </MainLayout>
   );
 };

@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Link } from "react-router-dom";
+import { MustChangePasswordModal } from "@/components/auth/MustChangePasswordModal";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -148,6 +149,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
         </main>
       </div>
+      <MustChangePasswordModal open={Boolean(user?.user_metadata?.must_change_password)} />
       </InstitutionThemeProvider>
     </SidebarProvider>
   );

@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
 import { useCreateTeacher, useGrades, useSubjects, useUpdateTeacher } from "@/hooks/useSchoolData";
 import { getFieldErrors, teacherFormSchema } from "@/lib/schoolSchemas";
+import { supabase } from "@/integrations/supabase/client";
+import { TeacherCredentialsModal } from "@/components/teachers/TeacherCredentialsModal";
 
 interface Teacher {
   id: string;
@@ -20,6 +23,12 @@ interface Teacher {
     is_group_director?: boolean;
     grades: { id: string; name: string; level: number };
   }[];
+}
+
+interface GeneratedCredentials {
+  email: string;
+  fullName: string;
+  temporaryPassword?: string;
 }
 
 interface TeacherFormDialogProps {
@@ -59,6 +68,9 @@ export function TeacherFormDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<TeacherFormData>(emptyFormData);
+  const [createAccount, setCreateAccount] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [credentialsData, setCredentialsData] = useState<GeneratedCredentials | null>(null);
 
   useEffect(() => {
     if (teacher) {
@@ -79,6 +91,8 @@ export function TeacherFormDialog({
 
     setSearchTerm("");
     setErrors({});
+    setCreateAccount(false);
+    setCreatingAccount(false);
   }, [teacher, open]);
 
   const updateField = <K extends keyof TeacherFormData>(field: K, value: TeacherFormData[K]) => {
@@ -138,6 +152,38 @@ export function TeacherFormDialog({
         await createTeacher.mutateAsync(validation.data as unknown as TeacherFormData);
       }
 
+      // Si se marcó crear cuenta de acceso (solo en creación, no en edición)
+      if (!teacher && createAccount) {
+        setCreatingAccount(true);
+        try {
+          const { data: edgeFnData, error: edgeFnError } = await supabase.functions.invoke(
+            "create-institution-user",
+            {
+              body: {
+                email: formData.email.trim().toLowerCase(),
+                full_name: formData.full_name.trim(),
+                role: "profesor",
+              },
+            },
+          );
+
+          if (edgeFnError || edgeFnData?.error) {
+            const msg = edgeFnData?.error || edgeFnError?.message || "Error al crear la cuenta de acceso.";
+            toast.error("Profesor registrado, pero sin cuenta de acceso", { description: msg });
+          } else {
+            setCredentialsData({
+              email: edgeFnData.email,
+              fullName: edgeFnData.full_name,
+              temporaryPassword: edgeFnData.temporary_password,
+            });
+          }
+        } catch {
+          toast.error("Error inesperado al generar la cuenta de acceso.");
+        } finally {
+          setCreatingAccount(false);
+        }
+      }
+
       setErrors({});
       onOpenChange(false);
     } catch {
@@ -152,7 +198,7 @@ export function TeacherFormDialog({
     formData.grade_ids.includes(grade.id),
   );
 
-  const isLoading = createTeacher.isPending || updateTeacher.isPending;
+  const isLoading = createTeacher.isPending || updateTeacher.isPending || creatingAccount;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -294,6 +340,28 @@ export function TeacherFormDialog({
             )}
           </div>
 
+          {/* Switch para crear cuenta de acceso (solo en creación) */}
+          {!teacher && (
+            <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <div>
+                  <Label htmlFor="create-account" className="cursor-pointer text-sm font-medium">
+                    Crear cuenta de acceso
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Genera usuario y contraseña temporal para que el docente inicie sesión.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="create-account"
+                checked={createAccount}
+                onCheckedChange={setCreateAccount}
+              />
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -305,6 +373,13 @@ export function TeacherFormDialog({
           </div>
         </form>
       </DialogContent>
+
+      {/* Modal de entrega segura de credenciales */}
+      <TeacherCredentialsModal
+        open={credentialsData !== null}
+        onOpenChange={() => setCredentialsData(null)}
+        credentials={credentialsData}
+      />
     </Dialog>
   );
 }

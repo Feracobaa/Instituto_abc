@@ -23,16 +23,40 @@ interface CreateUserPayload {
   temporary_password?: string;
 }
 
-// Helpers
-function generatePassword(): string {
-  const adj = ["Coral","Amber","Storm","Swift","Lunar","Solar","Cedar","Delta","Brave","Noble"];
-  const noun = ["Eagle","River","Flame","Stone","Atlas","Titan","Blaze","Arrow","Pearl","Crest"];
-  const sym = ["#","@","!","$","&"];
-  const a = adj[Math.floor(Math.random() * adj.length)];
-  const n = noun[Math.floor(Math.random() * noun.length)];
-  const s = sym[Math.floor(Math.random() * sym.length)];
-  const num = Math.floor(Math.random() * 90) + 10;
-  return `${a}${n}${num}${s}`;
+// Helpers: Generador criptográficamente seguro (CSPRNG) con alta entropía (>90 bits)
+function generateCsprngPassword(length = 16): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // omite I, O
+  const lower = "abcdefghijkmnopqrstuvwxyz"; // omite l
+  const digits = "23456789"; // omite 0, 1
+  const symbols = "!@#$%&*?";
+  const all = upper + lower + digits + symbols;
+
+  const randomBytes = new Uint8Array(length);
+  crypto.getRandomValues(randomBytes);
+
+  // Garantizar al menos un carácter de cada categoría requerida
+  const guaranteed = [
+    upper[randomBytes[0] % upper.length],
+    lower[randomBytes[1] % lower.length],
+    digits[randomBytes[2] % digits.length],
+    symbols[randomBytes[3] % symbols.length],
+  ];
+
+  const rest: string[] = [];
+  for (let i = 4; i < length; i++) {
+    rest.push(all[randomBytes[i] % all.length]);
+  }
+
+  const combined = [...guaranteed, ...rest];
+  // Mezcla de Fisher-Yates con CSPRNG
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = randomBytes[i] % (i + 1);
+    const temp = combined[i];
+    combined[i] = combined[j];
+    combined[j] = temp;
+  }
+
+  return combined.join("");
 }
 
 function json(body: unknown, status = 200, corsHeaders = getCorsHeaders()): Response {
@@ -113,7 +137,7 @@ Deno.serve(async (req: Request) => {
 
   const cleanEmail = (email as string).trim().toLowerCase();
   const cleanName = (full_name as string).trim();
-  const tempPassword = (temporary_password as string) || generatePassword();
+  const tempPassword = (temporary_password as string) || generateCsprngPassword();
 
   // 4. Create auth user via admin API (works even with sign-ups disabled)
   // The PostgreSQL trigger "handle_new_user" will automatically create the
