@@ -79,17 +79,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userContextReadyRef = useRef(false);
 
   const fetchUserRole = useCallback(async (userId: string) => {
+    // 1. Intentar consultar user_roles
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (error) {
-      throw error;
+    if (!error && data && isSupportedUserRole(data.role)) {
+      return data.role;
     }
 
-    return data && isSupportedUserRole(data.role) ? data.role : null;
+    // 2. Resiliencia de emergencia: consultar institution_memberships
+    // institution_memberships siempre permite SELECT al propio usuario (user_id = auth.uid())
+    // aun cuando la institución esté suspendida por mora comercial
+    try {
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('institution_memberships')
+        .select('role')
+        .eq('user_id', userId)
+        .order('is_default', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!membershipError && membershipData && isSupportedUserRole(membershipData.role)) {
+        return membershipData.role;
+      }
+    } catch (membershipErr) {
+      console.warn('Error en fallback de rol desde institution_memberships:', membershipErr);
+    }
+
+    if (error) {
+      console.warn('Error recuperando rol del usuario desde user_roles:', error);
+    }
+
+    return null;
   }, []);
 
   const fetchTeacherId = useCallback(async (userId: string) => {

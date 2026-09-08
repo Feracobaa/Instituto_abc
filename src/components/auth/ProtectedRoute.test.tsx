@@ -115,7 +115,7 @@ describe("ProtectedRoute", () => {
     expect(document.querySelector(".animate-spin")).toBeTruthy();
   });
 
-  it("envia a auth cuando hay usuario pero aun no existe un rol valido", () => {
+  it("muestra pantalla de cuenta no autorizada cuando hay usuario autenticado pero sin rol asignado", () => {
     mockedUseAuth.mockReturnValue({
       ...defaultAuthState,
       userRole: null,
@@ -123,6 +123,66 @@ describe("ProtectedRoute", () => {
 
     renderProtectedRoute(["rector"]);
 
-    expect(screen.getByText("Auth")).toBeInTheDocument();
+    expect(screen.getByText("Cuenta no autorizada")).toBeInTheDocument();
+    expect(screen.getByText("Cerrar Sesión")).toBeInTheDocument();
+  });
+
+  it("renderiza BlockedInstitutionAlert cuando la institución está bloqueada con rol rector", () => {
+    mockedUseInstitutionStatus.mockReturnValue({
+      data: {
+        status: 'blocked',
+        reason: 'overdue',
+        institution_name: 'Colegio Demo',
+        current_period_end: '2026-09-01',
+        days_remaining: 0,
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    renderProtectedRoute(["rector"]);
+
+    expect(screen.getByText("Acceso Suspendido")).toBeInTheDocument();
+    expect(screen.getByText("Colegio Demo")).toBeInTheDocument();
+    expect(screen.getByText("Contactar Soporte")).toBeInTheDocument();
+  });
+
+  it("renderiza BlockedInstitutionAlert cuando la institución está bloqueada incluso si userRole es null (evita bucle de parpadeo)", () => {
+    mockedUseAuth.mockReturnValue({
+      ...defaultAuthState,
+      userRole: null,
+    } as never);
+
+    mockedUseInstitutionStatus.mockReturnValue({
+      data: {
+        status: 'blocked',
+        reason: 'subscription_expired',
+        institution_name: 'Instituto ABC',
+        current_period_end: '2026-08-30',
+        days_remaining: 0,
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    renderProtectedRoute(["rector"]);
+
+    expect(screen.getByText("Acceso Suspendido")).toBeInTheDocument();
+    expect(screen.queryByText("Auth")).not.toBeInTheDocument();
+  });
+
+  it("renderiza BlockedInstitutionAlert cuando la institución tiene is_active en false", () => {
+    mockedUseInstitutionStatus.mockReturnValue({
+      data: {
+        is_active: false,
+        institution_name: 'Colegio Inactivo',
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    renderProtectedRoute(["rector"]);
+
+    expect(screen.getByText("Acceso Suspendido")).toBeInTheDocument();
   });
 });

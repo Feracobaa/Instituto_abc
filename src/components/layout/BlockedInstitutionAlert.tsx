@@ -78,6 +78,12 @@ export function BlockedInstitutionAlert({ institutionName }: BlockedInstitutionA
               Estimado <strong>acudiente</strong>, el portal escolar de la institución se encuentra fuera de servicio por mantenimiento administrativo de licencias. Por favor, comunícate con la secretaría o administración de tu colegio para obtener más información.
             </p>
           )}
+
+          {!isDirectPayer && !isTeacher && !isParent && (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              El acceso a la plataforma para esta institución se encuentra restringido temporalmente por concepto de licenciamiento. Si eres directivo o administrador, comunícate con el área comercial de <strong>ETYMON</strong>; si eres docente o acudiente, por favor contacta a la rectoría o administración de tu colegio.
+            </p>
+          )}
         </div>
 
         {/* Contact buttons */}
@@ -115,6 +121,13 @@ export function BlockedInstitutionAlert({ institutionName }: BlockedInstitutionA
           ) : (
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button 
+                  onClick={handleContactSupportGeneral} 
+                  className="w-full gap-2 font-semibold shadow-md sm:w-auto"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                  Contactar Soporte
+                </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => window.location.reload()} 
