@@ -88,84 +88,24 @@ export function isValidFaceGeometry(
   // La boca debe situarse por debajo de la punta de la nariz
   if (mouthY <= noseTipY + 4) return false;
 
+  // 4. Proporción y extensión de ojos individuales (descarta dedos y manos donde los puntos se aplastan)
+  const leftEyeWidth = Math.hypot(landmarks[39].x - landmarks[36].x, landmarks[39].y - landmarks[36].y);
+  const rightEyeWidth = Math.hypot(landmarks[45].x - landmarks[42].x, landmarks[45].y - landmarks[42].y);
+  if (leftEyeWidth / box.width < 0.08 || rightEyeWidth / box.width < 0.08) return false;
+
+  // 5. Extensión de comisura bucal (descarta objetos sin estructura labial humana)
+  const mouthWidth = Math.hypot(landmarks[54].x - landmarks[48].x, landmarks[54].y - landmarks[48].y);
+  if (mouthWidth / box.width < 0.16 || mouthWidth / box.width > 0.65) return false;
+
   return true;
 }
 
 /**
- * Extrae un descriptor biométrico profundo de 128 dimensiones utilizando CNN (ResNet-34)
- */
-export async function extractEmbeddingFromVideo(
-  video: HTMLVideoElement,
-  canvas?: HTMLCanvasElement
-): Promise<ExtractedBiometricSample | null> {
-  const vWidth = video.videoWidth;
-  const vHeight = video.videoHeight;
-  if (!vWidth || !vHeight) return null;
-
-  const isLoaded = await loadFaceApiModels();
-  if (!isLoaded) return null;
-
-  try {
-    const workCanvas = canvas || document.createElement('canvas');
-    if (workCanvas.width !== vWidth || workCanvas.height !== vHeight) {
-      workCanvas.width = vWidth;
-      workCanvas.height = vHeight;
-    }
-    const ctx = workCanvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return null;
-
-    ctx.drawImage(video, 0, 0, vWidth, vHeight);
-
-    const qualityMetrics = analyzeImageQuality(ctx, vWidth, vHeight);
-    if (qualityMetrics.isLowLight || qualityMetrics.luminance < 85) {
-      applyYuvClaheEqualization(ctx, vWidth, vHeight);
-    }
-
-    if (qualityMetrics.isBlurred && qualityMetrics.blurScore !== undefined && qualityMetrics.blurScore < 20) {
-      return null;
-    }
-
-    const options = new faceapi.TinyFaceDetectorOptions({
-      inputSize: 320,
-      scoreThreshold: 0.60,
-    });
-
-    const detection = await faceapi
-      .detectSingleFace(workCanvas, options)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (!detection) return null;
-
-    const { box } = detection.detection;
-    const landmarks = detection.landmarks.positions.map((p) => ({ x: p.x, y: p.y }));
-
-    const boundingBox = {
-      x: Math.max(0, Math.round(box.x)),
-      y: Math.max(0, Math.round(box.y)),
-      width: Math.round(box.width),
-      height: Math.round(box.height),
-    };
-
-    if (!isValidFaceGeometry(boundingBox, landmarks)) {
-      return null;
-    }
-
-    const descriptor = Array.from(detection.descriptor);
-
-    return {
-      embedding: normalizeVector(descriptor),
-      quality: {
-        ...qualityMetrics,
-        livenessScore: Math.round(detection.detection.score * 100),
-        isAligned: true,
-        boundingBox,
-      },
-    };
-  } catch (e) {
-    console.warn('Error en extracción de descriptor neuronal por face-api:', e);
-    return null;
-  }
+export interface FaceDetectionRoi {
+  xMax: number;
+  xMin: number;
+  yMax: number;
+  yMin: number;
 }
 
 export interface FaceDetectionWithLandmarksResult {
@@ -178,11 +118,13 @@ export interface FaceDetectionWithLandmarksResult {
 
 /**
  * Detecta un rostro y extrae tanto los 68 landmarks como el descriptor 128D,
- * validando rigurosamente que la geometría pertenezca a una fisionomía humana real.
+ * con soporte para recorte ROI (Región de Interés) para aislar la interacción en el óvalo.
  */
 export async function detectFaceWithLandmarks(
   video: HTMLVideoElement,
-  canvas?: HTMLCanvasElement
+  canvas?: HTMLCanvasElement,
+  withDescriptor = true,
+  roi?: FaceDetectionRoi
 ): Promise<FaceDetectionWithLandmarksResult | null> {
   const vWidth = video.videoWidth;
   const vHeight = video.videoHeight;
@@ -192,54 +134,80 @@ export async function detectFaceWithLandmarks(
   if (!isLoaded) return null;
 
   try {
+    const cropX = roi ? Math.round(vWidth * roi.xMin) : 0;
+    const cropY = roi ? Math.round(vHeight * roi.yMin) : 0;
+    const cropW = roi ? Math.round(vWidth * (roi.xMax - roi.xMin)) : vWidth;
+    const cropH = roi ? Math.round(vHeight * (roi.yMax - roi.yMin)) : vHeight;
+
     const workCanvas = canvas || document.createElement('canvas');
-    if (workCanvas.width !== vWidth || workCanvas.height !== vHeight) {
-      workCanvas.width = vWidth;
-      workCanvas.height = vHeight;
+    if (workCanvas.width !== cropW || workCanvas.height !== cropH) {
+      workCanvas.width = cropW;
+      workCanvas.height = cropH;
     }
     const ctx = workCanvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return null;
 
-    ctx.drawImage(video, 0, 0, vWidth, vHeight);
+    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
-    const qualityMetrics = analyzeImageQuality(ctx, vWidth, vHeight);
-    if (qualityMetrics.isLowLight || qualityMetrics.luminance < 85) {
-      applyYuvClaheEqualization(ctx, vWidth, vHeight);
+    let qualityMetrics: ImageQualityMetrics = {
+      isBlurred: false,
+      isLowLight: false,
+      isOverexposed: false,
+      luminance: 100,
+    };
+
+    // Pre-procesamiento de imagen CLAHE solo para la extracción final del descriptor 128D
+    if (withDescriptor) {
+      qualityMetrics = analyzeImageQuality(ctx, cropW, cropH);
+      if (qualityMetrics.isLowLight || qualityMetrics.luminance < 85) {
+        applyYuvClaheEqualization(ctx, cropW, cropH);
+      }
     }
 
-    // Filtro con resolución 320 y umbral de confianza 0.60 para evitar falsos positivos con dedos u objetos
+    // Filtro TinyFaceDetector: umbral de 0.52 para rechazar dedos/manos y mantener rostros reales
     const options = new faceapi.TinyFaceDetectorOptions({
       inputSize: 320,
-      scoreThreshold: 0.60,
+      scoreThreshold: 0.52,
     });
 
-    const detection = await faceapi
+    const detectionTask = faceapi
       .detectSingleFace(workCanvas, options)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
+      .withFaceLandmarks();
+
+    const detection = withDescriptor
+      ? await detectionTask.withFaceDescriptor()
+      : await detectionTask;
 
     if (!detection) return null;
 
     const { box, score } = detection.detection;
-    const landmarks = detection.landmarks.positions.map((p) => ({ x: p.x, y: p.y }));
+    const rawLandmarks = detection.landmarks.positions;
 
     const boundingBox = {
-      x: Math.max(0, Math.round(box.x)),
-      y: Math.max(0, Math.round(box.y)),
+      x: Math.max(0, Math.round(box.x + cropX)),
+      y: Math.max(0, Math.round(box.y + cropY)),
       width: Math.round(box.width),
       height: Math.round(box.height),
     };
+
+    const landmarks = rawLandmarks.map((p) => ({
+      x: Math.round(p.x + cropX),
+      y: Math.round(p.y + cropY),
+    }));
 
     // Validación geométrica de fisionomía humana
     if (!isValidFaceGeometry(boundingBox, landmarks)) {
       return null;
     }
 
-    const descriptor = Array.from(detection.descriptor);
+    const rawDescriptor =
+      withDescriptor && 'descriptor' in detection
+        ? Array.from((detection as { descriptor: Float32Array }).descriptor)
+        : [];
 
     return {
       box: boundingBox,
-      embedding: normalizeVector(descriptor),
+      embedding: rawDescriptor.length > 0 ? normalizeVector(rawDescriptor) : [],
       landmarks,
       quality: {
         ...qualityMetrics,
@@ -252,4 +220,22 @@ export async function detectFaceWithLandmarks(
     console.warn('Error en detección con landmarks:', e);
     return null;
   }
+}
+
+/**
+ * Extrae un descriptor biométrico profundo de 128 dimensiones utilizando CNN (ResNet-34)
+ */
+export async function extractEmbeddingFromVideo(
+  video: HTMLVideoElement,
+  canvas?: HTMLCanvasElement
+): Promise<ExtractedBiometricSample | null> {
+  const result = await detectFaceWithLandmarks(video, canvas, true);
+  if (!result || result.embedding.length === 0) return null;
+  return {
+    embedding: result.embedding,
+    quality: {
+      ...result.quality,
+      isAligned: true,
+    },
+  };
 }

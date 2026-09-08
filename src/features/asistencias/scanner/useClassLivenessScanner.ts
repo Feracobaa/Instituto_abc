@@ -6,7 +6,19 @@ import {
   loadFaceApiModels,
 } from "@/features/biometrics/services/faceDetector";
 import { calculateEyeAspectRatio } from "@/features/biometrics/services/livenessDetector";
+import {
+  AdaptiveBlinkTracker,
+  type BlinkPhase,
+} from "@/features/biometrics/services/adaptiveBlinkDetector";
 import { matchBiometricLocal } from "@/features/biometrics/services/biometricMatcher";
+import {
+  validateOvalContainment,
+  isSpatialContinuityValid,
+  initializeCameraStream,
+  stopMediaStream,
+  buildMatchEvent,
+  KIOSK_OVAL_ROI,
+} from "./scannerHelpers";
 
 interface UseClassLivenessScannerProps {
   alreadyRegisteredIds?: Set<string>;
@@ -29,11 +41,12 @@ export function useClassLivenessScanner({
 }: UseClassLivenessScannerProps) {
   const [scannerState, setScannerState] = useState<ClassScannerState>("ready");
   const [distanceStatus, setDistanceStatus] = useState<DistanceStatus>("not_detected");
-  const [instructionText, setInstructionText] = useState("Colóquese frente a la cámara");
+  const [instructionText, setInstructionText] = useState("Ubique su rostro dentro del óvalo");
   const [lastMatch, setLastMatch] = useState<MatchEvent | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [earValue, setEarValue] = useState<number>(0.3);
+  const [blinkPhase, setBlinkPhase] = useState<BlinkPhase>("idle");
 
   const streamRef = useRef<MediaStream | null>(null);
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,10 +54,11 @@ export function useClassLivenessScanner({
   const inCooldownRef = useRef(false);
 
   // Detector adaptativo de parpadeo (EAR)
-  const baselineEarRef = useRef<number>(0.30);
-  const blinkDipDetectedRef = useRef(false);
-  const blinkDipTimestampRef = useRef(0);
+  const blinkTrackerRef = useRef<AdaptiveBlinkTracker>(new AdaptiveBlinkTracker());
   const livenessPassedRef = useRef(false);
+  const livenessPassedTimestampRef = useRef(0);
+  const lastFaceCenterRef = useRef<{ x: number; y: number } | null>(null);
+  const missedFramesRef = useRef(0);
 
   // Estabilización de candidato
   const candidateRef = useRef<{ count: number; id: string } | null>(null);
@@ -60,13 +74,8 @@ export function useClassLivenessScanner({
       clearInterval(scanTimerRef.current);
       scanTimerRef.current = null;
     }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    stopMediaStream(streamRef.current, videoRef.current);
+    streamRef.current = null;
     setIsCameraReady(false);
   }, [videoRef]);
 
@@ -74,25 +83,9 @@ export function useClassLivenessScanner({
     stopCamera();
     try {
       await loadFaceApiModels();
-      const constraints: MediaStreamConstraints = {
-        audio: false,
-        video: {
-          facingMode,
-          height: { ideal: 720 },
-          width: { ideal: 1280 },
-        },
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-          setIsCameraReady(true);
-        };
-      }
+      if (!videoRef.current) return;
+      streamRef.current = await initializeCameraStream(videoRef.current, facingMode);
+      setIsCameraReady(true);
     } catch (err) {
       console.error("Error al iniciar cámara de clase:", err);
       setScannerState("error");
@@ -105,10 +98,13 @@ export function useClassLivenessScanner({
   };
 
   const resetBlinkTracker = () => {
-    blinkDipDetectedRef.current = false;
-    blinkDipTimestampRef.current = 0;
+    blinkTrackerRef.current.reset();
     livenessPassedRef.current = false;
+    livenessPassedTimestampRef.current = 0;
+    lastFaceCenterRef.current = null;
     candidateRef.current = null;
+    missedFramesRef.current = 0;
+    setBlinkPhase("idle");
   };
 
   const processFrame = useCallback(async () => {
@@ -125,70 +121,81 @@ export function useClassLivenessScanner({
     isProcessingRef.current = true;
 
     try {
-      const result = await detectFaceWithLandmarks(videoRef.current, canvasRef.current);
+      // Expiración estricta de liveness: si pasaron >500ms sin match, caduca
+      if (livenessPassedRef.current && Date.now() - livenessPassedTimestampRef.current > 500) {
+        resetBlinkTracker();
+      }
+
+      // Modo de alta tasa de cuadros: extrae embedding sólo cuando liveness ya ha pasado
+      const result = await detectFaceWithLandmarks(
+        videoRef.current,
+        canvasRef.current,
+        livenessPassedRef.current,
+        KIOSK_OVAL_ROI
+      );
 
       if (!result) {
-        setDistanceStatus("not_detected");
-        setScannerState("ready");
-        setInstructionText("Colóquese frente a la cámara");
-        resetBlinkTracker();
+        missedFramesRef.current += 1;
+        const thresholdMissed = livenessPassedRef.current ? 2 : 3;
+        if (missedFramesRef.current >= thresholdMissed) {
+          setDistanceStatus("not_detected");
+          setScannerState("ready");
+          setInstructionText("Ubique su rostro dentro del óvalo");
+          resetBlinkTracker();
+        }
         return;
       }
 
       const { box, embedding, landmarks } = result;
+      const vWidth = videoRef.current.videoWidth || 1280;
       const vHeight = videoRef.current.videoHeight || 720;
 
-      // 1. Evaluación de distancia proporcional a la resolución de video (18% a 82%)
-      const heightRatio = box.height / vHeight;
-
-      if (heightRatio < 0.18) {
-        setDistanceStatus("too_far");
-        setScannerState("analyzing");
-        setInstructionText("Acérquese un poco a la cámara");
+      // 1. Evaluación estricta: solo se reconoce el rostro si está dentro del óvalo central
+      const ovalResult = validateOvalContainment(box, vWidth, vHeight);
+      if (!ovalResult.isInsideOval) {
+        missedFramesRef.current += 1;
+        const thresholdMissed = livenessPassedRef.current ? 2 : 3;
+        if (missedFramesRef.current >= thresholdMissed) {
+          setDistanceStatus("not_detected");
+          setScannerState("ready");
+          setInstructionText("Ubique su rostro dentro del óvalo");
+          resetBlinkTracker();
+        }
         return;
       }
 
-      if (heightRatio > 0.82) {
-        setDistanceStatus("too_close");
-        setScannerState("analyzing");
-        setInstructionText("Aléjese un poco de la cámara");
+      missedFramesRef.current = 0;
+
+      // Continuidad espacial: descarta saltos bruscos (sustitución por dedo/mano u otro rostro)
+      const currentCenter = { x: ovalResult.faceCenterX, y: ovalResult.faceCenterY };
+      if (!isSpatialContinuityValid(currentCenter, lastFaceCenterRef.current, vWidth)) {
+        resetBlinkTracker();
+        lastFaceCenterRef.current = currentCenter;
         return;
       }
+      lastFaceCenterRef.current = currentCenter;
 
       setDistanceStatus("centered");
 
       // 2. Detección adaptativa de parpadeo humano (EAR)
-      const { earAvg } = calculateEyeAspectRatio(landmarks);
+      const { earAvg, earLeft, earRight } = calculateEyeAspectRatio(landmarks);
       setEarValue(earAvg);
-
-      // Actualizar línea base de ojos abiertos
-      if (earAvg > 0.22) {
-        baselineEarRef.current = baselineEarRef.current * 0.85 + earAvg * 0.15;
-      }
 
       if (!livenessPassedRef.current) {
         setScannerState("blink_required");
-        setInstructionText("Parpadee frente a la cámara");
+        const blinkEval = blinkTrackerRef.current.update(earAvg, earLeft, earRight);
+        setBlinkPhase(blinkEval.phase);
+        setInstructionText(blinkEval.instruction);
 
-        // Detección de caída (ojos cerrándose: < 0.25 o 24% menor a su línea base)
-        const isEyeClosed = earAvg < 0.25 || earAvg < baselineEarRef.current * 0.76;
-
-        if (isEyeClosed) {
-          blinkDipDetectedRef.current = true;
-          blinkDipTimestampRef.current = Date.now();
-        } else if (
-          blinkDipDetectedRef.current &&
-          Date.now() - blinkDipTimestampRef.current < 1800 &&
-          (earAvg >= 0.22 || earAvg >= baselineEarRef.current * 0.85)
-        ) {
-          // Re-apertura detectada tras el cierre: ¡Parpadeo válido comprobado!
+        if (blinkEval.isPassed) {
           livenessPassedRef.current = true;
+          livenessPassedTimestampRef.current = Date.now();
         }
 
         return;
       }
 
-      // 3. Emparejamiento biométrico estricto (tolerancia 0.48)
+      // 3. Emparejamiento biométrico estricto (tolerancia 0.44)
       const match = matchBiometricLocal(
         embedding,
         registeredBiometrics.map((b) => ({
@@ -196,7 +203,7 @@ export function useClassLivenessScanner({
           id: b.id,
           student_id: b.student_id,
         })),
-        0.48
+        0.44
       );
 
       if (!match) {
@@ -217,33 +224,25 @@ export function useClassLivenessScanner({
       }
 
       // 4. Confirmación exitosa o detección de estudiante ya registrado
-      const student = students.find((s) => s.id === match.student_id);
-      const studentName = student ? student.name : "Estudiante";
-      const isAlready = alreadyRegisteredRef.current.has(match.student_id);
+      const { isAlready, studentName, matchEvent } = buildMatchEvent(
+        match.student_id,
+        students,
+        alreadyRegisteredRef.current,
+        match.confidence
+      );
 
-      if (isAlready) {
-        setScannerState("already_marked");
-        setInstructionText(`${studentName} ya tiene asistencia registrada`);
-        setLastMatch({
-          isAlreadyRegistered: true,
-          score: match.confidence,
-          status: "present",
-          studentId: match.student_id,
-          studentName,
-        });
-      } else {
-        setScannerState("matched");
-        setInstructionText(`¡Asistencia registrada: ${studentName}!`);
-        setLastMatch({
-          isAlreadyRegistered: false,
-          score: match.confidence,
-          status: "present",
-          studentId: match.student_id,
-          studentName,
-        });
+      setScannerState(isAlready ? "already_marked" : "matched");
+      setInstructionText(
+        isAlready
+          ? `${studentName} ya tiene asistencia registrada`
+          : `¡Asistencia registrada: ${studentName}!`
+      );
+      setLastMatch(matchEvent);
 
+      if (!isAlready) {
         onMatch(match.student_id);
       }
+
 
       inCooldownRef.current = true;
       setScannerState("cooldown");
@@ -252,7 +251,7 @@ export function useClassLivenessScanner({
         inCooldownRef.current = false;
         resetBlinkTracker();
         setScannerState("ready");
-        setInstructionText("Colóquese frente a la cámara");
+        setInstructionText("Ubique su rostro dentro del óvalo");
       }, 1600);
     } catch (e) {
       console.warn("Error en escaneo de clase:", e);
@@ -274,13 +273,14 @@ export function useClassLivenessScanner({
 
   useEffect(() => {
     if (!isCameraReady || !isActive) return;
-    scanTimerRef.current = setInterval(processFrame, 110);
+    scanTimerRef.current = setInterval(processFrame, 65);
     return () => {
       if (scanTimerRef.current) clearInterval(scanTimerRef.current);
     };
   }, [isCameraReady, isActive, processFrame]);
 
   return {
+    blinkPhase,
     distanceStatus,
     earValue,
     facingMode,

@@ -65,6 +65,7 @@ export const ClassFacialScannerModal: React.FC<ClassFacialScannerModalProps> = (
   );
 
   const {
+    blinkPhase,
     distanceStatus,
     earValue,
     instructionText,
@@ -173,6 +174,7 @@ export const ClassFacialScannerModal: React.FC<ClassFacialScannerModalProps> = (
               distanceStatus={distanceStatus}
               instructionText={instructionText}
               earValue={earValue}
+              blinkPhase={blinkPhase}
             />
 
             {/* Notificación emergente al detectar un alumno */}

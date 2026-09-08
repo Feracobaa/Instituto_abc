@@ -1,8 +1,9 @@
 import React from "react";
-import type { ClassScannerState, DistanceStatus } from "./types";
-import { Sparkles, Eye, CheckCircle2, AlertTriangle, UserCheck } from "lucide-react";
+import type { BlinkPhase, ClassScannerState, DistanceStatus } from "./types";
+import { Sparkles, Eye, EyeOff, CheckCircle2, AlertTriangle, UserCheck } from "lucide-react";
 
 interface ScannerOvalGuideProps {
+  blinkPhase?: BlinkPhase;
   distanceStatus: DistanceStatus;
   earValue?: number;
   instructionText: string;
@@ -10,6 +11,7 @@ interface ScannerOvalGuideProps {
 }
 
 export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
+  blinkPhase,
   distanceStatus,
   instructionText,
   state,
@@ -30,10 +32,17 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
     badgeColor = "bg-sky-500/30 text-sky-200 border-sky-400";
     Icon = UserCheck;
   } else if (state === "blink_required") {
-    borderColor = "border-amber-400 animate-pulse";
-    glowEffect = "shadow-[0_0_30px_rgba(251,191,36,0.6)]";
-    badgeColor = "bg-amber-500/30 text-amber-200 border-amber-400";
-    Icon = Eye;
+    if (blinkPhase === "closing_detected") {
+      borderColor = "border-cyan-400 animate-pulse";
+      glowEffect = "shadow-[0_0_35px_rgba(34,211,238,0.7)]";
+      badgeColor = "bg-cyan-500/30 text-cyan-200 border-cyan-400";
+      Icon = EyeOff;
+    } else {
+      borderColor = "border-amber-400 animate-pulse";
+      glowEffect = "shadow-[0_0_30px_rgba(251,191,36,0.6)]";
+      badgeColor = "bg-amber-500/30 text-amber-200 border-amber-400";
+      Icon = Eye;
+    }
   } else if (distanceStatus === "too_far" || distanceStatus === "too_close") {
     borderColor = "border-amber-400/80";
     glowEffect = "shadow-[0_0_20px_rgba(251,191,36,0.3)]";
@@ -71,7 +80,10 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
           <Icon className="h-3.5 w-3.5" />
           {state === "ready" && "Esperando estudiante"}
           {state === "analyzing" && "Enfocando rostro"}
-          {state === "blink_required" && "Parpadee para verificar"}
+          {state === "blink_required" &&
+            (blinkPhase === "closing_detected"
+              ? "¡Cierre captado! Abra los ojos"
+              : "Parpadee para verificar")}
           {state === "matched" && "¡Asistencia confirmada!"}
           {state === "already_marked" && "Asistencia ya registrada"}
           {state === "cooldown" && "Siguiente estudiante..."}
@@ -100,9 +112,39 @@ export const ScannerOvalGuide: React.FC<ScannerOvalGuideProps> = ({
             {instructionText}
           </p>
           {state === "blink_required" && (
-            <p className="mt-1 text-xs text-amber-300/90 animate-pulse">
-              Cierre y abra los ojos de forma natural
-            </p>
+            <>
+              <p
+                className={`mt-1 text-xs animate-pulse ${
+                  blinkPhase === "closing_detected"
+                    ? "font-semibold text-cyan-300"
+                    : "text-amber-300/90"
+                }`}
+              >
+                {blinkPhase === "closing_detected"
+                  ? "¡Excelente! Ahora abra los ojos suavemente"
+                  : "Cierre y abra los ojos de forma natural"}
+              </p>
+              {typeof earValue === "number" && (
+                <div className="mt-2 flex items-center justify-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                    Apertura:
+                  </span>
+                  <div className="h-1.5 w-24 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                    <div
+                      className={`h-full transition-all duration-75 ${
+                        blinkPhase === "closing_detected" ? "bg-cyan-400" : "bg-amber-400"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.max(8, Math.round((earValue / 0.35) * 100)))}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-300">
+                    {Math.round(earValue * 100)}%
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

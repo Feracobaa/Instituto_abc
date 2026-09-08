@@ -10,6 +10,8 @@ export type ClassScannerState =
   | "unrecognized"    // Rostro detectado pero no pertenece a la clase
   | "error";
 
+export type BlinkPhase = "idle" | "waiting" | "closing_detected" | "passed";
+
 export type DistanceStatus = "too_far" | "too_close" | "centered" | "not_detected";
 
 export interface ClassStudentItem {

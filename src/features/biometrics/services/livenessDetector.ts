@@ -4,6 +4,13 @@ import {
   LivenessEvaluationResult,
   LivenessStatus,
 } from '../types';
+import {
+  AdaptiveBlinkTracker,
+  type BlinkEvaluation,
+  type BlinkPhase,
+} from './adaptiveBlinkDetector';
+
+export { AdaptiveBlinkTracker, type BlinkEvaluation, type BlinkPhase };
 
 export interface Point2D {
   x: number;
@@ -143,8 +150,7 @@ export class LivenessChallengeEngine {
   private activeChallenge: LivenessChallenge | null = null;
   private status: LivenessStatus = 'idle';
   private startTime = 0;
-  private blinkState: 'OPEN' | 'CLOSED' = 'OPEN';
-  private eyeClosedTimestamp = 0;
+  private blinkTracker = new AdaptiveBlinkTracker();
   private progress = 0;
 
   constructor(preferredChallengeType?: LivenessChallengeType) {
@@ -165,16 +171,14 @@ export class LivenessChallengeEngine {
     this.status = 'in_progress';
     this.startTime = Date.now();
     this.progress = 0;
-    this.blinkState = 'OPEN';
-    this.eyeClosedTimestamp = 0;
+    this.blinkTracker.reset();
   }
 
   public reset(newChallengeType?: LivenessChallengeType): void {
     this.initChallenge(newChallengeType);
     this.status = 'idle';
     this.progress = 0;
-    this.blinkState = 'OPEN';
-    this.eyeClosedTimestamp = 0;
+    this.blinkTracker.reset();
   }
 
   public getStatus(): LivenessStatus {
@@ -214,7 +218,7 @@ export class LivenessChallengeEngine {
       };
     }
 
-    const { earAvg } = calculateEyeAspectRatio(landmarks);
+    const { earAvg, earLeft, earRight } = calculateEyeAspectRatio(landmarks);
     const yawRatio = calculateHeadPoseYaw(landmarks);
     const mar = calculateMouthAspectRatio(landmarks);
 
@@ -222,37 +226,11 @@ export class LivenessChallengeEngine {
 
     switch (this.activeChallenge.type) {
       case 'blink': {
-        // Umbrales de parpadeo: Cerrado (EAR <= 0.18), Abierto (EAR >= 0.25)
-        if (this.blinkState === 'OPEN') {
-          if (earAvg <= 0.19) {
-            this.blinkState = 'CLOSED';
-            this.eyeClosedTimestamp = now;
-            this.progress = 50;
-            message = 'Ojos cerrados detectados... ahora ábralos';
-          } else {
-            this.progress = 20;
-          }
-        } else if (this.blinkState === 'CLOSED') {
-          const closeDuration = now - this.eyeClosedTimestamp;
-          if (earAvg >= 0.25) {
-            // El parpadeo humano típico dura entre 80ms y 900ms (máx 1.2s)
-            if (closeDuration <= 1200) {
-              this.status = 'passed';
-              this.progress = 100;
-              message = '¡Parpadeo natural verificado!';
-            } else {
-              // Si duró demasiado, reiniciar estado
-              this.blinkState = 'OPEN';
-              this.progress = 20;
-            }
-          } else if (closeDuration > 1500) {
-            // Ojos cerrados por más de 1.5s (no es parpadeo)
-            this.blinkState = 'OPEN';
-            this.progress = 20;
-          } else {
-            this.progress = 65;
-            message = 'Abra los ojos suavemente';
-          }
+        const evalBlink = this.blinkTracker.update(earAvg, earLeft, earRight);
+        this.progress = evalBlink.progress;
+        message = evalBlink.instruction;
+        if (evalBlink.isPassed) {
+          this.status = 'passed';
         }
         break;
       }
