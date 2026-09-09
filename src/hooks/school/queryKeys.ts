@@ -106,6 +106,7 @@ export const schoolQueryKeys = {
     all: ["institution"] as const,
     modules: ["institution", "modules"] as const,
     settings: ["institution", "settings"] as const,
+    contracts: ["institution", "contracts"] as const,
   },
   provider: {
     moduleCatalog: ["provider", "module_catalog"] as const,
@@ -124,5 +125,9 @@ export const schoolQueryKeys = {
     rolePermissions: ["provider", "role_permissions"] as const,
     auditLogs: (institutionId?: string) =>
       ["provider", "audit_logs", institutionId ?? "all"] as const,
+    contracts: ["provider", "contracts"] as const,
+    legalTemplates: ["provider", "legal_templates"] as const,
+    contractAuditLogs: (contractId?: string) =>
+      ["provider", "contract_audit_logs", contractId ?? "all"] as const,
   },
 };

@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ContractStatusBanner } from "@/components/dashboard/ContractStatusBanner";
+import { RectorPendingContractBanner } from "@/components/contracts/RectorPendingContractBanner";
 import { CircularCalendar } from "@/components/dashboard/CircularCalendar";
 
 const dayNames = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
@@ -178,11 +179,17 @@ function StaffDashboard() {
         />
       )}
 
+      {isRector && <RectorPendingContractBanner />}
+
       {isRector && gradesBelow3.length > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/8 px-4 py-3 text-destructive">
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <p className="text-sm font-medium">
-            {gradesBelow3.length} calificacion{gradesBelow3.length > 1 ? "es" : ""} con rendimiento bajo (menor a 3.0).
+        <div className="relative overflow-hidden flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 dark:bg-rose-500/[0.12] backdrop-blur-xl px-4 py-3 shadow-sm transition-all duration-300 animate-in fade-in">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          <div className="rounded-lg bg-rose-500/20 p-1.5 text-rose-600 dark:text-rose-300 border border-rose-500/30 shrink-0">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+            <span className="font-bold text-rose-600 dark:text-rose-300">{gradesBelow3.length}</span>{" "}
+            calificacion{gradesBelow3.length > 1 ? "es" : ""} con rendimiento bajo (menor a 3.0).
           </p>
         </div>
       )}

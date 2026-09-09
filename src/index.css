@@ -532,6 +532,28 @@
     }
   }
 
+  @keyframes liquid-glare-sweep {
+    0% {
+      transform: translateX(-150%) skewX(-20deg);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.35;
+    }
+    45% {
+      transform: translateX(300%) skewX(-20deg);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(300%) skewX(-20deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-liquid-glare {
+    animation: liquid-glare-sweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
   /* Estilizado global de vidrio líquido (Glassmorphism) */
   
   /* Sobrescribir de forma global el fondo de las tarjetas de la plataforma */

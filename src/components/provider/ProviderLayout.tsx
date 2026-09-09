@@ -11,6 +11,7 @@ import {
   Tags,
   Users,
   Activity,
+  FileCheck2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -26,6 +27,7 @@ interface ProviderLayoutProps {
 const providerNavItems = [
   { icon: Home, label: "Panel de control", path: "/etymon" },
   { icon: Building2, label: "Instituciones", path: "/etymon/instituciones" },
+  { icon: FileCheck2, label: "Contratos y Legitimidad", path: "/etymon/contratos" },
   { icon: Users, label: "Usuarios", path: "/etymon/usuarios" },
   { icon: Activity, label: "Usuarios en línea", path: "/etymon/en-linea" },
   { icon: Shield, label: "Permisos", path: "/etymon/permisos" },

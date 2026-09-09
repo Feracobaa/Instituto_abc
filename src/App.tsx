@@ -26,6 +26,7 @@ const Tareas = lazy(() => import("./pages/Tareas"));
 const PortalEstudiantil = lazy(() => import("./pages/PortalEstudiantil"));
 const EtymonDashboard = lazy(() => import("./pages/etymon/EtymonDashboard"));
 const EtymonInstituciones = lazy(() => import("./pages/etymon/EtymonInstituciones"));
+const EtymonContratos = lazy(() => import("./pages/etymon/contratos/EtymonContratos"));
 const EtymonSuscripciones = lazy(() => import("./pages/etymon/EtymonSuscripciones"));
 const EtymonSoporte = lazy(() => import("./pages/etymon/EtymonSoporte"));
 const EtymonAuditoria = lazy(() => import("./pages/etymon/EtymonAuditoria"));
@@ -200,6 +201,14 @@ const App = () => (
                 element={
                   <ProviderRoute>
                     <EtymonInstituciones />
+                  </ProviderRoute>
+                }
+              />
+              <Route
+                path="/etymon/contratos"
+                element={
+                  <ProviderRoute>
+                    <EtymonContratos />
                   </ProviderRoute>
                 }
               />

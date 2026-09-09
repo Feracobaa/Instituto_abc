@@ -8,6 +8,7 @@ export function invalidateProviderQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.institutionModulesRoot });
   queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.supportContext });
   queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.auditLogs() });
+  queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.contracts });
   queryClient.invalidateQueries({ queryKey: schoolQueryKeys.provider.drift });
   queryClient.invalidateQueries({ queryKey: schoolQueryKeys.institution.settings });
 }
