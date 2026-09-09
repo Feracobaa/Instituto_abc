@@ -1,3 +1,5 @@
+import { sanitizeTextForPdf } from "./contractSanitizer";
+
 export interface InterpolationVariables {
   contractNumber?: string;
   institutionName?: string;
@@ -24,12 +26,12 @@ export function interpolateContractMarkdown(
   let result = templateMarkdown;
 
   const replacements: Record<string, string> = {
-    '{{CONTRACT_NUMBER}}': variables.contractNumber || 'ETM-2026-PENDING',
-    '{{INSTITUTION_NAME}}': variables.institutionName || 'Institución Educativa',
-    '{{NIT}}': variables.nit || 'NIT por registrar',
-    '{{RECTOR_NAME}}': variables.rectorName || 'Rector / Representante Legal',
-    '{{ADDRESS}}': variables.address || 'Sede Principal Institucional',
-    '{{PLAN_NAME}}': variables.planName || 'Plan Institucional Etymon',
+    '{{CONTRACT_NUMBER}}': sanitizeTextForPdf(variables.contractNumber || 'ETM-2026-PENDING'),
+    '{{INSTITUTION_NAME}}': variables.institutionName ? sanitizeTextForPdf(variables.institutionName) : 'Institución Adscrita',
+    '{{NIT}}': variables.nit ? sanitizeTextForPdf(variables.nit) : 'Pendiente de registro',
+    '{{RECTOR_NAME}}': variables.rectorName ? sanitizeTextForPdf(variables.rectorName) : 'Rector Titular',
+    '{{ADDRESS}}': variables.address ? sanitizeTextForPdf(variables.address) : 'Sede Principal Institucional',
+    '{{PLAN_NAME}}': sanitizeTextForPdf(variables.planName || 'Plan Institucional Etymon'),
     '{{PRICE_COP}}': variables.priceCop !== undefined ? formatCurrencyCop(variables.priceCop) : '$0 COP',
     '{{DATE}}': variables.date || new Date().toLocaleDateString('es-CO'),
   };

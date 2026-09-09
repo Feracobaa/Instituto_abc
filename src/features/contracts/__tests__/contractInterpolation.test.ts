@@ -40,7 +40,17 @@ Valor: {{PRICE_COP}}
     const template = "Contrato {{CONTRACT_NUMBER}} para {{INSTITUTION_NAME}}";
     const rendered = interpolateContractMarkdown(template, {});
     expect(rendered).toContain("ETM-2026-PENDING");
-    expect(rendered).toContain("Institución Educativa");
+    expect(rendered).toContain("Institución Adscrita");
+  });
+
+  it("sanitiza emojis y símbolos en los nombres de planes interpolados", () => {
+    const template = "Plan contratado: {{PLAN_NAME}}";
+    const rendered = interpolateContractMarkdown(template, {
+      planName: "📦 Plan Integral (Anual) 🚀",
+    });
+    expect(rendered).toBe("Plan contratado: Plan Integral (Anual)");
+    expect(rendered).not.toContain("Ø");
+    expect(rendered).not.toContain("Ü");
   });
 
   it("calcula un hash SHA-256 consistente de 64 caracteres", async () => {
