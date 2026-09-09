@@ -102,6 +102,12 @@ export interface GenerateContractPayload {
   billingCycle?: string;
   validUntil?: string;
   contentOverride?: string;
+  institutionName?: string;
+  institutionNit?: string;
+  rectorName?: string;
+  rectorDocumentId?: string;
+  rectorEmail?: string;
+  address?: string;
 }
 
 export interface SignContractPayload {

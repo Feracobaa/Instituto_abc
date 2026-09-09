@@ -25,22 +25,39 @@ export function interpolateContractMarkdown(
 ): string {
   let result = templateMarkdown;
 
+  const institution = variables.institutionName ? sanitizeTextForPdf(variables.institutionName) : 'Institución Adscrita';
+  const nit = variables.nit ? sanitizeTextForPdf(variables.nit) : 'Pendiente de registro';
+  const rector = variables.rectorName ? sanitizeTextForPdf(variables.rectorName) : 'Rector Titular';
+  const address = variables.address ? sanitizeTextForPdf(variables.address) : 'Sede Principal Institucional';
+  const plan = sanitizeTextForPdf(variables.planName || 'Plan Institucional Etymon');
+  const price = variables.priceCop !== undefined ? formatCurrencyCop(variables.priceCop) : '$0 COP';
+  const date = variables.date || new Date().toLocaleDateString('es-CO');
+  const contractNumber = sanitizeTextForPdf(variables.contractNumber || 'ETM-2026-PENDING');
+
   const replacements: Record<string, string> = {
-    '{{CONTRACT_NUMBER}}': sanitizeTextForPdf(variables.contractNumber || 'ETM-2026-PENDING'),
-    '{{INSTITUTION_NAME}}': variables.institutionName ? sanitizeTextForPdf(variables.institutionName) : 'Institución Adscrita',
-    '{{NIT}}': variables.nit ? sanitizeTextForPdf(variables.nit) : 'Pendiente de registro',
-    '{{RECTOR_NAME}}': variables.rectorName ? sanitizeTextForPdf(variables.rectorName) : 'Rector Titular',
-    '{{ADDRESS}}': variables.address ? sanitizeTextForPdf(variables.address) : 'Sede Principal Institucional',
-    '{{PLAN_NAME}}': sanitizeTextForPdf(variables.planName || 'Plan Institucional Etymon'),
-    '{{PRICE_COP}}': variables.priceCop !== undefined ? formatCurrencyCop(variables.priceCop) : '$0 COP',
-    '{{DATE}}': variables.date || new Date().toLocaleDateString('es-CO'),
+    '{{CONTRACT_NUMBER}}': contractNumber,
+    '{{NUMERO_CONTRATO}}': contractNumber,
+    '{{INSTITUTION_NAME}}': institution,
+    '{{INSTITUCION_NOMBRE}}': institution,
+    '{{NIT}}': nit,
+    '{{RECTOR_NAME}}': rector,
+    '{{REPRESENTANTE_LEGAL}}': rector,
+    '{{ADDRESS}}': address,
+    '{{DIRECCION}}': address,
+    '{{PLAN_NAME}}': plan,
+    '{{PLAN_SERVICIO}}': plan,
+    '{{PRICE_COP}}': price,
+    '{{CANON_MENSUAL}}': price,
+    '{{VALOR_MENSUAL}}': price,
+    '{{DATE}}': date,
+    '{{FECHA}}': date,
   };
 
   for (const [placeholder, val] of Object.entries(replacements)) {
     result = result.split(placeholder).join(val);
   }
 
-  return result;
+  return sanitizeTextForPdf(result);
 }
 
 export async function computeSha256(text: string): Promise<string> {

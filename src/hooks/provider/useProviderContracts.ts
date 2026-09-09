@@ -133,6 +133,10 @@ export function useProviderGenerateContract() {
       const num = `ETM-${year}-COL-${String(Date.now()).slice(-3)}`;
       const markdown = payload.contentOverride || interpolateContractMarkdown(tpl?.content_markdown || "", {
         contractNumber: num,
+        institutionName: payload.institutionName,
+        nit: payload.institutionNit,
+        rectorName: payload.rectorName,
+        address: payload.address,
         planName: payload.planName,
         priceCop: payload.planPriceCop,
       });
@@ -149,11 +153,11 @@ export function useProviderGenerateContract() {
         version: tpl?.version || "1.0",
         content_markdown: markdown,
         content_hash: hash,
-        institution_legal_name: "Institución Educativa",
-        institution_nit: "900.000.000-1",
-        rector_name: "Representante Legal",
-        rector_document_id: null,
-        rector_email: null,
+        institution_legal_name: payload.institutionName || "Institución Adscrita",
+        institution_nit: payload.institutionNit || "Pendiente de registro",
+        rector_name: payload.rectorName || "Representante Legal",
+        rector_document_id: payload.rectorDocumentId || null,
+        rector_email: payload.rectorEmail || null,
         plan_name: payload.planName || "Plan Institucional",
         plan_price_cop: payload.planPriceCop || 0,
         billing_cycle: payload.billingCycle || "monthly",

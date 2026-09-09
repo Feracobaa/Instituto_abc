@@ -90,8 +90,8 @@ export function generateContractPdf(contract: InstitutionContract) {
 
   doc.setFontSize(7.5);
   doc.setTextColor(148, 163, 184);
-  const contractNum = sanitizeTextForPdf(contract.contract_number);
-  const statusStr = sanitizeTextForPdf(contract.status.toUpperCase());
+  const contractNum = sanitizeTextForPdf(contract.contract_number || "ETM-PENDING");
+  const statusStr = sanitizeTextForPdf((contract.status || "draft").toUpperCase());
   doc.text(`CONTRATO N°: ${contractNum}`, pageWidth - margin, 13, { align: "right" });
   doc.text(`ESTADO: ${statusStr}`, pageWidth - margin, 19, { align: "right" });
 
@@ -100,15 +100,15 @@ export function generateContractPdf(contract: InstitutionContract) {
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  const contractTitle = sanitizeTextForPdf(contract.title.toUpperCase());
+  const contractTitle = sanitizeTextForPdf((contract.title || "CONTRATO INSTITUCIONAL").toUpperCase());
   doc.text(contractTitle, margin, currentY);
 
   currentY += 5;
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
-  const createdDate = new Date(contract.created_at).toLocaleDateString("es-CO");
-  doc.text(`Versión: ${sanitizeTextForPdf(contract.version)} | Emitido: ${createdDate}`, margin, currentY);
+  const createdDate = new Date(contract.created_at || Date.now()).toLocaleDateString("es-CO");
+  doc.text(`Versión: ${sanitizeTextForPdf(contract.version || "1.0")} | Emitido: ${createdDate}`, margin, currentY);
 
   // Tabla de Identificación de Partes
   const partyRows = [
@@ -118,7 +118,7 @@ export function generateContractPdf(contract: InstitutionContract) {
     ["Cédula del Rector:", sanitizeTextForPdf(contract.rector_document_id || "Por registrar")],
     ["Plan y Cobertura:", `${sanitizeTextForPdf(contract.plan_name || "Plan Integral")} (${contract.billing_cycle === "annual" ? "Anual" : "Mensual"})`],
     ["Canon del Servicio:", `${formatCurrencyCop(Number(contract.plan_price_cop || 0))} COP`],
-    ["Vigencia del Acuerdo:", `Desde ${sanitizeTextForPdf(contract.valid_from)} ${contract.valid_until ? `hasta ${sanitizeTextForPdf(contract.valid_until)}` : "(Renovación Periódica Automática)"}`],
+    ["Vigencia del Acuerdo:", `Desde ${sanitizeTextForPdf(contract.valid_from || "Fecha de emisión")} ${contract.valid_until ? `hasta ${sanitizeTextForPdf(contract.valid_until)}` : "(Renovación Periódica Automática)"}`],
   ];
 
   autoTable(doc, {

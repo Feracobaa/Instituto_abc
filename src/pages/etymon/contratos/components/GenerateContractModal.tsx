@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, FilePlus2, Loader2, Building, Shield, DollarSign, Calendar } from "lucide-react";
-import type { PlatformContractType, PlatformLegalTemplate } from "@/features/contracts/types";
+import type { PlatformContractType, PlatformLegalTemplate, GenerateContractPayload } from "@/features/contracts/types";
 import type { ProviderInstitutionSummary } from "@/hooks/provider";
 
 interface GenerateContractModalProps {
@@ -8,15 +8,7 @@ interface GenerateContractModalProps {
   onClose: () => void;
   institutions: ProviderInstitutionSummary[];
   templates: PlatformLegalTemplate[];
-  onSubmit: (payload: {
-    institutionId: string;
-    templateCode: PlatformContractType;
-    customTitle?: string;
-    planName?: string;
-    planPriceCop?: number;
-    billingCycle?: string;
-    validUntil?: string;
-  }) => Promise<void>;
+  onSubmit: (payload: GenerateContractPayload) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -67,6 +59,11 @@ export function GenerateContractModal({
       planPriceCop,
       billingCycle,
       validUntil: validUntil || undefined,
+      institutionName: activeInstitution?.settings?.legal_name || activeInstitution?.institution.name,
+      institutionNit: activeInstitution?.settings?.nit,
+      rectorName: activeInstitution?.settings?.rector_name,
+      rectorDocumentId: activeInstitution?.settings?.phone,
+      address: activeInstitution?.settings?.address,
     });
     onClose();
   };
