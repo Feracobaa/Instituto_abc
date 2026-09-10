@@ -152,6 +152,18 @@ export function MustChangePasswordModal({ open }: MustChangePasswordModalProps) 
             )}
             Guardar Contraseña y Continuar
           </Button>
+
+          <p className="text-[11px] text-center text-muted-foreground mt-3">
+            Al continuar, ratificas la aceptación de los{" "}
+            <a href="/legal/terms" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+              Términos de Servicio
+            </a>{" "}
+            y la{" "}
+            <a href="/legal/privacy" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+              Política de Privacidad
+            </a>
+            .
+          </p>
         </form>
       </DialogContent>
     </Dialog>

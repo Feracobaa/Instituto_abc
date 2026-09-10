@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { ClipboardList, Calendar, User, CheckSquare, DollarSign, BookOpen } from "lucide-react";
+import { ClipboardList, Calendar, User, CheckSquare, DollarSign, BookOpen, ShieldCheck } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MisNotasTab from "@/features/portal/MisNotasTab";
@@ -8,10 +8,14 @@ import MiPerfilTab from "@/features/portal/MiPerfilTab";
 import MisAsistenciasTab from "@/features/portal/MisAsistenciasTab";
 import MisPensionesTab from "@/features/portal/MisPensionesTab";
 import MisTareasEstudianteTab from "@/features/tareas/MisTareasEstudianteTab";
+import { ConsentManagementTab } from "@/features/legal/ConsentManagementTab";
+import { useGuardianAccount } from "@/hooks/useSchoolData";
 
 export default function PortalEstudiantil() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get("tab") || "notas";
+  const guardianAccountQuery = useGuardianAccount();
+  const student = guardianAccountQuery.data?.students;
   
   const setTab = (newTab: string) => {
     setSearchParams({ tab: newTab });
@@ -48,6 +52,9 @@ export default function PortalEstudiantil() {
             <TabsTrigger value="perfil" className="gap-1.5">
               <User className="h-4 w-4" /> Perfil
             </TabsTrigger>
+            <TabsTrigger value="privacidad" className="gap-1.5">
+              <ShieldCheck className="h-4 w-4" /> Privacidad
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="notas" className="mt-6">
@@ -67,6 +74,9 @@ export default function PortalEstudiantil() {
           </TabsContent>
           <TabsContent value="perfil" className="mt-6">
             <MiPerfilTab />
+          </TabsContent>
+          <TabsContent value="privacidad" className="mt-6">
+            {student ? <ConsentManagementTab studentId={student.id} guardianName={student.guardian_name || ""} /> : null}
           </TabsContent>
         </Tabs>
       </div>

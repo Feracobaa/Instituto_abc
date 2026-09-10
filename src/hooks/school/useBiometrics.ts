@@ -55,6 +55,19 @@ export function useBiometrics() {
     async (studentIds: string[]): Promise<StudentBiometric[]> => {
       if (!studentIds.length) return [];
       setLoading(true);
+      if (!navigator.onLine) {
+        toast.info('La asistencia facial no está disponible sin conexión. Use el registro manual.');
+        setLoading(false);
+        return [];
+      }
+      try {
+        return await fetchStudentBiometrics(studentIds);
+      } catch (error) {
+        console.error('No fue posible validar el consentimiento biométrico en servidor:', error);
+        return [];
+      } finally {
+        setLoading(false);
+      }
       const courseKey = studentIds.slice(0, 5).sort().join('_');
 
       try {

@@ -14,10 +14,10 @@ export async function fetchStudentBiometrics(
 ): Promise<StudentBiometricRecord[]> {
   if (!studentIds || !studentIds.length) return [];
 
-  const { data, error } = await supabase
-    .from('student_biometrics')
-    .select('*')
-    .in('student_id', studentIds);
+  const { data, error } = await (supabase as unknown as { rpc: (name: string, args: unknown) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc(
+    'list_consented_student_biometrics',
+    { p_student_ids: studentIds },
+  );
 
   if (error || !data) {
     console.error('Error al consultar biometrías de estudiantes:', error);
@@ -40,16 +40,10 @@ export async function upsertStudentBiometric(
 
   const normalized = normalizeVector(embedding);
 
-  const { error } = await supabase
-    .from('student_biometrics')
-    .upsert(
-      {
-        student_id: studentId,
-        embedding: normalized,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'student_id' }
-    );
+  const { error } = await (supabase as unknown as { rpc: (name: string, args: unknown) => Promise<{ error: { message: string } | null }> }).rpc(
+    'enroll_student_biometric',
+    { p_student_id: studentId, p_embedding: normalized },
+  );
 
   if (error) {
     console.error('Error guardando biometría de estudiante:', error);
@@ -65,10 +59,10 @@ export async function upsertStudentBiometric(
 export async function deleteStudentBiometric(
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('student_biometrics')
-    .delete()
-    .eq('student_id', studentId);
+  const { error } = await (supabase as unknown as { rpc: (name: string, args: unknown) => Promise<{ error: { message: string } | null }> }).rpc(
+    'remove_student_biometric',
+    { p_student_id: studentId },
+  );
 
   if (error) {
     return { success: false, error: error.message };

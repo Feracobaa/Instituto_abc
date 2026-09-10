@@ -35,6 +35,9 @@ const EtymonPlanes = lazy(() => import("./pages/etymon/EtymonPlanes"));
 const EtymonPermisos = lazy(() => import("./pages/etymon/EtymonPermisos"));
 const EtymonEnLinea = lazy(() => import("./pages/etymon/EtymonEnLinea"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PrivacyPolicyPage = lazy(() => import("./pages/legal/PrivacyPolicyPage"));
+const TermsOfServicePage = lazy(() => import("./pages/legal/TermsOfServicePage"));
+const ComplianceRoadmapPage = lazy(() => import("./pages/legal/ComplianceRoadmapPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +75,9 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/login/:slug" element={<Auth />} />
+              <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/legal/terms" element={<TermsOfServicePage />} />
+              <Route path="/legal/cumplimiento" element={<ComplianceRoadmapPage />} />
               <Route
                 path="/"
                 element={

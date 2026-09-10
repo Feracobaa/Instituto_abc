@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Link } from "react-router-dom";
 import { MustChangePasswordModal } from "@/components/auth/MustChangePasswordModal";
+import { LegalFooter } from "@/components/layout/LegalFooter";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -147,6 +148,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <div className="flex-1 overflow-auto p-4 sm:p-6">
             <div className="mx-auto max-w-7xl">{children}</div>
           </div>
+          <LegalFooter />
         </main>
       </div>
       <MustChangePasswordModal open={Boolean(user?.user_metadata?.must_change_password)} />

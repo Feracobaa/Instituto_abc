@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Command, Camera } from "lucide-react";
+import { Eye, EyeOff, Loader2, Camera } from "lucide-react";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { InteractiveBackground } from "@/components/ui/InteractiveBackground";
 import { InteractiveLogoVideo } from "@/components/ui/InteractiveLogoVideo";
 import { BiometricLoginModal } from "@/components/biometrics/BiometricLoginModal";
+import { AuthConsentNotice, AuthLegalFooter } from "@/components/auth/AuthLegalFooter";
 
 const loginSchema = z.object({
   identifier: z.string().min(3, "Ingresa un usuario o correo válido"),
@@ -44,16 +45,14 @@ export default function Auth() {
     isLoaded: boolean;
   }>({ isLoaded: false });
 
-  // Cargar branding del colegio si hay un slug en la URL
   useEffect(() => {
     async function loadBranding() {
       if (!slug) {
         setBranding({ isLoaded: true });
         return;
       }
-      // Se obtiene el branding de manera tipada 
       const { data, error } = await supabase.rpc("get_public_institution_branding", { p_slug: slug });
-      if (!error && data && typeof data === 'object' && Object.keys(data).length > 0) {
+      if (!error && data && typeof data === "object" && Object.keys(data).length > 0) {
         setBranding({
           ...(data as {
             accent_color?: string;
@@ -75,7 +74,6 @@ export default function Auth() {
     loadBranding();
   }, [slug]);
 
-  // Redirigir si ya está autenticado
   useEffect(() => {
     if (user && !loading) {
       navigate(isProviderOwner ? "/etymon" : "/");
@@ -115,7 +113,6 @@ export default function Auth() {
     );
   }
 
-  // Lógica de identidad visual
   const isEtymon = !slug || (!branding.display_name && !branding.name);
   const displayName = branding.display_name || branding.name || "Etymon SaaS";
   const primaryColor = branding.primary_color || "#00e7a7";
@@ -127,8 +124,6 @@ export default function Auth() {
 
       <div className="relative z-10 w-full max-w-[420px] p-6">
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-
-          {/* Header & Logo */}
           <div className="mb-8 flex flex-col items-center justify-center text-center">
             {isEtymon ? (
               <div className="mb-6">
@@ -158,29 +153,28 @@ export default function Auth() {
             </p>
           </div>
 
-          {/* Login Box */}
           <div className="rounded-2xl border border-white/10 bg-[#0f0f0f]/80 p-8 text-white shadow-2xl backdrop-blur-xl">
-            {/* Toggle Mode */}
             <div className="mb-6 flex rounded-xl bg-black/60 p-1">
               <button
                 type="button"
                 onClick={() => setLoginMode("staff")}
-                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${loginMode === "staff" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
-                  }`}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+                  loginMode === "staff" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+                }`}
               >
                 Personal
               </button>
               <button
                 type="button"
                 onClick={() => setLoginMode("family")}
-                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${loginMode === "family" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
-                  }`}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+                  loginMode === "family" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+                }`}
               >
                 Estudiante
               </button>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
                 <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/50">
@@ -227,6 +221,8 @@ export default function Auth() {
               >
                 {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Iniciar Sesión"}
               </Button>
+
+              <AuthConsentNotice />
             </form>
 
             <div className="relative my-6 flex items-center justify-center">
@@ -250,9 +246,11 @@ export default function Auth() {
             </Button>
           </div>
 
-          <div className="mt-8 text-center text-xs text-white/30">
+          <div className="mt-6 text-center text-xs text-white/30">
             Powered by <span className="font-semibold tracking-wider text-white/50">ETYMON</span>
           </div>
+
+          <AuthLegalFooter />
         </div>
       </div>
 

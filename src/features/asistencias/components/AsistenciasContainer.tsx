@@ -232,6 +232,8 @@ export function AsistenciasContainer() {
   };
 
   const handleOpenScanner = async () => {
+    toast.info("La asistencia facial está desactivada hasta completar la validación de vida en servidor. Use el registro manual.");
+    return;
     if (!students.length) {
       toast.warning("No hay estudiantes en la lista para escanear.");
       return;
