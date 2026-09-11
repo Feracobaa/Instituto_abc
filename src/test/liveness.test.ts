@@ -5,6 +5,7 @@ import {
   calculateHeadPoseYaw,
   calculateMouthAspectRatio,
   LivenessChallengeEngine,
+  AdaptiveBlinkTracker,
   Point2D,
 } from '@/features/biometrics/services/livenessDetector';
 
@@ -169,5 +170,80 @@ describe('Liveness Challenge-Response Engine', () => {
 
     expect(result.status).toBe('passed');
     expect(result.progress).toBe(100);
+  });
+});
+
+describe('AdaptiveBlinkTracker (Anti-Spoofing Parpadeo Inteligente)', () => {
+  it('detecta parpadeo exitosamente en personas con ojos estrechos o gafas (baseline bajo ~0.22)', () => {
+    const tracker = new AdaptiveBlinkTracker();
+    // 1. Frame inicial: ojos abiertos estrechos (EAR: 0.22)
+    let res = tracker.update(0.22);
+    expect(res.phase).toBe('waiting');
+    expect(tracker.getBaseline()).toBeCloseTo(0.22, 2);
+
+    // 2. Cierre ocular: EAR cae a 0.16 (caída relativa > 25%)
+    res = tracker.update(0.16);
+    expect(res.phase).toBe('closing_detected');
+    expect(res.isPassed).toBe(false);
+
+    // 3. Reapertura ocular: EAR vuelve a 0.21
+    res = tracker.update(0.21);
+    expect(res.phase).toBe('passed');
+    expect(res.isPassed).toBe(true);
+    expect(res.progress).toBe(100);
+  });
+
+  it('detecta parpadeo exitosamente en personas con ojos grandes o abiertos amplios (baseline alto ~0.35)', () => {
+    const tracker = new AdaptiveBlinkTracker();
+    // 1. Frame inicial: EAR 0.35
+    let res = tracker.update(0.35);
+    expect(res.phase).toBe('waiting');
+
+    // 2. Cierre ocular: EAR cae a 0.22 (caída relativa ~37%)
+    res = tracker.update(0.22);
+    expect(res.phase).toBe('closing_detected');
+
+    // 3. Reapertura: EAR vuelve a 0.34
+    res = tracker.update(0.34);
+    expect(res.phase).toBe('passed');
+    expect(res.isPassed).toBe(true);
+  });
+
+  it('descarta y reinicia si los ojos permanecen cerrados por más de 1.4s (no es parpadeo natural)', () => {
+    const tracker = new AdaptiveBlinkTracker({ maxDurationMs: 100 });
+    tracker.update(0.30); // Baseline 0.30
+    tracker.update(0.15); // Cierre detectado
+    expect(tracker.getPhase()).toBe('closing_detected');
+
+    // Simular que transcurren más de 100ms manteniendo ojos cerrados
+    const originalDateNow = Date.now;
+    try {
+      Date.now = () => originalDateNow() + 200;
+      const res = tracker.update(0.15);
+      expect(res.phase).toBe('waiting');
+      expect(res.isPassed).toBe(false);
+    } finally {
+      Date.now = originalDateNow;
+    }
+  });
+
+  it('aumenta la sensibilidad automáticamente si transcurre el tiempo de espera', () => {
+    const tracker = new AdaptiveBlinkTracker({ escalateTimeoutMs: 100, dropThreshold: 0.20 });
+    tracker.update(0.30); // Baseline 0.30
+
+    // Con dropThreshold 0.20, una caída a 0.255 es solo 15% (no debería cerrar inicialmente)
+    let res = tracker.update(0.255);
+    expect(res.phase).toBe('waiting');
+
+    // Simular que transcurre el tiempo de espera (escalateTimeoutMs)
+    const originalDateNow = Date.now;
+    try {
+      Date.now = () => originalDateNow() + 200;
+      // Ahora con sensibilidad relajada (~15%), una caída a 0.252 sí se detecta
+      res = tracker.update(0.252);
+      expect(res.phase).toBe('closing_detected');
+    } finally {
+      Date.now = originalDateNow;
+    }
   });
 });

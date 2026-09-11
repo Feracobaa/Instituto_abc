@@ -1,6 +1,7 @@
-import { UserRound, GraduationCap, BookOpen } from "lucide-react";
+import { UserRound, GraduationCap, BookOpen, Clock, Sparkles } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AttendanceClassContext } from "@/hooks/school/types";
+import type { ActiveClassScheduleInfo } from "../hooks/useCurrentClassAutoDetect";
 
 interface OptionItem {
   id: string;
@@ -16,38 +18,73 @@ interface OptionItem {
 }
 
 interface AttendanceFilterHeaderProps {
-  selectedDate: string;
-  onDateChange: (date: string) => void;
-  isRector: boolean;
-  selectedTeacher: string;
-  onTeacherChange: (teacherId: string) => void;
-  teacherOptions: OptionItem[];
-  selectedGrade: string;
-  onGradeChange: (gradeId: string) => void;
+  activeClass?: ActiveClassScheduleInfo | null;
   gradeOptions: OptionItem[];
-  selectedSubject: string;
+  isRector: boolean;
+  onApplyActiveClass?: () => void;
+  onDateChange: (date: string) => void;
+  onGradeChange: (gradeId: string) => void;
   onSubjectChange: (subjectId: string) => void;
-  subjectOptions: OptionItem[];
+  onTeacherChange: (teacherId: string) => void;
   selectedContext: AttendanceClassContext | null;
+  selectedDate: string;
+  selectedGrade: string;
+  selectedSubject: string;
+  selectedTeacher: string;
+  subjectOptions: OptionItem[];
+  teacherOptions: OptionItem[];
 }
 
 export function AttendanceFilterHeader({
-  selectedDate,
-  onDateChange,
-  isRector,
-  selectedTeacher,
-  onTeacherChange,
-  teacherOptions,
-  selectedGrade,
-  onGradeChange,
+  activeClass,
   gradeOptions,
-  selectedSubject,
+  isRector,
+  onApplyActiveClass,
+  onDateChange,
+  onGradeChange,
   onSubjectChange,
-  subjectOptions,
+  onTeacherChange,
   selectedContext,
+  selectedDate,
+  selectedGrade,
+  selectedSubject,
+  selectedTeacher,
+  subjectOptions,
+  teacherOptions,
 }: AttendanceFilterHeaderProps) {
+  const isCurrentClassSelected =
+    Boolean(activeClass && selectedContext) &&
+    activeClass?.gradeId === selectedContext?.grade_id &&
+    activeClass?.subjectId === selectedContext?.subject_id;
+
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-card">
+    <div className="rounded-2xl border bg-card p-4 shadow-card space-y-4">
+      {/* Sugerencia inteligente de clase activa según horario */}
+      {activeClass && !isCurrentClassSelected && onApplyActiveClass && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div className="text-xs">
+              <span className="font-semibold text-foreground">Clase en curso detectada: </span>
+              <span className="text-primary font-bold">{activeClass.gradeName} - {activeClass.subjectName}</span>
+              <span className="text-muted-foreground ml-1.5">({activeClass.startTime} - {activeClass.endTime})</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            onClick={onApplyActiveClass}
+            className="h-8 gap-1.5 text-xs font-semibold"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Cargar esta clase
+          </Button>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Fecha</Label>
@@ -111,7 +148,7 @@ export function AttendanceFilterHeader({
       </div>
 
       {selectedContext && (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
             <UserRound className="h-4 w-4 text-primary" />
             <span>Docente: <span className="font-semibold text-foreground">{selectedContext.teacher_name}</span></span>
