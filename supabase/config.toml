@@ -1,2 +1,5 @@
 [functions.provision-guardian-accounts]
 verify_jwt = false
+
+[functions.secure-student-document]
+verify_jwt = false
