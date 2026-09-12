@@ -262,11 +262,23 @@ const Profesores = () => {
                           )}
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(teacher)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40"
+                        title="Editar docente"
+                        onClick={() => handleEdit(teacher)}
+                      >
                         <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(teacher.id)}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                        title="Eliminar docente"
+                        onClick={() => handleDelete(teacher.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   )}
@@ -390,11 +402,23 @@ const Profesores = () => {
                         )}
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(teacher)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40"
+                      title="Editar docente"
+                      onClick={() => handleEdit(teacher)}
+                    >
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(teacher.id)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                      title="Eliminar docente"
+                      onClick={() => handleDelete(teacher.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 )}

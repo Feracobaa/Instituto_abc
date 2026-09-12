@@ -14,7 +14,7 @@ import {
   Lock,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -65,9 +65,6 @@ export function AppSidebar() {
   const { data: moduleAccess } = useInstitutionModuleAccess({ enabled: Boolean(user) });
   const [isDark, setIsDark] = useState(false);
 
-  const activePillRef = useRef<HTMLLIElement>(null);
-  const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
-
   useEffect(() => {
     const stored = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -99,27 +96,6 @@ export function AppSidebar() {
       return { ...item, isLocked: false };
     });
 
-  const activeIndex = availableMenuItems.findIndex((item) => location.pathname === item.url);
-
-  useEffect(() => {
-    if (activeIndex === -1) {
-      if (activePillRef.current) {
-        activePillRef.current.style.height = "0px";
-        activePillRef.current.style.opacity = "0";
-      }
-      return;
-    }
-
-    const btn = itemRefs.current[activeIndex];
-    const pill = activePillRef.current;
-    if (!btn || !pill) return;
-
-    pill.style.height = `${btn.offsetHeight}px`;
-    pill.style.transform = `translateY(${btn.offsetTop}px)`;
-    pill.style.opacity = "1";
-    pill.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease";
-  }, [activeIndex, availableMenuItems]);
-
   const getInitials = (name: string) =>
     name
       .split(" ")
@@ -139,29 +115,29 @@ export function AppSidebar() {
 
   const roleConfig = {
     rector: {
-      activeColor: "hsl(var(--rector-accent))",
-      badgeClass: "bg-rector text-rector-foreground",
-      gradientClass: "gradient-rector",
+      activeColor: "hsl(var(--primary))",
+      badgeClass: "bg-blue-600 text-white font-bold",
+      gradientClass: "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-sm",
       label: "RECTOR",
-      lightBg: "bg-rector-light",
+      lightBg: "bg-blue-500/10",
     },
     contable: {
-      activeColor: "hsl(var(--rector-accent))",
-      badgeClass: "bg-rector text-rector-foreground",
-      gradientClass: "gradient-rector",
+      activeColor: "hsl(var(--primary))",
+      badgeClass: "bg-blue-600 text-white font-bold",
+      gradientClass: "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-sm",
       label: "CONTABLE",
-      lightBg: "bg-rector-light",
+      lightBg: "bg-blue-500/10",
     },
     profesor: {
-      activeColor: "hsl(var(--profesor-accent))",
-      badgeClass: "bg-profesor text-profesor-foreground",
-      gradientClass: "gradient-profesor",
+      activeColor: "hsl(var(--primary))",
+      badgeClass: "bg-sky-600 text-white font-bold",
+      gradientClass: "bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm",
       label: "PROFESOR",
-      lightBg: "bg-profesor-light",
+      lightBg: "bg-sky-500/10",
     },
     parent: {
       activeColor: "hsl(var(--primary))",
-      badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-200",
+      badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-200 font-bold",
       gradientClass: "bg-slate-900 text-white dark:bg-amber-500",
       label: "ESTUDIANTE",
       lightBg: "bg-amber-50 dark:bg-amber-500/10",
@@ -170,34 +146,13 @@ export function AppSidebar() {
 
   const role = roleConfig[(userRole ?? "profesor") as MenuRole];
 
-  const getGlassStyle = () => {
-    const isRectorOrContable = userRole === "rector" || userRole === "contable";
-    const isProfesor = userRole === "profesor";
-    const baseColor = isRectorOrContable
-      ? "168, 85, 247" // Purple
-      : isProfesor
-        ? "14, 165, 233" // Sky blue
-        : "59, 130, 246"; // Blue (parent)
 
-    return {
-      bg: isDark ? `rgba(${baseColor}, 0.32)` : `rgba(${baseColor}, 0.16)`,
-      border: isDark ? `rgba(${baseColor}, 0.5)` : `rgba(${baseColor}, 0.28)`,
-      shadow: isDark ? `rgba(${baseColor}, 0.22)` : `rgba(${baseColor}, 0.1)`,
-    };
-  };
-
-  const glass = getGlassStyle();
 
   return (
-    <Sidebar
-      className="border-r border-border backdrop-blur-md transition-all duration-300"
-      style={{
-        backgroundColor: isDark ? "rgba(15, 23, 42, 0.35)" : "rgba(255, 255, 255, 0.35)",
-      }}
-    >
+    <Sidebar className="border-r border-sidebar-border bg-sidebar transition-all duration-300">
       <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white p-1 shadow-sm">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card p-1 shadow-sm">
             <img src={institutionLogo} alt={`Logo ${institutionName}`} className="h-full w-full object-contain" />
           </div>
           <div>
@@ -215,50 +170,41 @@ export function AppSidebar() {
             Menu principal
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="relative">
-              {/* Sliding glass active pill */}
-              <li
-                ref={activePillRef}
-                className="absolute left-0 right-0 rounded-lg pointer-events-none active-sidebar-pill list-none"
-                style={{
-                  zIndex: 0,
-                  height: 0,
-                  transform: "translateY(0px)",
-                  backgroundColor: glass.bg,
-                  border: `1px solid ${glass.border}`,
-                  boxShadow: `0 4px 12px ${glass.shadow}, inset 0 1px 1px rgba(255, 255, 255, 0.15)`,
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  opacity: 0,
-                }}
-              />
-
-              {availableMenuItems.map((item, index) => {
-                const isActive = location.pathname === item.url;
+            <SidebarMenu>
+              {availableMenuItems.map((item) => {
+                const isActive = item.url === "/"
+                  ? location.pathname === "/"
+                  : location.pathname === item.url || location.pathname.startsWith(`${item.url}/`);
 
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink
-                        ref={el => itemRefs.current[index] = el}
                         to={item.url}
                         className={cn(
-                          "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 z-10 bg-transparent",
+                          "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200",
                           isActive
-                            ? cn("font-semibold", isDark ? "text-white" : "")
+                            ? "bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:bg-white/[0.08] dark:border-white/15 dark:text-white font-semibold shadow-sm backdrop-blur-sm"
                             : item.isLocked
-                              ? "text-muted-foreground/50 hover:bg-secondary/50 cursor-pointer"
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                              ? "border border-transparent text-muted-foreground/50 hover:bg-secondary/50 cursor-pointer"
+                              : "border border-transparent text-muted-foreground hover:bg-secondary/70 hover:text-foreground",
                         )}
-                        style={isActive && !isDark ? { color: role.activeColor } : undefined}
                       >
-                        {!isActive && (
+                        {isActive && (
                           <span
-                            className="absolute left-0 top-1/2 h-0 w-0.5 -translate-y-1/2 rounded-r-full transition-all duration-200 group-hover:h-6"
-                            style={{ background: role.activeColor }}
+                            className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                           />
                         )}
-                        <item.icon className={cn("h-5 w-5 flex-shrink-0", item.isLocked && "opacity-50")} />
+                        <item.icon
+                          className={cn(
+                            "h-5 w-5 flex-shrink-0 transition-colors",
+                            isActive
+                              ? "text-blue-600 dark:text-blue-400"
+                              : item.isLocked
+                                ? "opacity-50"
+                                : "group-hover:text-foreground",
+                          )}
+                        />
                         <span className={cn("font-medium flex-1", item.isLocked && "opacity-60")}>{item.title}</span>
                         {item.isLocked && (
                           <Lock className="h-3.5 w-3.5 opacity-40 flex-shrink-0" />
@@ -282,7 +228,7 @@ export function AppSidebar() {
           <span>{isDark ? "Modo claro" : "Modo oscuro"}</span>
         </button>
 
-        <div className={cn("flex items-center gap-3 rounded-xl p-3", role.lightBg)}>
+        <div className={cn("flex items-center gap-3 rounded-xl p-3 border transition-colors", isDark ? "bg-card/70 border-border" : cn(role.lightBg, "border-border/40"))}>
           <Avatar className="h-9 w-9 flex-shrink-0">
             <AvatarFallback className={cn("text-sm font-bold text-white", role.gradientClass)}>
               {getInitials(displayName)}

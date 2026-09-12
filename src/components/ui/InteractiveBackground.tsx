@@ -4,7 +4,7 @@ interface InteractiveBackgroundProps {
   primaryColor?: string;
 }
 
-export function InteractiveBackground({ primaryColor = "#00e7a7" }: InteractiveBackgroundProps) {
+export function InteractiveBackground({ primaryColor = "#2563eb" }: InteractiveBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function InteractiveBackground({ primaryColor = "#00e7a7" }: InteractiveB
         r: parseInt(result[1], 16),
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
-      } : { r: 0, g: 231, b: 167 };
+      } : { r: 37, g: 99, b: 235 };
     };
 
     const color = hexToRgb(primaryColor);
@@ -104,13 +104,13 @@ export function InteractiveBackground({ primaryColor = "#00e7a7" }: InteractiveB
         // Draw with radial gradient for bloom effect
         const gradient = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.radius);
         
-        // Add subtle hue shifts for a more premium look
-        const r = Math.min(255, Math.max(0, color.r + (orb.colorOffset * (orb.vx > 0 ? 1 : -1))));
-        const g = color.g;
-        const b = Math.min(255, Math.max(0, color.b - orb.colorOffset));
+        // Add subtle sapphire and cobalt hue shifts for a luxury SaaS look
+        const r = Math.min(255, Math.max(15, color.r + (orb.colorOffset * 0.4 * (orb.vx > 0 ? 1 : -1))));
+        const g = Math.min(255, Math.max(40, color.g + (orb.colorOffset * 0.3)));
+        const b = Math.min(255, Math.max(160, color.b + (orb.colorOffset * 0.5)));
 
-        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.18)`);
-        gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.06)`);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.24)`);
+        gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.10)`);
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
         ctx.fillStyle = gradient;
@@ -132,16 +132,19 @@ export function InteractiveBackground({ primaryColor = "#00e7a7" }: InteractiveB
   }, [primaryColor]);
 
   return (
-    <div className="absolute inset-0 z-0 overflow-hidden bg-[#020202]">
+    <div className="absolute inset-0 z-0 overflow-hidden bg-gradient-to-br from-[#060e22] via-[#081530] to-[#040814]">
+      {/* Ambient soft glow in center */}
+      <div className="absolute inset-0 z-5 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(37,99,235,0.14),transparent_70%)]" />
+
       {/* Noise texture overlay for premium, tactile feel */}
       <div 
-        className="absolute inset-0 z-10 pointer-events-none opacity-[0.04] mix-blend-overlay" 
+        className="absolute inset-0 z-10 pointer-events-none opacity-[0.035] mix-blend-overlay" 
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
       />
       {/* Blurred glowing canvas */}
       <canvas
         ref={canvasRef}
-        className="h-full w-full pointer-events-none mix-blend-screen blur-[30px]"
+        className="h-full w-full pointer-events-none mix-blend-screen blur-[45px] opacity-80"
       />
     </div>
   );

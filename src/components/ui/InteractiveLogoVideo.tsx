@@ -29,8 +29,8 @@ export function InteractiveLogoVideo({ src, className = "" }: InteractiveLogoVid
     <div
       className={`relative overflow-hidden cursor-pointer rounded-2xl transition-all duration-500 ${
         isHovered
-          ? "scale-105 shadow-[0_0_50px_rgba(0,231,167,0.4)] brightness-125"
-          : "scale-100 shadow-[0_0_20px_rgba(0,231,167,0.1)] brightness-100"
+          ? "scale-105 shadow-[0_0_50px_rgba(37,99,235,0.45)] brightness-125"
+          : "scale-100 shadow-[0_0_25px_rgba(37,99,235,0.2)] brightness-100"
       } ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

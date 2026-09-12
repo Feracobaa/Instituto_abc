@@ -240,7 +240,7 @@ export default function Familias() {
                     <div className="mt-4">
                       <Button
                         variant="outline"
-                        className="gap-2"
+                        className="gap-2 border-blue-500/30 text-blue-600 hover:bg-blue-500/10 hover:text-blue-600 hover:border-blue-500/50 dark:border-blue-400/30 dark:text-blue-400 dark:hover:bg-blue-500/20 dark:hover:text-blue-300"
                         onClick={() => handleProvision([student.id])}
                         disabled={provisionGuardianAccounts.isPending || !student.grade_id}
                         title={!student.grade_id ? "Asigna un grado al estudiante primero" : undefined}

@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { InstitutionThemeProvider } from "@/components/layout/InstitutionThemeProvider";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAcademicPeriods, useGuardianAccount } from "@/hooks/useSchoolData";
 import {
@@ -14,7 +15,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Link } from "react-router-dom";
 import { MustChangePasswordModal } from "@/components/auth/MustChangePasswordModal";
 import { LegalFooter } from "@/components/layout/LegalFooter";
 
@@ -25,6 +25,7 @@ interface MainLayoutProps {
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/contabilidad": "Contabilidad",
+  "/pensiones": "Pensiones",
   "/usuarios": "Usuarios",
   "/profesores": "Profesores",
   "/estudiantes": "Estudiantes",
@@ -33,13 +34,33 @@ const pageTitles: Record<string, string> = {
   "/grados": "Grados",
   "/materias": "Materias",
   "/calificaciones": "Calificaciones",
-  "/tareas": "Gestión de Tareas",
+  "/tareas": "Tareas",
+  "/asistencias": "Asistencias",
+  "/portal": "Mi Portal",
   "/mis-notas": "Mis Notas",
   "/mi-horario": "Mi Horario",
   "/mi-perfil": "Mi Perfil",
 };
 
-import { NotificationBell } from "@/components/layout/NotificationBell";
+function getPageTitle(pathname: string): string {
+  if (pageTitles[pathname]) {
+    return pageTitles[pathname];
+  }
+
+  const matchingKey = Object.keys(pageTitles).find(
+    (key) => key !== "/" && pathname.startsWith(key),
+  );
+  if (matchingKey) {
+    return pageTitles[matchingKey];
+  }
+
+  const segment = pathname.split("/").filter(Boolean)[0];
+  if (segment) {
+    return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
+  }
+
+  return "Dashboard";
+}
 
 export function MainLayout({ children }: MainLayoutProps) {
   const { user, userRole, loading } = useAuth();
@@ -49,7 +70,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const guardianAccountQuery = useGuardianAccount(userRole === "parent");
 
   const activePeriod = periods?.find((period) => period.is_active);
-  const pageTitle = pageTitles[location.pathname] ?? "ETYMON";
+  const pageTitle = getPageTitle(location.pathname);
   const needsGuardianOnboarding = Boolean(
     userRole === "parent"
     && guardianAccountQuery.data
@@ -133,8 +154,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                 Completa tu perfil inicial
               </span>
             ) : activePeriod ? (
-              <span className="hidden items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-medium text-success sm:inline-flex">
-                <span className="h-1.5 w-1.5 animate-pulse-glow rounded-full bg-success" />
+              <span className="hidden items-center gap-1.5 rounded-full border border-slate-200/90 bg-slate-100/90 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-300 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 {activePeriod.name}
               </span>
             ) : (

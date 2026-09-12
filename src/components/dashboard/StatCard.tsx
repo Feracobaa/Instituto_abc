@@ -24,7 +24,7 @@ export function StatCard({
     primary: 'bg-blue-500/12 dark:bg-blue-500/18 border-blue-500/30 text-foreground backdrop-blur-md shadow-sm',
     success: 'bg-success/8 border-success/30 text-foreground backdrop-blur-md',
     warning: 'bg-warning/8 border-warning/30 text-foreground backdrop-blur-md',
-    rector: 'bg-purple-500/12 dark:bg-purple-500/18 border-purple-500/30 text-foreground backdrop-blur-md shadow-sm',
+    rector: 'bg-blue-600/12 dark:bg-blue-600/18 border-blue-600/30 text-foreground backdrop-blur-md shadow-sm',
     profesor: 'bg-sky-500/12 dark:bg-sky-500/18 border-sky-500/30 text-foreground backdrop-blur-md shadow-sm',
   };
 
@@ -33,7 +33,7 @@ export function StatCard({
     primary: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
     success: 'bg-success/15 text-success',
     warning: 'bg-warning/15 text-warning',
-    rector: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
+    rector: 'bg-blue-600/15 text-blue-600 dark:text-blue-400',
     profesor: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
   };
 

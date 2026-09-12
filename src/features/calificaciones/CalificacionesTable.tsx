@@ -233,8 +233,9 @@ export function CalificacionesTable({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7"
+                          className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40"
                           disabled={!canManageRecords}
+                          title="Editar calificación"
                           onClick={() =>
                             isPreescolarRecord
                               ? onEditPreescolar(record)

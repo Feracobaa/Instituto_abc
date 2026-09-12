@@ -204,7 +204,7 @@ const Estudiantes = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
                           title="Registrar Huella Facial"
                           onClick={() => {
                             setBiometricTarget({ id: student.id, name: student.full_name });
@@ -213,11 +213,23 @@ const Estudiantes = () => {
                         >
                           <ScanFace className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(student)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40"
+                          title="Editar estudiante"
+                          onClick={() => handleEdit(student)}
+                        >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(student.id)}>
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                          title="Eliminar estudiante"
+                          onClick={() => handleDelete(student.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     )}

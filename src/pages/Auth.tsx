@@ -107,19 +107,19 @@ export default function Auth() {
 
   if (loading || !branding.isLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050505]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#00e7a7]" />
+      <div className="flex min-h-screen items-center justify-center bg-[#060e22]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
   const isEtymon = !slug || (!branding.display_name && !branding.name);
   const displayName = branding.display_name || branding.name || "Etymon SaaS";
-  const primaryColor = branding.primary_color || "#00e7a7";
-  const accentColor = branding.accent_color || "#14d4c7";
+  const primaryColor = branding.primary_color || "#2563eb";
+  const accentColor = branding.accent_color || "#3b82f6";
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505]">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#060e22]">
       <InteractiveBackground primaryColor={primaryColor} />
 
       <div className="relative z-10 w-full max-w-[420px] p-6">
@@ -138,28 +138,30 @@ export default function Auth() {
               </div>
             ) : (
               <div
-                className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(37,99,235,0.25)]"
                 style={{ backgroundColor: primaryColor }}
               >
                 <span className="text-2xl font-bold text-white">{displayName.charAt(0)}</span>
               </div>
             )}
 
-            <h1 className="text-2xl font-bold tracking-tight text-white">
+            <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
               {isEtymon ? "ETYMON" : displayName}
             </h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-300">
               {isEtymon ? "SaaS de Gestión Académica" : "Portal de acceso seguro"}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0f0f0f]/80 p-8 text-white shadow-2xl backdrop-blur-xl">
-            <div className="mb-6 flex rounded-xl bg-black/60 p-1">
+          <div className="rounded-3xl border border-blue-500/20 bg-[#0c1833]/85 p-8 text-white shadow-2xl shadow-blue-950/60 backdrop-blur-2xl ring-1 ring-white/10">
+            <div className="mb-6 flex rounded-xl bg-[#060e22]/80 border border-blue-500/15 p-1">
               <button
                 type="button"
                 onClick={() => setLoginMode("staff")}
-                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
-                  loginMode === "staff" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-all ${
+                  loginMode === "staff"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/30"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
                 Personal
@@ -167,8 +169,10 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={() => setLoginMode("family")}
-                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
-                  loginMode === "family" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-all ${
+                  loginMode === "family"
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/30"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
                 Estudiante
@@ -177,7 +181,7 @@ export default function Auth() {
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/50">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-300/80">
                   {loginMode === "family" ? "Usuario Institucional" : "Correo Electrónico"}
                 </Label>
                 <Input
@@ -185,24 +189,24 @@ export default function Auth() {
                   placeholder={loginMode === "family" ? "ej. fmvega" : "usuario@colegio.edu"}
                   value={loginData.identifier}
                   onChange={(e) => setLoginData({ ...loginData, identifier: e.target.value })}
-                  className="h-12 border-white/10 bg-black/50 px-4 text-white placeholder:text-white/20 focus:border-[#00e7a7]/50 focus:ring-[#00e7a7]/20"
+                  className="h-12 border-slate-700/60 bg-[#060e22]/70 px-4 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/25 transition-all rounded-xl"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/50">Contraseña</Label>
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-300/80">Contraseña</Label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    className="h-12 border-white/10 bg-black/50 px-4 pr-10 text-white placeholder:text-white/20 focus:border-[#00e7a7]/50 focus:ring-[#00e7a7]/20"
+                    className="h-12 border-slate-700/60 bg-[#060e22]/70 px-4 pr-10 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/25 transition-all rounded-xl"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -211,15 +215,15 @@ export default function Auth() {
 
               <Button
                 type="submit"
-                className="mt-2 h-12 w-full font-bold text-black transition-transform active:scale-[0.98]"
+                className="mt-2 h-12 w-full font-bold text-white transition-all duration-200 shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:brightness-110 active:scale-[0.98] rounded-xl"
                 style={{
                   background: isEtymon
-                    ? "linear-gradient(135deg, #00e7a7, #14d4c7)"
+                    ? "linear-gradient(135deg, #2563eb, #1d4ed8)"
                     : `linear-gradient(135deg, ${primaryColor}, ${accentColor})`,
                 }}
                 disabled={isLoading}
               >
-                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Iniciar Sesión"}
+                {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin text-white" /> : "Iniciar Sesión"}
               </Button>
 
               <AuthConsentNotice />
@@ -227,9 +231,9 @@ export default function Auth() {
 
             <div className="relative my-6 flex items-center justify-center">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
+                <div className="w-full border-t border-blue-500/15" />
               </div>
-              <div className="relative bg-[#0f0f0f] px-3 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+              <div className="relative bg-[#0c1833] px-3 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
                 o acceso rápido
               </div>
             </div>
@@ -239,15 +243,15 @@ export default function Auth() {
               variant="outline"
               disabled
               title="Disponible cuando la verificación de vida en servidor esté implementada"
-              className="h-12 w-full border-cyan-500/20 bg-cyan-500/5 text-cyan-300/50 font-semibold flex items-center justify-center gap-2 cursor-not-allowed"
+              className="h-12 w-full border-blue-500/20 bg-blue-500/5 text-blue-300/60 font-semibold flex items-center justify-center gap-2 cursor-not-allowed rounded-xl"
             >
-              <Camera className="h-5 w-5 text-cyan-400" />
+              <Camera className="h-5 w-5 text-blue-400" />
               Acceso facial temporalmente no disponible
             </Button>
           </div>
 
-          <div className="mt-6 text-center text-xs text-white/30">
-            Powered by <span className="font-semibold tracking-wider text-white/50">ETYMON</span>
+          <div className="mt-6 text-center text-xs text-slate-400/60">
+            Powered by <span className="font-semibold tracking-wider text-blue-300/80">ETYMON</span>
           </div>
 
           <AuthLegalFooter />

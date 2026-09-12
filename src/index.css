@@ -8,7 +8,7 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
+    --background: 0 0% 100%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -20,13 +20,13 @@
     --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
+    --secondary: 210 40% 96.5%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96%;
+    --muted: 210 40% 96.5%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 142 71% 45%;
+    --accent: 217 91% 50%;
     --accent-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
@@ -48,9 +48,9 @@
     --radius: 0.75rem;
 
     /* Role-specific tokens */
-    --rector-accent: 258 80% 55%;
+    --rector-accent: 217 91% 55%;
     --rector-accent-foreground: 0 0% 100%;
-    --rector-light: 258 80% 97%;
+    --rector-light: 217 91% 96%;
 
     --profesor-accent: 195 85% 42%;
     --profesor-accent-foreground: 0 0% 100%;
@@ -60,52 +60,53 @@
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 50%), hsl(217 91% 60%));
     --gradient-accent: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
     --gradient-hero: linear-gradient(135deg, hsl(217 91% 50%), hsl(200 91% 45%));
-    --gradient-rector: linear-gradient(135deg, hsl(258 80% 55%), hsl(270 80% 65%));
+    --gradient-rector: linear-gradient(135deg, hsl(217 91% 55%), hsl(224 80% 60%));
     --gradient-profesor: linear-gradient(135deg, hsl(195 85% 42%), hsl(210 85% 52%));
     --gradient-auth: linear-gradient(145deg, hsl(217 91% 20%) 0%, hsl(230 80% 30%) 40%, hsl(195 85% 35%) 100%);
 
     /* Shadows */
-    --shadow-soft: 0 2px 8px -2px hsl(217 91% 50% / 0.15);
-    --shadow-card: 0 4px 16px -4px hsl(217 91% 50% / 0.1);
-    --shadow-glow: 0 0 20px hsl(217 91% 50% / 0.25);
-    --shadow-glow-rector: 0 0 20px hsl(258 80% 55% / 0.3);
-    --shadow-glow-profesor: 0 0 20px hsl(195 85% 42% / 0.3);
+    --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 2px 10px -2px rgba(15, 23, 42, 0.06), 0 1px 3px -1px rgba(15, 23, 42, 0.04);
+    --shadow-glow: 0 0 20px hsl(217 91% 50% / 0.15);
+    --shadow-glow-rector: 0 0 20px hsl(217 91% 55% / 0.2);
+    --shadow-glow-profesor: 0 0 20px hsl(195 85% 42% / 0.2);
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 217 91% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent: 210 40% 96.5%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 214 32% 91%;
     --sidebar-ring: 217 91% 50%;
 
-    --glass-card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 100%);
-    --glass-card-border: rgba(255, 255, 255, 0.6);
-    --glass-card-highlight: rgba(255, 255, 255, 0.9);
-    --glass-card-shadow: rgba(31, 38, 135, 0.03);
+    --glass-card-bg: #ffffff;
+    --glass-card-border: hsl(214 32% 91%);
+    --glass-card-highlight: #ffffff;
+    --glass-card-shadow: rgba(15, 23, 42, 0.05);
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
+    /* Modo Oscuro: Azul Oscuro Corporativo Profundo */
+    --background: 222 47% 9%; /* #0c1427 */
+    --foreground: 210 40% 98%; /* #f8fafc */
 
-    --card: 222 47% 11%;
+    --card: 222 44% 13%; /* #121c33 */
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 11%;
+    --popover: 222 42% 15%; /* #16223d */
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 217 91% 60%; /* #3b82f6 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --secondary: 222 38% 16%; /* #16213a */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 222 38% 16%;
+    --muted-foreground: 215 20% 68%; /* #9aa8be */
 
-    --accent: 142 71% 45%;
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
@@ -120,39 +121,39 @@
     --destructive: 0 63% 50%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 17%;
+    --border: 222 35% 20%; /* #212e4a */
+    --input: 222 35% 18%; /* #1c2842 */
     --ring: 217 91% 60%;
 
-    /* Role tokens dark */
-    --rector-accent: 258 80% 65%;
-    --rector-light: 258 40% 15%;
+    /* Role tokens dark armonizados con el azul oscuro */
+    --rector-accent: 217 91% 60%;
+    --rector-light: 222 38% 16%;
     --profesor-accent: 195 85% 52%;
-    --profesor-light: 195 40% 13%;
+    --profesor-light: 222 38% 16%;
 
-    --gradient-rector: linear-gradient(135deg, hsl(258 80% 65%), hsl(270 80% 72%));
+    --gradient-rector: linear-gradient(135deg, hsl(217 91% 60%), hsl(224 80% 65%));
     --gradient-profesor: linear-gradient(135deg, hsl(195 85% 52%), hsl(210 85% 62%));
-    --gradient-auth: linear-gradient(145deg, hsl(217 91% 12%) 0%, hsl(230 80% 18%) 40%, hsl(195 85% 22%) 100%);
+    --gradient-auth: linear-gradient(145deg, hsl(222 47% 9%) 0%, hsl(222 44% 14%) 50%, hsl(217 91% 20%) 100%);
 
-    --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.4);
-    --shadow-card: 0 4px 16px -4px hsl(0 0% 0% / 0.3);
+    --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 4px 20px -4px rgba(0, 0, 0, 0.45);
     --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.2);
-    --shadow-glow-rector: 0 0 20px hsl(258 80% 65% / 0.25);
-    --shadow-glow-profesor: 0 0 20px hsl(195 85% 52% / 0.25);
+    --shadow-glow-rector: 0 0 20px hsl(217 91% 60% / 0.2);
+    --shadow-glow-profesor: 0 0 20px hsl(195 85% 52% / 0.2);
 
-    --sidebar-background: 222 47% 8%;
+    --sidebar-background: 224 48% 8%; /* #0a101f */
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent: 222 38% 15%; /* #152038 */
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 20%;
+    --sidebar-border: 222 35% 18%; /* #1d2a45 */
     --sidebar-ring: 217 91% 60%;
 
-    --glass-card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.015) 100%);
-    --glass-card-border: rgba(255, 255, 255, 0.09);
-    --glass-card-highlight: rgba(255, 255, 255, 0.12);
-    --glass-card-shadow: rgba(0, 0, 0, 0.3);
+    --glass-card-bg: hsl(222 44% 13%); /* #121c33 */
+    --glass-card-border: hsl(222 35% 20%); /* #212e4a */
+    --glass-card-highlight: rgba(255, 255, 255, 0.04);
+    --glass-card-shadow: rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -554,38 +555,46 @@
     animation: liquid-glare-sweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 
-  /* Estilizado global de vidrio líquido (Glassmorphism) */
-  
-  /* Sobrescribir de forma global el fondo de las tarjetas de la plataforma */
+  /* Estilizado profesional de tarjetas de la plataforma */
   .bg-card {
     background: var(--glass-card-bg) !important;
     border: 1px solid var(--glass-card-border) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
     box-shadow: 
-      0 12px 32px -8px var(--glass-card-shadow),
+      0 4px 20px -4px var(--glass-card-shadow),
       inset 0 1px 0 0 var(--glass-card-highlight) !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   }
 
   .hover-lift:hover {
-    transform: translateY(-4px) !important;
+    transform: translateY(-2px) !important;
     box-shadow: 
-      0 24px 48px -12px var(--glass-card-shadow),
+      0 12px 28px -6px var(--glass-card-shadow),
       inset 0 1px 0 0 var(--glass-card-highlight) !important;
   }
 
-  /* Header sticky esmerilado */
+  /* Header sticky profesional */
   header.sticky {
-    background: var(--glass-card-bg) !important;
     border-bottom: 1px solid var(--glass-card-border) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-    box-shadow: 0 4px 20px -5px var(--glass-card-shadow) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    box-shadow: 0 2px 10px -3px var(--glass-card-shadow) !important;
   }
 
-  /* Fondo de malla de blobs fluidos de colores */
+  :root header.sticky {
+    background: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  .dark header.sticky {
+    background: rgba(12, 20, 39, 0.92) !important;
+  }
+
+  /* Fondo de malla: desactivado en modo claro (100% blanco y limpio), sutil azul marino en modo oscuro */
   .bg-mesh {
+    display: none;
+  }
+
+  .dark .bg-mesh {
+    display: block;
     position: absolute;
     inset: 0;
     z-index: 1;
@@ -595,43 +604,39 @@
     transition: background 0.8s ease;
   }
 
-  .blob {
+  .dark .blob {
     position: absolute;
     border-radius: 50%;
-    filter: blur(120px);
-    opacity: 0.28;
+    filter: blur(140px);
+    opacity: 0.12;
     will-change: transform;
     animation: float-blob 25s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
   }
 
-  .dark .blob {
-    opacity: 0.42;
-  }
-
-  .blob-1 {
+  .dark .blob-1 {
     width: 60vw;
     height: 60vw;
     top: -15%;
     left: -15%;
-    background: hsl(258, 80%, 55%); /* Rector Accent: Purple */
+    background: hsl(222, 65%, 22%); /* Deep navy blue ambient */
     animation-delay: 0s;
   }
 
-  .blob-2 {
+  .dark .blob-2 {
     width: 55vw;
     height: 55vw;
     bottom: -15%;
     right: -15%;
-    background: hsl(195, 85%, 42%); /* Profesor Accent: Sky Blue */
+    background: hsl(217, 70%, 18%); /* Soft midnight blue */
     animation-delay: -6s;
   }
 
-  .blob-3 {
+  .dark .blob-3 {
     width: 45vw;
     height: 45vw;
     top: 35%;
     left: 45%;
-    background: hsl(217, 91%, 50%); /* Primary: Blue */
+    background: hsl(224, 75%, 15%); /* Navy glow */
     animation-delay: -12s;
   }
 
